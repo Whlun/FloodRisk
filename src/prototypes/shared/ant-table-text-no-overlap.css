@@ -1,0 +1,46 @@
+/**
+ * 原型中 Ant Design Table：长文在各列宽内断行，避免与邻列「文字叠印」。
+ * 由各市州子应用在 style.css 之后 import，以覆盖 .facility-table-wrap 中原先的 nowrap。
+ */
+
+.ant-table,
+.ant-table table {
+  min-width: 0;
+}
+
+/* 非省略号列：在列宽内换行 */
+.ant-table .ant-table-thead > tr > th:not(.ant-table-cell-ellipsis),
+.ant-table .ant-table-tbody > tr > td:not(.ant-table-cell-ellipsis) {
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  vertical-align: top;
+}
+
+.ant-table .ant-table-thead > tr > th:not(.ant-table-cell-ellipsis) {
+  vertical-align: middle;
+}
+
+.ant-table tfoot .ant-table-cell:not(.ant-table-cell-ellipsis) {
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  vertical-align: top;
+}
+
+/* 显式省略号列：保持单行，由 antd 负责截断与 tooltip */
+.ant-table th.ant-table-cell-ellipsis,
+.ant-table td.ant-table-cell-ellipsis,
+.ant-table tfoot td.ant-table-cell-ellipsis {
+  white-space: nowrap !important;
+  vertical-align: middle;
+}
+
+/* 固定列：内联操作/按钮区不被父格 overflow 裁切（与设施列表既有策略一致） */
+.facility-table-wrap .ant-table-cell-fix-left,
+.facility-table-wrap .ant-table-cell-fix-right {
+  overflow: visible;
+  vertical-align: middle;
+}

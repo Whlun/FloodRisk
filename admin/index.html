@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico?v=1775201871532">
+  <title>未命名项目 - Axhub Make</title>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #dfe4f7 0%, #c7c4e8 100%);
+      min-height: 100vh;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header-title {
+      color: #333;
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .header-subtitle {
+      color: #999;
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .main-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      padding: 24px;
+    }
+
+    .api-info-banner {
+      background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+      border-bottom: 1px solid #91d5ff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .api-info-banner svg {
+      width: 20px;
+      height: 20px;
+      color: #1890ff;
+    }
+
+    .api-info-text {
+      color: #0050b3;
+      font-size: 14px;
+    }
+
+    .api-link {
+      color: #1890ff;
+      text-decoration: none;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    .api-link:hover {
+      text-decoration: underline;
+    }
+
+    .item-name-cell {
+      font-weight: 500;
+      color: #262626;
+    }
+
+    .item-key {
+      color: #8c8c8c;
+      font-size: 13px;
+      font-weight: 400;
+      margin-left: 8px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Ant Design overrides
+    .ant-tabs {
+      padding: 0 24px;
+    }
+
+    .ant-tabs-nav {
+      margin-bottom: 0 !important;
+    }
+
+    .ant-tabs-tab {
+      font-size: 16px;
+      padding: 12px 0;
+    }
+
+    .ant-tabs-content-holder {
+      padding: 24px;
+    }
+
+    .ant-table {
+      font-size: 14px;
+    }
+
+    .ant-btn {
+      font-size: 14px;
+    }
+
+    .ant-empty {
+      padding: 60px 0;
+    }
+
+    .ant-badge-count {
+      background: #1890ff;
+    } */
+
+    .loading-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+    }
+
+    /* 表格优化 */
+    /* .ant-table-wrapper {
+      overflow-x: auto;
+    }
+
+    .ant-table-cell {
+      vertical-align: middle !important;
+    } */
+
+    /* 封面图片悬停效果 */
+    .cover-image-container {
+      transition: transform 0.2s ease;
+    }
+
+    .cover-image-container:hover {
+      transform: scale(1.05);
+    }
+
+    /* 代码样式 */
+    code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    }
+
+    /* 首屏：在 React 与 index.css 就绪前避免 #root 透底发白（远程高延迟时更明显） */
+    #root {
+      min-height: 100vh;
+      background: hsl(240 6% 96%);
+    }
+
+    .axhub-loading-bar {
+      width: min(320px, calc(100vw - 48px));
+      height: 6px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .axhub-loading-bar__fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #fb923c 0%, #ea580c 100%);
+      transition: width 0.35s ease;
+    }
+  </style>
+  <!-- 样式须在入口 module 之前，否则易出现整页无样式→有样式的闪烁（FOUC） -->
+  <link rel="stylesheet" href="/assets/AppDialogProvider.css?v=1775201871532">
+  <link rel="stylesheet" href="/assets/index.css?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/_commonjsHelpers.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/vendor-react.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/preload-helper.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/_commonjs-dynamic-modules.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/vendor-common.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/AppDialogProvider.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/vendor-antd.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/vendor-assistant.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/use-feedback-bridge.js?v=1775201871532">
+  <link rel="modulepreload" href="/assets/chunks/vendor-export.js?v=1775201871532">
+</head>
+
+<body data-axhub-page="admin">
+  <div id="root">
+    <div id="axhub-admin-boot-loading" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;color:#64748b;background:hsl(240 6% 96%)">
+      <div id="axhub-admin-boot-loading-title" style="font-size:15px;font-weight:600;color:#334155">正在加载管理台…</div>
+      <div class="axhub-loading-bar"><div id="axhub-admin-boot-loading-bar" class="axhub-loading-bar__fill"></div></div>
+      <div id="axhub-admin-boot-loading-hint" style="max-width:420px;font-size:12px;color:#94a3b8">首次打开需下载约 2–8MB 脚本，外网访问可能需 30–90 秒，请稍候</div>
+    </div>
+  </div>
+  <script id="axhub-admin-boot-watchdog">
+    (function () {
+      var BOOT_MS = 120000;
+      var VERSION = '1775201871532';
+      var titleEl = document.getElementById('axhub-admin-boot-loading-title');
+      var hintEl = document.getElementById('axhub-admin-boot-loading-hint');
+      var barEl = document.getElementById('axhub-admin-boot-loading-bar');
+      var started = Date.now();
+      var progress = 6;
+      function setProgress(next) {
+        progress = Math.max(progress, Math.min(96, next));
+        if (barEl) barEl.style.width = progress + '%';
+      }
+      function assetProgress() {
+        var total = 0;
+        var loaded = 0;
+        try {
+          var links = document.querySelectorAll('link[rel="modulepreload"], script[type="module"]');
+          total = links.length;
+          var entries = performance.getEntriesByType('resource');
+          for (var i = 0; i < links.length; i += 1) {
+            var href = links[i].getAttribute('href') || links[i].getAttribute('src') || '';
+            if (!href) continue;
+            for (var j = 0; j < entries.length; j += 1) {
+              var entry = entries[j];
+              if (entry.name && entry.name.indexOf(href.split('/').pop() || href) !== -1 && entry.responseEnd > 0) {
+                loaded += 1;
+                break;
+              }
+            }
+          }
+        } catch (err) {}
+        if (!total) return 0;
+        return Math.round((loaded / total) * 70);
+      }
+      function showBootError(msg) {
+        if (document.getElementById('axhub-boot-error') || document.querySelector('.pc-layout')) return;
+        var pre = document.createElement('pre');
+        pre.id = 'axhub-boot-error';
+        pre.style.cssText =
+          'position:fixed;z-index:2147483647;inset:12px;margin:0;padding:16px;overflow:auto;background:#fff;border:1px solid #fca5a5;color:#991b1b;font:12px/1.5 ui-monospace,Menlo,monospace;';
+        pre.textContent = msg;
+        document.body.appendChild(pre);
+      }
+      function pendingAssets() {
+        var names = [];
+        try {
+          var entries = performance.getEntriesByType('resource');
+          for (var i = 0; i < entries.length; i += 1) {
+            var e = entries[i];
+            if (!e.name || e.name.indexOf('/assets/') === -1) continue;
+            if (e.transferSize === 0 && e.duration === 0) names.push(e.name.split('/').pop());
+          }
+        } catch (err) {}
+        return names;
+      }
+      function clearBootPlaceholder() {
+        var boot = document.getElementById('axhub-admin-boot-loading');
+        if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+      }
+      var tick = setInterval(function () {
+        if (document.querySelector('.pc-layout')) {
+          clearBootPlaceholder();
+          clearInterval(tick);
+          clearTimeout(deadline);
+          return;
+        }
+        var sec = Math.round((Date.now() - started) / 1000);
+        if (titleEl) titleEl.textContent = '正在加载管理台…（' + sec + ' 秒）';
+        setProgress(Math.max(6 + sec * 2, assetProgress()));
+        var pending = pendingAssets();
+        if (hintEl && pending.length) {
+          hintEl.textContent = '仍在加载：' + pending.slice(0, 3).join('、') + (pending.length > 3 ? ' 等' : '');
+        }
+      }, 1000);
+      var deadline = setTimeout(function () {
+        if (document.querySelector('.pc-layout')) return;
+        var host = location.hostname;
+        var localHint =
+          host !== '127.0.0.1' && host !== 'localhost'
+            ? '\n\n建议先在本机浏览器打开：http://127.0.0.1:' + (location.port || '51720') + '/\n若本机可开、局域网 IP 不行，多为网络或浏览器扩展拦截大文件。'
+            : '';
+        showBootError(
+          '管理台加载超时（已超过 ' + BOOT_MS / 1000 + ' 秒）：' + location.href +
+            '\n\n请打开开发者工具 → Network，查看 vendor-common.js / index.js 是否失败或一直 pending。' +
+            '\n然后：硬刷新（Ctrl+Shift+R / Cmd+Shift+R）或清除站点缓存后重试。' +
+            localHint
+        );
+      }, BOOT_MS);
+      window.addEventListener(
+        'error',
+        function (ev) {
+          if (document.querySelector('.pc-layout')) return;
+          var msg = (ev.error && ev.error.stack) || ev.message || String(ev);
+          showBootError('管理台脚本运行失败：\n\n' + msg);
+        },
+        true
+      );
+    })();
+  </script>
+  <script type="module" src="/assets/index.js?v=1775201871532"></script>
+</body>
+
+</html>

@@ -1,0 +1,10 @@
+{
+  "npm.exclude": [
+    "**/node_modules/**",
+    "**/.cursor/**",
+    "**/dist/**"
+  ],
+  "terminal.integrated.env.osx": {
+    "PATH": "/Users/whlun/.nvm/versions/node/v18.20.8/bin:${env:PATH}"
+  }
+}

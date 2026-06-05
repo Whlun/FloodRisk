@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 仅「登录时自动开一次」：无 KeepAlive，退出或崩溃后不会自动重启。Node 路径为本机 nvm 当前版本，升级/切换 Node 后请改 ProgramArguments 第一项 -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.axhub.axhubmake.vite</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/whlun/Documents/AxhubMake</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/whlun/.nvm/versions/node/v18.20.8/bin/node</string>
+		<string>--import</string>
+		<string>/Users/whlun/Documents/AxhubMake/scripts/network-interfaces-shim.mjs</string>
+		<string>/Users/whlun/Documents/AxhubMake/node_modules/vite/bin/vite.js</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/Users/whlun/Documents/AxhubMake/.axhub/make/vite-launchd.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/whlun/Documents/AxhubMake/.axhub/make/vite-launchd.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,777 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 内涝风险指数：布局与视觉对齐韶山设施管理 · 事件统计（eco-stat） */
+
+.facility-view.dq-risk-index-page {
+  padding-bottom: 8px;
+}
+
+.dq-risk-index-hero-card .ant-card-body {
+  padding-bottom: 12px;
+}
+
+.dq-risk-index-formula {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 12px 14px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+.dq-risk-index-formula-title {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.dq-risk-index-formula-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dq-risk-index-formula-step {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.dq-risk-index-formula-step-no {
+  flex-shrink: 0;
+  color: #1e5bb5;
+  font-weight: 600;
+}
+
+.dq-risk-index-formula-weights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 22px;
+}
+
+.dq-risk-index-formula-weights .ant-tag {
+  margin: 0;
+  font-size: 12px;
+}
+
+.dq-risk-index-formula-demo {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e8e8e8;
+}
+
+.dq-risk-index-formula-demo-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.dq-risk-index-formula-demo-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.dq-risk-index-formula-empty {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.dq-risk-index-meta {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+/* —— eco-stat 栅格（与韶山水环境设施管理系统 / 生态整治统计页同源） —— */
+.eco-stat-metrics-row > .ant-col {
+  display: flex;
+  align-items: stretch;
+}
+
+.eco-stat-metric-card {
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.eco-stat-metric-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+}
+
+.eco-stat-metric-foot {
+  margin-top: auto;
+  padding-top: 8px;
+  min-height: 40px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.eco-stat-chart-row > .ant-col {
+  display: flex;
+  align-items: stretch;
+}
+
+.eco-stat-chart-row .ant-card {
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.eco-stat-chart-row .ant-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 352px;
+}
+
+.eco-stat-echart-host {
+  width: 100%;
+  height: 288px;
+  min-height: 288px;
+}
+
+.eco-stat-chart-empty {
+  flex: 1;
+  min-height: 288px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eco-stat-split-row > .ant-col {
+  display: flex;
+  align-items: stretch;
+}
+
+.eco-stat-split-row .ant-card {
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.eco-stat-split-row .ant-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 352px;
+}
+
+.eco-stat-split-row .eco-stat-split-table-wrap {
+  flex: 1;
+  overflow: auto;
+  max-height: 304px;
+}
+
+.dq-risk-index-hero-card .ant-card-body {
+  padding: 16px 20px 12px;
+}
+
+.dq-risk-index-hero-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.dq-risk-index-hero-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dq-risk-index-hero-col--gauge {
+  padding-right: 16px;
+  border-right: 1px solid #f0f0f0;
+}
+
+.dq-risk-index-hero-col--trend {
+  padding-left: 16px;
+}
+
+.dq-risk-index-hero-col--gauge .risk-index-gauge-panel--horizontal {
+  width: 100%;
+}
+
+.dq-risk-index-hero-col--gauge .risk-index-gauge-chart--horizontal {
+  flex: 0 0 42%;
+  width: auto;
+  max-width: 280px;
+  min-width: 200px;
+}
+
+.dq-risk-index-hero-col--gauge .risk-index-gauge-side {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.dq-risk-index-hero-trend {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-left: 0;
+  border-left: none;
+}
+
+.dq-risk-index-hero-trend-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.dq-risk-index-hero-trend-chart {
+  flex: 1;
+  width: 100%;
+  height: 168px;
+  min-height: 168px;
+}
+
+.dq-risk-index-trend-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 168px;
+}
+
+.dq-risk-index-trend-footnote {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.dq-risk-index-hero-trend-empty {
+  flex: 1;
+  min-height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 992px) {
+  .dq-risk-index-hero-row {
+    flex-direction: column;
+  }
+
+  .dq-risk-index-hero-col--gauge {
+    padding-right: 0;
+    border-right: none;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .dq-risk-index-hero-col--trend {
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .dq-risk-index-hero-col--gauge .risk-index-gauge-chart--horizontal {
+    flex: 0 0 240px;
+    width: 240px;
+    max-width: none;
+  }
+
+  .risk-index-gauge-chart--horizontal.eco-stat-echart-host {
+    height: 140px;
+  }
+
+  .risk-index-gauge-panel--horizontal .risk-index-gauge-chart--horizontal {
+    height: 140px;
+  }
+}
+
+.dq-risk-index-metrics-inline-row {
+  flex-wrap: nowrap;
+}
+
+.dq-risk-index-metrics-inline-row > .ant-col {
+  display: flex;
+  min-width: 0;
+}
+
+@media (max-width: 992px) {
+  .dq-risk-index-metrics-inline-row {
+    flex-wrap: wrap;
+  }
+
+  .dq-risk-index-metrics-inline-row > .ant-col {
+    flex: 1 1 100% !important;
+  }
+}
+
+/* 指数仪表盘（嵌入 eco-stat 卡片） */
+.risk-index-gauge-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.risk-index-gauge-panel--horizontal {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.risk-index-gauge-panel--horizontal .risk-index-gauge-chart--horizontal {
+  width: 260px;
+  height: 148px;
+  min-height: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.risk-index-gauge-chart--horizontal.eco-stat-echart-host {
+  height: 148px;
+  min-height: 0;
+}
+
+.risk-index-gauge-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.risk-index-gauge-head--horizontal {
+  margin-bottom: 8px;
+}
+
+.risk-index-gauge-panel--horizontal .risk-index-gauge-value-row {
+  justify-content: flex-start;
+  margin-top: 0;
+}
+
+.risk-index-gauge-panel--horizontal .risk-index-gauge-value {
+  font-size: 42px;
+}
+
+.risk-index-gauge-panel--horizontal .risk-index-gauge-trend {
+  text-align: left;
+}
+
+.risk-index-gauge-duration-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.risk-index-gauge-episode-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #f0f0f0;
+}
+
+.risk-index-gauge-episode-range {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.risk-index-gauge-episode-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.risk-index-gauge-episode-tags .ant-tag {
+  margin: 0;
+  font-size: 12px;
+}
+
+.risk-index-gauge-foot--horizontal {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  border-top: none;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.risk-index-gauge-panel--compact .risk-index-gauge-chart {
+  margin-top: 0;
+}
+
+.risk-index-gauge-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.risk-index-gauge-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.risk-index-gauge-badge {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+
+.risk-index-gauge-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-top: -12px;
+}
+
+.risk-index-gauge-value {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.risk-index-gauge-tier {
+  font-size: 15px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.risk-index-gauge-trend {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.risk-index-gauge-foot {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  border-top: 1px solid #f0f0f0;
+}
+
+.dq-risk-index-more-link {
+  padding-left: 0;
+  margin-top: 4px;
+}
+
+.dq-risk-index-point-name-cell {
+  max-width: 100%;
+}
+
+.dq-risk-index-point-name-cell .ant-typography {
+  max-width: 100%;
+}
+
+.dq-risk-index-point-new-tag {
+  margin: 0 !important;
+  font-size: 11px;
+  line-height: 18px;
+  flex-shrink: 0;
+}
+
+.dq-risk-index-point-table-wrap {
+  max-height: none;
+}
+
+.dq-risk-index-depth-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dq-risk-index-depth-trend {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.dq-risk-index-level-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.dq-risk-index-level-change-arrow {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.dq-risk-index-level-log-wrap {
+  max-height: none;
+}
+
+.dq-risk-index-summary {
+  margin: 0 0 12px !important;
+  padding: 12px 16px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  line-height: 1.6;
+}
+
+.dq-risk-index-page-title,
+.risk-index-gauge-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dq-risk-index-help-icon {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  cursor: help;
+}
+
+.dq-risk-index-help-icon--compact {
+  font-size: 13px;
+}
+
+.dq-risk-index-help-icon:hover {
+  color: #1e5bb5;
+}
+
+.dq-risk-index-help-popover .dq-risk-index-help-content {
+  max-width: 320px;
+}
+
+.dq-risk-index-help-popover--detail .dq-risk-index-help-content {
+  max-width: 400px;
+}
+
+.dq-risk-index-help-popover .dq-risk-index-help-section {
+  margin-bottom: 10px !important;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.dq-risk-index-help-popover .dq-risk-index-help-section--last {
+  margin-bottom: 0 !important;
+}
+
+.dq-risk-index-help-tier-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.dq-risk-index-help-tier-seg {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.dq-risk-index-help-tier-seg span:first-child {
+  font-weight: 600;
+}
+
+.dq-risk-index-help-tier-seg--low {
+  background: rgba(82, 196, 26, 0.12);
+  color: #389e0d;
+}
+
+.dq-risk-index-help-tier-seg--medium {
+  background: rgba(250, 173, 20, 0.14);
+  color: #d48806;
+}
+
+.dq-risk-index-help-tier-seg--high {
+  background: rgba(255, 125, 0, 0.14);
+  color: #d46b08;
+}
+
+/* 指数参数配置弹窗：双列表单，内容区可滚动 */
+.dq-risk-index-config-modal .ant-modal-body {
+  padding-top: 16px;
+}
+
+.dq-risk-index-config-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.dq-risk-index-config-form .dq-risk-index-config-section-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.dq-risk-index-config-form .dq-risk-index-config-hint {
+  margin: 0 0 8px !important;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dq-risk-index-config-form .ant-form-item {
+  margin-bottom: 12px;
+}
+
+.dq-risk-index-config-form .ant-form-item .ant-form-item-extra {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 持续内涝加重：标题与启用开关同一行，档位表格式排列 */
+.dq-risk-index-duration-section {
+  margin-bottom: 4px;
+}
+
+.dq-risk-index-duration-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.dq-risk-index-duration-section-head .dq-risk-index-config-section-title {
+  margin-bottom: 0;
+}
+
+.dq-risk-index-duration-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dq-risk-index-duration-enable-label {
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.dq-risk-index-duration-section .dq-risk-index-config-hint {
+  margin-bottom: 12px !important;
+}
+
+.dq-risk-index-duration-rules {
+  margin-bottom: 0;
+}
+
+.dq-risk-index-duration-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dq-risk-index-duration-table-head,
+.dq-risk-index-duration-table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+  column-gap: 16px;
+  align-items: center;
+}
+
+.dq-risk-index-duration-table-head {
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.dq-risk-index-duration-required {
+  margin-right: 2px;
+  color: #ff4d4f;
+  font-family: SimSun, sans-serif;
+}
+
+.dq-risk-index-duration-table-row {
+  padding: 10px 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.dq-risk-index-duration-table-row .dq-risk-index-duration-field {
+  margin-bottom: 0;
+}
+
+.dq-risk-index-duration-col-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+}
+
+.dq-risk-index-duration-col-action .ant-btn {
+  padding-inline: 4px;
+}
+
+.dq-risk-index-duration-action-placeholder {
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  user-select: none;
+}
+
+.dq-risk-index-duration-add {
+  margin-top: 0;
+}
+
+.dq-risk-index-duration-disabled-hint {
+  display: block;
+  font-size: 12px;
+}
+
+@media (max-width: 576px) {
+  .dq-risk-index-duration-section-head {
+    flex-wrap: wrap;
+  }
+
+  .dq-risk-index-duration-table-head,
+  .dq-risk-index-duration-table-row {
+    grid-template-columns: 1fr 1fr 56px;
+    column-gap: 8px;
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 992px) {
+  .eco-stat-chart-row .ant-card .ant-card-body,
+  .eco-stat-split-row .ant-card .ant-card-body {
+    min-height: 300px;
+  }
+}

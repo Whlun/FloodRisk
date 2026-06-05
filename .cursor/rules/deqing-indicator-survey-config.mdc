@@ -1,0 +1,17 @@
+---
+description: 德清内涝原型 — 指标普查/条件赋分禁止按编码硬编码，须配置驱动
+globs: src/prototypes/deqing-waterlogging-risk/**/*
+alwaysApply: false
+---
+
+# 德清指标：禁止硬编码（配置驱动）
+
+修改本目录下 **survey / conditionalScoring / auxiliaryCondition / 附录 B 专用信息** 时：
+
+1. **先读** `src/prototypes/deqing-waterlogging-risk/rules-indicator-config.md`。
+2. **不区分预置与新增**：逻辑只读 `RiskIndicatorRow.survey` 与指标列表 state；`initialRiskIndicators` 仅允许在 `index.tsx` 启动加载。
+3. **禁止**：`if (code === 'FM_LL_*')` 控制 UI/条件选项（重现期族 `isDesignReturnPeriodCode`、附录数据表除外）；`findLowLying*` / `FmLlCollect*`；为单指标新建专用 Panel。
+4. **新增能力**：扩展 `IndicatorSurveyConfigFields` 或 `types.ts` 上的 `survey` 字段，让所有指标在「普查关联」Tab 可配。
+5. **改完运行**：`npm run check:deqing-indicators`（须在回复用户前执行并通过）。
+
+辅助条件数值范围写在 `survey.auxiliaryCondition.numericRange`，不要为辅助 fieldKey 在 `numericIndicatorConstraints.ts` 新增硬编码项。

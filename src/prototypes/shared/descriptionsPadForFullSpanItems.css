@@ -1,0 +1,13 @@
+/**
+ * 占位单元格：填满 Descriptions 未排满的一行，使下一项 span=column 的地图独占新行全宽。
+ */
+.axhub-desc-fullspan-pad > th,
+.axhub-desc-fullspan-pad > td {
+  padding: 0 !important;
+  height: 0 !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  overflow: hidden !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}

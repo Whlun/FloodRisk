@@ -1,0 +1,3672 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "YouSheBiaoTiHei";
+  src: url("./assets/fonts/youshebiaotihei.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* 与「生态整治 / 韶山水环境设施管理系统」同源：湘潭蓝大屏 */
+:root {
+  --primary-blue: #1e5bb5;
+  --primary-blue-dark: #164a94;
+  --primary-blue-light: #e8f0fc;
+  --accent-cyan: #02a7f0;
+  --metric-good: #08cc91;
+  /* 左右侧看板区域：纯白底 */
+  --panel-bg: #ffffff;
+  --panel-border: #d7d7d7;
+  --text-title: #333;
+  --text-muted: #666;
+  /* 设施详情弹窗（与韶山水环境设施管理系统同源变量） */
+  --border-color: #e8e8e8;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+}
+
+.zht-root {
+  /* 无顶栏后须占满视口高度，否则 flex:1 的地图区高度会为 0、画布不可见 */
+  height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #0b1a2e;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.zht-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
+/* 地图列 + 仅「地图搜索」侧栏：与浏览器全屏同一容器；分析看板在全屏外，与搜索互斥 */
+.zht-body-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.zht-left {
+  /* 与 index.tsx 中 ZHT_LEFT_CARD_* 常量一致 */
+  --zht-stat-gap: 6px;
+  /* 初始行高，首帧后由脚本写入 */
+  --zht-stat-row-h: 56px;
+
+  width: min(380px, 100vw);
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 0;
+  height: 100%;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  z-index: 10;
+  padding: 10px 10px 12px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.zht-left.zht-left--scroll {
+  overflow-y: auto;
+}
+
+/* 四标题 + 24 卡自上而下瀑布式排列；脚本按视口高度设置 --zht-stat-row-h */
+.zht-left-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: min-content;
+}
+
+.zht-section-title {
+  /* 左栏字号固定，不随行高缩放（与脚本推算一致） */
+  font-family: "YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-title);
+  margin: 0 0 4px;
+  line-height: 1.25;
+}
+
+.zht-section-title span.pipe {
+  color: var(--accent-cyan);
+  margin-right: 4px;
+}
+
+.zht-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: var(--zht-stat-row-h);
+  gap: var(--zht-stat-gap);
+  min-height: 0;
+}
+
+.zht-stat-card {
+  position: relative;
+  border-radius: 4px;
+  padding: 8px 6px;
+  text-align: center;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* 无鼠标悬浮态；仅选中态需要过渡 */
+  transition: box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.zht-stat-card--disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.zht-stat-card--active {
+  box-shadow: 0 0 0 2px #02a7f0, 0 4px 14px rgba(2, 167, 240, 0.35);
+  filter: saturate(1.05);
+}
+
+/* 设计稿：生态整治 — 浅绿底、深绿字（设施概况 / 水利工程 / 应急协同为蓝卡） */
+.zht-stat-card--green {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+}
+
+.zht-stat-card--green .zht-stat-value {
+  color: #1b5e20;
+}
+
+.zht-stat-card--green .zht-stat-label {
+  color: #33691e;
+}
+
+/* 设计稿：设施概况 / 水利工程 / 应急协同 — 浅蓝底、深蓝字 */
+.zht-stat-card--blue {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+}
+
+.zht-stat-card--blue .zht-stat-value {
+  color: #0d47a1;
+}
+
+.zht-stat-card--blue .zht-stat-label {
+  color: #1565c0;
+}
+
+.zht-stat-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: #5c4a00;
+  background: #ffeb3b;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-variant-numeric: tabular-nums;
+}
+
+.zht-stat-label {
+  font-size: 13px;
+  line-height: 1.25;
+  margin-top: 4px;
+}
+
+.zht-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.08;
+}
+
+/* 地图列：支持指标明细叠层铺满（左栏与右栏之间） */
+.zht-map-drawer-stack {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zht-map-shell {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  /* 兜底：避免父级高度计算异常时地图区塌成 0 高度 */
+  min-height: min(480px, 50dvh);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* 瓦片加载前避免透出大屏深色底，被误认为「无底图」 */
+  background: #e8edf4;
+}
+
+/* 雨水/污水管网：底部管线列表 — 放在 `.zht-map-shell` 内文档流末尾，展开占用高度、压缩 `.zht-maplibre-stack`，避免整块叠在地图上遮挡行政区划等 DOM Marker（旧方案 absolute+z-index 必然压住地图栈）。宿主用 max-height 从底部露出，动画与原先滑入接近 */
+/* 展开态 z-index > .zht-map-vertical-toolbar(50)，盖住左侧工具条溢出到抽屉区域的像素 */
+.zht-pipe-bottom-drawer-host {
+  position: relative;
+  z-index: 0;
+  flex-shrink: 0;
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: max-height 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zht-pipe-bottom-drawer-host--open {
+  z-index: 55;
+  max-height: min(380px, 38dvh);
+  pointer-events: auto;
+}
+
+.zht-pipe-bottom-drawer {
+  /* 约可见 6 条数据行 + 表头 + 顶栏（略小于半屏） */
+  height: min(380px, 38dvh);
+  max-height: min(380px, 38dvh);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--panel-border);
+  box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.1);
+}
+
+.zht-pipe-bottom-drawer__hd {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  background: #fafbfd;
+}
+
+/* 标题 + 搜索筛选同一行（窄屏时筛选块换行） */
+.zht-pipe-bottom-drawer__hd-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.zht-pipe-bottom-drawer__title {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-title);
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.zht-pipe-bottom-drawer__hd-filters {
+  flex: 1;
+  min-width: 0;
+}
+
+.zht-pipe-bottom-drawer__hd-filters .ant-input-search {
+  vertical-align: middle;
+}
+
+.zht-pipe-bottom-drawer__hd-actions {
+  flex-shrink: 0;
+}
+
+.zht-pipe-bottom-drawer__pipe {
+  color: var(--accent-cyan);
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+.zht-pipe-bottom-drawer__close {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.zht-pipe-bottom-drawer__body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 10px;
+}
+
+.zht-pipe-bottom-drawer__body .ant-table {
+  font-size: 13px;
+}
+
+/* 表头单行展示，避免「起点管底高程」等长标题折行 */
+.zht-pipe-bottom-drawer__body .ant-table-thead > tr > th,
+.zht-pipe-bottom-drawer__body .ant-table-thead > tr > th.ant-table-cell {
+  white-space: nowrap;
+}
+
+/* 指标明细铺满地图列：宿主不拦截点击，滑入面板单独接收指针 */
+/* z-index 须高于 .zht-map-vertical-toolbar(50)，否则地图左侧工具条会压在卡片网格上 */
+.zht-stat-drawer-map-host {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* 从右侧滑入（类名 --open 由脚本在下一帧添加以触发动画） */
+.zht-stat-drawer-map-host .zht-stat-drawer--overlay {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.12);
+  will-change: transform;
+  transform: translateX(100%);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zht-stat-drawer-map-host--open .zht-stat-drawer--overlay {
+  transform: translateX(0);
+}
+
+/* —— 右侧栏：左侧指标点击后，与默认分析看板同栏切换的明细区 —— */
+.zht-right-rail.zht-right-rail--stat-drawer {
+  padding: 0;
+  gap: 0;
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+.zht-stat-drawer.zht-stat-drawer--rail {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* —— 右侧栏：顶栏「报警」切换，与指标明细同栏位（便于地图联动） —— */
+.zht-right-rail.zht-right-rail--alarm-rail {
+  padding: 0;
+  gap: 0;
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+/* 右栏约 400px 宽时 `zht-stat-drawer__grid` 自然单列；报警卡片区保持与指标卡同网格语义 */
+.zht-alarm-rail__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-level {
+  flex-shrink: 0;
+  min-width: 0;
+  text-align: left;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-region {
+  color: var(--primary-blue);
+  background: #e8f0fc;
+  border-color: #c5d9f5;
+}
+
+/* 报警级别标签：复用 `.zht-stat-drawer-card__tag` 统一样式，仅覆盖级别色板 */
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l1 {
+  color: #cf1322;
+  background: #fff1f0;
+  border-color: #ffa39e;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l2 {
+  color: #d46b08;
+  background: #fff7e6;
+  border-color: #ffd591;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l3 {
+  color: #ad6800;
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l4 {
+  color: #1d39c4;
+  background: #f0f5ff;
+  border-color: #adc6ff;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l4,
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l3,
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l2,
+.zht-alarm-rail-card .zht-alarm-rail__card-level--l1 {
+  box-shadow: none;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 10px;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: #fff1f0;
+  border-radius: 4px;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-ico {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-ico--l1 {
+  color: #ff4d4f;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-ico--l2 {
+  color: #fa8c16;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-ico--l3 {
+  color: #d4b106;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-ico--l4 {
+  color: #2f54eb;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-title);
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-val {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-val--l1 {
+  color: #ff4d4f;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-val--l2 {
+  color: #fa8c16;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-val--l3 {
+  color: #d4b106;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-detail-val--l4 {
+  color: #2f54eb;
+}
+
+.zht-alarm-rail-card .zht-alarm-rail__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zht-alarm-rail__table-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.zht-alarm-rail__table-wrap .action-btn.ant-btn {
+  padding: 0 4px !important;
+  height: auto !important;
+  font-size: 13px !important;
+}
+
+.zht-alarm-rail-card--clickable {
+  cursor: pointer;
+}
+
+.zht-alarm-rail-table__row--clickable {
+  cursor: pointer;
+}
+
+.zht-alarm-rail__btn.ant-btn-sm {
+  padding: 0 10px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.zht-alarm-rail__btn--blue {
+  color: #1677ff !important;
+  border-color: #1677ff !important;
+  background: #fff !important;
+}
+
+.zht-alarm-rail__btn--blue:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.zht-alarm-rail__btn--green {
+  color: #52c41a !important;
+  border-color: #52c41a !important;
+  background: #fff !important;
+}
+
+.zht-alarm-rail__btn--green:hover {
+  color: #73d13d !important;
+  border-color: #73d13d !important;
+}
+
+/* —— 报警铺满 overlay：首行同 `ZhtLeftStatDrawer`（收回｜标题｜弹性留白｜视图切换｜关闭）；筛选第二行 `zht-stat-drawer__filters` —— */
+.zht-alarm-rail__overlay-hd-top .zht-stat-drawer__title {
+  flex: 0 1 auto;
+  max-width: 14em;
+  min-width: 0;
+}
+
+.zht-alarm-rail__overlay-hd-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.zht-alarm-rail__overlay-view-group {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.zht-alarm-rail__view-toggle--active.zht-stat-drawer__expand {
+  color: var(--primary-blue, #1677ff);
+  background: rgba(22, 119, 255, 0.08);
+  border-radius: 6px;
+}
+
+.zht-alarm-rail__overlay-hd-top .zht-stat-drawer__close {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.zht-alarm-rail__segmented.ant-segmented {
+  background: #f5f5f5;
+}
+
+.zht-alarm-rail__overlay-body.zht-stat-drawer__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 铺满：恢复与指标抽屉一致的多列卡片网格（右栏 rail 仍单列） */
+.zht-alarm-rail__grid.zht-alarm-rail__grid--overlay {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+.zht-alarm-rail__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.zht-alarm-rail__table-wrap .ant-table {
+  font-size: 13px;
+}
+
+.zht-alarm-rail-table__val--orange {
+  color: #fa8c16;
+  font-weight: 500;
+}
+
+.zht-alarm-rail-table__val--blue {
+  color: #1677ff;
+  font-weight: 500;
+}
+
+.zht-alarm-rail-table__val--red {
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.zht-alarm-rail-table__row--highlight > td.ant-table-cell {
+  background: #e6f7ff !important;
+}
+
+.zht-alarm-rail-table__loc-link.ant-btn {
+  padding: 0 4px;
+}
+
+.zht-stat-drawer__hd {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* 展开 | 标题 | 关闭：单行、垂直居中、图标与字同高对齐 */
+.zht-stat-drawer__hd-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.zht-stat-drawer__expand {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--primary-blue);
+}
+
+.zht-stat-drawer__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  /* 与左栏 `.zht-section-title`（设施概况等）同款字体与字号 */
+  font-family: "YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-title);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zht-stat-drawer__pipe {
+  color: var(--accent-cyan);
+  margin-right: 4px;
+}
+
+.zht-stat-drawer__stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  font-size: 13px;
+  padding-left: 36px;
+}
+
+.zht-stat-drawer__stat--on {
+  color: #089944;
+  font-weight: 600;
+}
+
+.zht-stat-drawer__stat--off {
+  color: #8c8c8c;
+  font-weight: 600;
+}
+
+.zht-stat-drawer__stat--al {
+  color: #f5222d;
+  font-weight: 600;
+}
+
+.zht-stat-drawer__stat-note {
+  color: #999;
+  font-size: 12px;
+}
+
+.zht-stat-drawer__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.zht-stat-drawer__filters {
+  flex-shrink: 0;
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* 指标明细筛选行：三列栅格充满容器，控件宽度随容器自适应 */
+.zht-stat-drawer__filters-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.zht-stat-drawer__filters-grid > .zht-stat-drawer__filter-item,
+.zht-stat-drawer__filters-grid > .zht-stat-drawer__filter-item.ant-select {
+  width: 100%;
+}
+
+.zht-stat-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 14px 14px;
+}
+
+.zht-stat-drawer__empty {
+  padding: 48px 12px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.zht-stat-drawer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.zht-stat-drawer-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  background: #fafbff;
+}
+
+/* 与地图 POI 同源详情：整卡可点 */
+.zht-stat-drawer-card--poi-clickable {
+  cursor: pointer;
+}
+
+.zht-stat-drawer-card--poi-clickable:hover {
+  border-color: #c5d9f5;
+  background: #fff;
+}
+
+.zht-stat-drawer-card--poi-clickable:focus-visible {
+  outline: 2px solid rgba(22, 119, 255, 0.45);
+  outline-offset: 1px;
+}
+
+/* 地址行「在地图中定位」后，与 `zht-search-result-card--selected` 同档 */
+.zht-stat-drawer-card--locate-active {
+  border-color: #fa8c16;
+  background: linear-gradient(180deg, rgba(255, 248, 235, 0.98) 0%, #fff 100%);
+  /* 仅用 border 描边，避免与 box-shadow 环叠加造成右/底边「双线」 */
+  box-shadow: 0 4px 12px rgba(250, 140, 22, 0.2);
+}
+
+.zht-stat-drawer-card--locate-active.zht-stat-drawer-card--poi-clickable:hover {
+  border-color: #d46b08;
+  background: linear-gradient(180deg, rgba(255, 248, 235, 0.98) 0%, #fff 100%);
+  box-shadow: 0 4px 14px rgba(250, 140, 22, 0.25);
+}
+
+/* 应急专家：左圆角方头像 + 右姓名 + 橙边标签 + 灰辅文（参考人员条） */
+.zht-stat-drawer-card--expert {
+  padding-top: 12px;
+}
+
+.zht-stat-drawer-card__expert-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__expert-avatar-wrap {
+  flex-shrink: 0;
+}
+
+.zht-stat-drawer-card__expert-avatar-img,
+.zht-stat-drawer-card__expert-avatar-fallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+}
+
+.zht-stat-drawer-card__expert-avatar-fallback {
+  background: #1677ff;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 48px;
+  text-align: center;
+}
+
+.zht-stat-drawer-card__expert-headtext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zht-stat-drawer-card__expert-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__expert-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.zht-stat-drawer-card__expert-phone {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.65);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.zht-stat-drawer-card__expert-subrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__expert-accent-tag {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 0 9px;
+  font-size: 12px;
+  line-height: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #ffa940;
+  color: #d46b08;
+  background: #fff7e6;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zht-stat-drawer-card__hd {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__title {
+  font-size: 15px;
+  font-weight: 650;
+  color: #222;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.zht-stat-drawer-card__tags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  max-width: 42%;
+}
+
+.zht-stat-drawer-card__tag {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #e8f0fc;
+  color: var(--primary-blue);
+  border: 1px solid #c5d9f5;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 指标抽屉卡片 · 地址行（可选地图定位；单行省略，悬停见全文） */
+.zht-stat-drawer-card__addr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__locate-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: #eef4fc;
+  color: var(--primary-blue);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.zht-stat-drawer-card__locate-btn:hover,
+.zht-stat-drawer-card__locate-btn:focus-visible {
+  background: #dbe8fb;
+  outline: none;
+}
+
+.zht-stat-drawer-card__locate-btn--disabled {
+  cursor: default;
+  color: #9aa7b8;
+  background: #f3f4f6;
+}
+
+/* 占满行宽以便地址文本在 flex 内正确省略（Tooltip 会包一层 span，需拉满宽度） */
+.zht-stat-drawer-card__addr-text-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.zht-stat-drawer-card__addr-text-wrap > span {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__addr-text {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: #555;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.zht-stat-drawer-card__addr-text-inner {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.zht-stat-drawer-card__addr-row--interactive .zht-stat-drawer-card__addr-text {
+  color: var(--primary-blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.zht-stat-drawer-card__addr-row--interactive .zht-stat-drawer-card__addr-text:hover {
+  color: #0d4a9c;
+}
+
+.zht-stat-drawer-card__addr-text--plain {
+  padding-top: 2px;
+}
+
+.zht-stat-drawer-card__sub {
+  font-size: 12px;
+  color: var(--primary-blue);
+  background: #f0f7ff;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+/* 专家等：全宽两排（标签 + 正文，擅长方向可多行换行） */
+.zht-stat-drawer-card__detail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+  margin-bottom: 0;
+}
+
+.zht-stat-drawer-card__detail-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+}
+
+.zht-stat-drawer-card__detail-row__label {
+  font-size: 11px;
+  color: #33691e;
+  line-height: 1.3;
+}
+
+.zht-stat-drawer-card__detail-row__value {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 400;
+  color: #2e4a2e;
+  word-break: break-word;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+/* 专家卡下方：联系方式 / 擅长方向 — 浅分割列表，与顶区人员条衔接 */
+.zht-stat-drawer-card--expert .zht-stat-drawer-card__detail-rows {
+  border-top: 1px solid #f0f0f0;
+  margin-top: 8px;
+  padding-top: 0;
+  gap: 0;
+}
+
+.zht-stat-drawer-card--expert .zht-stat-drawer-card__detail-row {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 10px 0;
+}
+
+.zht-stat-drawer-card--expert .zht-stat-drawer-card__detail-row:last-child {
+  border-bottom: none;
+}
+
+.zht-stat-drawer-card--expert .zht-stat-drawer-card__detail-row__label {
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.zht-stat-drawer-card--expert .zht-stat-drawer-card__detail-row__value {
+  color: rgba(0, 0, 0, 0.75);
+  font-size: 13px;
+}
+
+/* 仅作网格占位，不再套大块底色/描边 */
+.zht-stat-drawer-card__metrics {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+}
+
+/* 块状网格：六格浅绿 KPI，无外再套大盒 */
+.zht-stat-drawer-card__metric-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+}
+
+/* 单格：保留浅绿底块；格内数值一律正文，不用标签/胶囊样式 */
+.zht-stat-drawer-card__metric-block {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 6px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+}
+
+.zht-stat-drawer-card__metric-block__label {
+  font-size: 11px;
+  color: #33691e;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.zht-stat-drawer-card__metric-block__value {
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+  text-align: center;
+  min-width: 0;
+}
+
+.zht-stat-drawer-card__metric-block__value--plain {
+  font-weight: 400;
+  color: #2e4a2e;
+}
+
+.zht-stat-drawer-card__metric-block__value--stat {
+  font-weight: 600;
+  color: #1b5e20;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 枚举：与统计值同为格内正文，无底色、无边框、无圆角条带 */
+.zht-stat-drawer-card__metric-block__value--enum {
+  font-weight: 600;
+  font-size: 12px;
+  color: #1b5e20;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 地图栈：工具条 + 画布，全屏时整块进入全屏 */
+/* 低于底部管线抽屉展开态，避免纵向工具条（absolute+z-index:50）溢出栈盒时叠在抽屉顶栏上 */
+.zht-maplibre-stack {
+  position: relative;
+  z-index: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 左侧纵向工具条（设计稿 13 项；图标可后续替换为 SVG） */
+.zht-map-vertical-toolbar {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  /* 高于地图宿主内控件层，避免全屏或 WebGL 叠层异常时抢不到点击 */
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+}
+
+.zht-map-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.zht-map-tool-btn:hover {
+  background: var(--primary-blue-light);
+  color: var(--primary-blue);
+}
+
+.zht-map-tool-btn--on {
+  background: var(--primary-blue-light);
+  color: var(--primary-blue);
+}
+
+.zht-map-tool-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+/* 指北针：图标相对按钮逆时针旋转地图 bearing，使罗盘与地理北向一致 */
+.zht-map-compass-dial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  transform-origin: 50% 50%;
+}
+
+.zht-map-tool-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  margin: 2px 0;
+}
+
+.zht-map-tool-btn--zoom {
+  height: 32px;
+}
+
+.zht-map-layer-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 120px;
+  padding: 4px 0;
+}
+
+/* 图层控制（树形折叠 + 占位项 Tooltip） */
+.zht-layer-control-popover {
+  min-width: 280px;
+  max-width: 380px;
+}
+
+.zht-layer-control-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.zht-layer-control-popover__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.zht-layer-control-popover__gear {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.zht-layer-control-collapse.ant-collapse-borderless > .ant-collapse-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.zht-layer-control-collapse .ant-collapse-header {
+  padding: 8px 4px !important;
+  align-items: flex-start !important;
+}
+
+.zht-layer-control-collapse .ant-collapse-content-box {
+  /* 左右对称，避免子级勾选与问号相对表头整体偏一侧 */
+  padding: 4px 8px 10px !important;
+}
+
+.zht-layer-control__label-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
+}
+
+/* 图层 Popover：勾选 + 文案占左，问号统一贴右 */
+.zht-layer-control-popover .zht-layer-control__label-row--spread {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.zht-layer-control-popover .zht-layer-control__label-row--spread > .ant-checkbox-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.zht-layer-control__row-help-tail {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 22px;
+}
+
+.zht-layer-control__help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0;
+  padding: 0 2px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.zht-layer-control__help-icon:hover {
+  color: var(--primary-blue);
+}
+
+.zht-layer-control__nest {
+  padding-left: 4px;
+}
+
+.zht-layer-control__nest-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.zht-layer-control__nest-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+/* 图层控制 · 水环境 POI：主类行 + 可折叠四态（污染源分组行首箭头另用） */
+.zht-layer-water-poi-cat {
+  padding: 1px 0;
+}
+
+.zht-layer-water-poi-cat__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  min-height: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.zht-layer-water-poi-cat__row .ant-checkbox-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* 行内「勾选+?」条占满箭头列右侧，问号贴右与全局面板对齐 */
+.zht-layer-control-popover .zht-layer-water-poi-cat__row > .zht-layer-control__label-row--spread {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.zht-layer-water-poi-chevron {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+}
+
+.zht-layer-water-poi-chevron:hover {
+  color: var(--primary-blue, #1677ff);
+  background: rgba(22, 119, 255, 0.06);
+}
+
+.zht-layer-water-poi-chevron__svg {
+  transition: transform 0.15s ease;
+}
+
+.zht-layer-water-poi-chevron__svg--open {
+  transform: rotate(90deg);
+}
+
+/* 与行首箭头按钮同宽占位：无四态折叠的蓝类主行、行政区划子项等，勾选左缘与有箭头主类对齐 */
+.zht-layer-water-poi-chevron-spacer {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.zht-layer-water-poi-cat__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.zht-layer-water-poi-cat__icon {
+  display: inline-flex;
+  color: rgba(0, 0, 0, 0.72);
+  line-height: 0;
+}
+
+.zht-poi-svg-icon-img {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* 地图圆点：深色 SVG 反色为白 */
+.zht-poi-svg-icon-img--map {
+  filter: brightness(0) invert(1);
+  opacity: 0.94;
+}
+
+.zht-layer-water-poi-cat__states {
+  /* 与行首箭头列对齐 */
+  padding-left: 20px;
+  margin: 2px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.zht-layer-water-poi-state-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  min-height: 22px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.zht-layer-water-poi-state-row > .ant-checkbox-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.zht-layer-water-poi-state-row__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.zht-layer-water-poi-swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+/* 图层占位项：复选框标签前图例，与水环境主类 icon 对齐 */
+.zht-layer-control__checkbox-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* 污染源三类子行：与四态子行同缩进 */
+.zht-layer-pollution-sub-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  min-height: 22px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.zht-layer-pollution-sub-row .ant-checkbox-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.zht-map-poi-hint--admin .zht-map-poi-hint__title {
+  margin-bottom: 0;
+}
+
+.zht-map-admin-ok {
+  color: #52c41a;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.zht-map-admin-bad {
+  color: #ff4d4f;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* 地图样式 Popover：上灰区底图不透明度滑块 + 下区影像/矢量二选一（紧凑尺寸） */
+.zht-map-style-popover {
+  min-width: 0;
+  max-width: 280px;
+  padding: 0 0 4px;
+}
+
+.zht-map-style-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0 0 6px;
+}
+
+.zht-map-style-popover__head-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.zht-map-style-popover__section {
+  padding-top: 8px;
+  margin-top: 2px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.zht-map-style-popover__head + .zht-map-style-popover__section--transparency {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* 地图透明度：浅灰底条（对齐手绘稿） */
+.zht-map-style-popover__section--transparency {
+  padding: 8px 10px 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  border: 1px solid #e8e8e8;
+}
+
+.zht-map-style-popover__opacity-hint {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* 标题 + 滑块 + 百分比同一行，避免「数值与手柄」视觉错位 */
+.zht-map-style-popover__slider-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) 34px;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+}
+
+.zht-map-style-popover__slider-label {
+  white-space: nowrap;
+}
+
+.zht-map-style-popover__section--transparency .ant-slider {
+  margin: 0;
+  width: 100%;
+}
+
+.zht-map-style-popover__section--basemap {
+  padding-top: 8px;
+  margin-top: 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.zht-map-style-thumb-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.zht-map-style-thumb-row--dual {
+  gap: 8px;
+}
+
+.zht-map-style-card {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+}
+
+.zht-map-style-card--dual {
+  max-width: none;
+}
+
+.zht-map-style-card__frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 88px;
+  margin: 0 auto;
+  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zht-map-style-card--selected .zht-map-style-card__frame {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.4);
+}
+
+.zht-map-style-card__label {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.78);
+  line-height: 1.2;
+}
+
+/* 缩略图示意 */
+/* 示意：Liberty 类浅黄 / 暖灰底图 */
+.zht-map-style-thumb--vector {
+  background: linear-gradient(155deg, #faf6ef 0%, #f0e8d8 42%, #e8dcc8 78%, #d4e8c4 100%);
+}
+
+.zht-map-style-thumb--imagery {
+  background: linear-gradient(125deg, #4e342e 0%, #6d4c41 35%, #558b2f 70%, #33691e 100%);
+}
+
+.zht-map-style-popover__slider-value {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+}
+
+/* 地图样式内 Slider 略缩，与窄面板协调 */
+.zht-map-style-popover .ant-slider {
+  margin: 2px 0;
+}
+
+.zht-map-style-popover .ant-slider-rail {
+  height: 4px;
+}
+
+.zht-map-style-popover .ant-slider-track {
+  height: 4px;
+}
+
+.zht-map-style-popover .ant-slider-handle {
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+}
+
+/* 地图视角预设：虚线保存卡 + 双列网格（缩略图为占位图标，后续可换静态截图） */
+.zht-map-view-presets {
+  min-width: 0;
+  max-width: 284px;
+  padding: 0 0 2px;
+}
+
+.zht-map-view-presets__head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.zht-map-view-presets__head-title {
+  display: block;
+}
+
+.zht-map-view-presets__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.zht-map-view-presets__save-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  margin: 0;
+  padding: 8px 6px;
+  border: 1px dashed #bfbfbf;
+  border-radius: 6px;
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.zht-map-view-presets__save-card:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+  background: #f0f7ff;
+}
+
+.zht-map-view-presets__save-text {
+  max-width: 11em;
+}
+
+.zht-map-view-presets__preset-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 92px;
+  padding: 22px 6px 6px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.zht-map-view-presets__preset-card:hover {
+  border-color: #91caff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.zht-map-view-presets__preset-card:focus-visible {
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.35);
+}
+
+.zht-map-view-presets__preset-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  color: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  z-index: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.zht-map-view-presets__preset-remove:hover {
+  color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.zht-map-view-presets__preset-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 40px;
+  color: #1677ff;
+  opacity: 0.85;
+}
+
+.zht-map-view-presets__preset-label {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: rgba(0, 0, 0, 0.78);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 地图视图导出 Popover：主按钮 + 分辨率 + 宽高（与设计稿分区一致） */
+.zht-map-export-popover {
+  min-width: 0;
+}
+
+.zht-map-export-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.zht-map-export-popover__head-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.zht-map-export-popover__reset {
+  flex-shrink: 0;
+  padding: 0 4px;
+  height: auto;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.zht-map-export-popover__primary.ant-btn-lg {
+  height: 42px;
+  font-weight: 500;
+  border-color: #d9d9d9;
+  background: #fafafa;
+}
+
+.zht-map-export-popover__primary .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #1677ff;
+}
+
+.zht-map-export-popover__scope-hint {
+  display: block;
+  margin: 8px 0 10px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.zht-map-export-popover__panel {
+  padding: 10px 10px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: #f5f5f5;
+  border: 1px solid #ebebeb;
+}
+
+.zht-map-export-popover__panel:last-child {
+  margin-bottom: 0;
+}
+
+.zht-map-export-popover__field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.zht-map-export-popover__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.zht-map-export-popover__cell {
+  min-width: 0;
+}
+
+.zht-map-export-popover__dpi-select {
+  width: 100%;
+}
+
+/* POI 提示配置 Popover（zhtMapVerticalToolbar）；提示板样式见下方 .zht-map-poi-hint* */
+.zht-map-poi-popover {
+  min-width: 260px;
+  padding: 4px 2px 6px;
+}
+
+.zht-map-poi-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0 6px 8px;
+}
+
+.zht-map-poi-popover__head-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.zht-map-poi-popover__reset {
+  flex-shrink: 0;
+  padding: 0 4px;
+  height: auto;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.zht-map-poi-popover__group {
+  padding-top: 8px;
+  margin-top: 2px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* head 与 __group 均为 div，:first-of-type 无法命中 __group；用相邻兄弟去掉首组顶部分割 */
+.zht-map-poi-popover__head + .zht-map-poi-popover__group {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.zht-map-poi-popover__row {
+  margin: 0 6px 4px;
+}
+
+.zht-map-poi-popover__row--with-font {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.zht-map-poi-popover__font-select {
+  min-width: 148px;
+  flex: 1 1 120px;
+}
+
+/* 地图上设施 / 监测 HTML 提示板（MapLibre Marker） */
+.zht-map-poi-marker-root {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 提示板在上、DOM 圆点在下，锚点落在圆点底边中心 */
+.zht-map-poi-marker-root--stack {
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.zht-map-poi-marker-root--stack .zht-map-poi-hint {
+  margin-bottom: 0;
+}
+
+/* DOM 地图圆点（不依赖 WebGL circle；设施可点击） */
+.zht-map-point-dot {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+.zht-map-point-dot--facility.zht-map-point-dot--pump {
+  background-color: #1677ff;
+}
+
+.zht-map-point-dot--facility.zht-map-point-dot--outlet {
+  /* 与泵站一致：蓝色表示「普通」台账点，地图点位不使用橙色 */
+  background-color: #1677ff;
+}
+
+.zht-map-point-dot--facility.zht-map-point-dot--plant {
+  background-color: #52c41a;
+}
+
+.zht-map-point-dot--monitor.zht-map-point-dot--monitor-normal {
+  background-color: #52c41a;
+}
+
+.zht-map-point-dot--monitor.zht-map-point-dot--monitor-alarm {
+  background-color: #ff4d4f;
+}
+
+.zht-map-point-dot--monitor.zht-map-point-dot--monitor-offline {
+  background-color: #8c8c8c;
+}
+
+/* 监测站「普通」：蓝（与台账默认态一致；地图点位仅绿/红/蓝/灰四色） */
+.zht-map-point-dot--monitor.zht-map-point-dot--monitor-general {
+  background-color: #1677ff;
+}
+
+/* 水环境 POI 统一圆点：四态底色 + 中心分类图标 */
+.zht-map-point-dot--water-env {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zht-map-poi-dot-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.zht-map-poi-dot-icon svg {
+  display: block;
+}
+
+.zht-map-point-dot--viz-alarm {
+  background-color: #ff4d4f;
+}
+
+.zht-map-point-dot--viz-offline {
+  background-color: #8c8c8c;
+}
+
+.zht-map-point-dot--viz-online {
+  background-color: #52c41a;
+}
+
+.zht-map-point-dot--viz-info {
+  background-color: #1677ff;
+}
+
+.zht-map-point-dot--water-env.zht-map-point-dot--pass-through {
+  pointer-events: none;
+  cursor: default;
+}
+
+.zht-map-point-dot--facility {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zht-map-point-dot--facility.zht-map-point-dot--pass-through {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* 地图搜索：在原有设施圆点上高亮（橙）+ 列表序号 */
+.zht-map-poi-search-hit-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zht-map-poi-search-hit-wrap--pass-through {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* 空间查询圆心：DOM 叠在 WebGL 与查询结果点之上，避免被命中序号挡住 */
+.zht-map-spatial-range-origin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.zht-map-spatial-range-origin--committed {
+  background: #ff4d4f;
+}
+
+.zht-map-spatial-range-origin--editing {
+  background: #1677ff;
+}
+
+.zht-map-poi-search-hit-wrap .zht-map-point-dot--facility {
+  pointer-events: none;
+}
+
+.zht-map-poi-search-hit-wrap .zht-map-point-dot--water-env {
+  pointer-events: none;
+}
+
+.zht-map-point-dot--search-hit.zht-map-point-dot--facility.zht-map-point-dot--pump,
+.zht-map-point-dot--search-hit.zht-map-point-dot--facility.zht-map-point-dot--outlet,
+.zht-map-point-dot--search-hit.zht-map-point-dot--facility.zht-map-point-dot--plant {
+  background-color: #fa8c16;
+}
+
+.zht-map-point-dot--search-hit.zht-map-point-dot--water-env {
+  background-color: #fa8c16 !important;
+}
+
+/* 搜索命中橙底：中心分类图标描边/填色统一纯白，保证对比度 */
+.zht-map-point-dot--search-hit.zht-map-point-dot--water-env .zht-poi-svg-icon-img--map {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+
+.zht-map-point-dot--search-hit--selected.zht-map-point-dot--facility {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  z-index: 1;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1890ff, 0 2px 12px rgba(24, 144, 255, 0.4);
+  transition: box-shadow 0.15s ease, width 0.12s ease, height 0.12s ease;
+}
+
+/* 监测站：搜索命中时统一为橙（覆盖绿/红/蓝/灰状态色） */
+.zht-map-point-dot--search-hit.zht-map-point-dot--monitor {
+  background-color: #fa8c16 !important;
+}
+
+.zht-map-point-dot--search-hit--selected.zht-map-point-dot--monitor {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  z-index: 1;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1890ff, 0 2px 12px rgba(24, 144, 255, 0.4);
+  transition: box-shadow 0.15s ease, width 0.12s ease, height 0.12s ease;
+}
+
+.zht-map-point-dot--search-hit--selected.zht-map-point-dot--water-env {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  z-index: 1;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1890ff, 0 2px 12px rgba(24, 144, 255, 0.4);
+  transition: box-shadow 0.15s ease, width 0.12s ease, height 0.12s ease;
+}
+
+/* 指标抽屉「地址」定位：不改橙底，仅蓝环略放大（与搜索选中环一致、底色仍四态） */
+.zht-map-point-dot--drawer-address-selected.zht-map-point-dot--water-env {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  z-index: 1;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1890ff, 0 2px 12px rgba(24, 144, 255, 0.4);
+  transition: box-shadow 0.15s ease, width 0.12s ease, height 0.12s ease;
+}
+
+/* 序号叠在 32px 橙圆中心，白字；遮盖原分类图标以免叠字 */
+.zht-map-poi-search-hit-wrap:has(.zht-map-search-hit-badge) .zht-map-poi-dot-icon {
+  display: none !important;
+}
+
+.zht-map-search-hit-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  right: auto;
+  min-width: 18px;
+  height: auto;
+  padding: 0 2px;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  border: none;
+  box-shadow: none;
+  pointer-events: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+/* 地图搜索模式：仅结果点（单层 DOM，锚点居中，整卡可点出详情） */
+.zht-map-search-result-hit {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zht-map-search-result-hit--pass-through {
+  pointer-events: none;
+  cursor: default;
+}
+
+.zht-map-search-result-hit__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fa8c16;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  flex-shrink: 0;
+}
+
+.zht-map-search-result-hit--selected .zht-map-search-result-hit__dot {
+  width: 36px;
+  height: 36px;
+  border-width: 3px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1890ff, 0 2px 12px rgba(24, 144, 255, 0.4);
+}
+
+/* 与橙圆同轴居中，白字序号 */
+.zht-map-search-result-hit__idx {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  right: auto;
+  min-width: 0;
+  height: auto;
+  padding: 0 2px;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  border: none;
+  box-sizing: border-box;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+.zht-map-poi-hint {
+  box-sizing: border-box;
+  max-width: min(240px, 42vw);
+  padding: 6px 10px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-bottom: 2px;
+  /* 与根节点 pointer-events:none 一致，避免提示板区域挡住下方「查询命中」圆点的点击 */
+  pointer-events: none;
+}
+
+.zht-map-poi-hint__title {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 设施类仅标题时底边距收紧；有「实时监测」多行时与监测卡一致留标题下间距 */
+.zht-map-poi-hint--facility .zht-map-poi-hint__title {
+  margin-bottom: 0;
+}
+
+.zht-map-poi-hint--facility:has(.zht-map-poi-hint__metrics) .zht-map-poi-hint__title {
+  margin-bottom: 4px;
+}
+
+.zht-map-poi-hint--facility:has(.zht-map-poi-hint__metrics) {
+  padding-bottom: 6px;
+}
+
+.zht-map-poi-hint--monitor {
+  padding-bottom: 6px;
+}
+
+/* 监测卡：与设施卡一致，仅标题时收紧标题下边距；有指标区时留 4px */
+.zht-map-poi-hint--monitor .zht-map-poi-hint__title {
+  margin-bottom: 0;
+}
+
+.zht-map-poi-hint--monitor:has(.zht-map-poi-hint__metrics) .zht-map-poi-hint__title {
+  margin-bottom: 4px;
+}
+
+.zht-map-poi-hint__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zht-map-poi-hint__metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: inherit;
+}
+
+.zht-map-poi-hint__metric-name {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* 监测数值：仅数字着色；单位统一灰色（监测类 / 设施台账提示板 + 详情「演示监测数据」块生效，避免其它 DOM 误用 tone 类着色） */
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num {
+  font-weight: 600;
+}
+
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num--green,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num--green,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num--green {
+  color: #52c41a;
+}
+
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num--red,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num--red,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num--red {
+  color: #ff4d4f;
+}
+
+/* 预警数值：与地图点位一致用蓝，不用橙 */
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num--warn,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num--warn,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num--warn {
+  color: #1677ff;
+}
+
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num--blue,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num--blue,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num--blue {
+  color: #1677ff;
+}
+
+.zht-map-poi-hint--monitor .zht-map-poi-hint__metric-num--gray,
+.zht-map-poi-hint--facility .zht-map-poi-hint__metric-num--gray,
+.zht-map-poi-detail-metrics .zht-map-poi-hint__metric-num--gray {
+  color: #8c8c8c;
+}
+
+.zht-map-poi-hint__metric-unit {
+  margin-left: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  font-weight: 400;
+}
+
+/**
+ * 行政区划提示卡（深色）：须写在 `.zht-map-poi-hint` / `__title` 基础规则之后，
+ * 并用双类提高特异性，否则会被通用白底、黑字覆盖。
+ */
+.zht-map-poi-hint.zht-map-poi-hint--admin-division {
+  max-width: min(228px, 40vw);
+  padding: 8px 12px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(100, 160, 240, 0.32);
+  background: linear-gradient(165deg, #1a3a6e 0%, #122a52 48%, #0d1f42 100%);
+  box-shadow:
+    0 0 0 1px rgba(60, 120, 200, 0.2) inset,
+    0 4px 20px rgba(5, 20, 50, 0.45);
+  border-left: 3px solid #4d9fff;
+}
+
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-poi-hint__title,
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-admin-division-title {
+  margin-bottom: 0 !important;
+  color: rgba(230, 242, 255, 0.96) !important;
+}
+
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-admin-metric-block {
+  margin-top: 6px;
+}
+
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-admin-metric-line {
+  margin-top: 4px;
+  color: rgba(190, 215, 255, 0.78);
+  font-size: 12px;
+}
+
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-admin-ok {
+  color: #7ae3b5;
+}
+
+.zht-map-poi-hint.zht-map-poi-hint--admin-division .zht-map-admin-bad {
+  color: #ff9a9a;
+}
+
+/* MapLibre 根容器：用 flex 占满栈内剩余空间；外框与系统管理·工业园区 `.park-fz-map-shell` 一致 */
+.zht-maplibre-host {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  z-index: 0;
+  isolation: isolate;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  /* 与 `.zht-map-shell` 一致；勿用纯白，避免框内与加载阶段刺眼大块白底 */
+  background: #e8edf4;
+}
+
+/* 确保 MapLibre 内部容器与画布撑满（部分全局样式会影响 canvas 尺寸） */
+.zht-maplibre-host .maplibregl-map {
+  width: 100%;
+  height: 100%;
+}
+
+/* 瓦片未铺满或首帧前：容器底色与外壳一致（canvas WebGL 内容为样式绘制，此处仅衬底） */
+.zht-maplibre-host .maplibregl-canvas-container {
+  background-color: #e8edf4;
+}
+
+/* 地图透明度：脚本写 `map.getCanvas()` 的 CSS opacity（DOM Marker 与 canvas 同级不受影响） */
+.zht-maplibre-host .maplibregl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  outline: none;
+}
+
+/* 左下角比例尺：与画布边距协调 */
+.zht-maplibre-host .maplibregl-ctrl-bottom-left.maplibregl-ctrl {
+  margin-left: 10px;
+  margin-bottom: 10px;
+}
+
+/* 署名区：右侧看板已移出地图列，仅保留紧凑边距 */
+.zht-maplibre-host .maplibregl-ctrl-bottom-right.maplibregl-ctrl {
+  margin-right: 8px;
+  max-width: min(280px, 40vw);
+}
+
+.zht-scale-fake {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--panel-border);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 右侧独立栏：分析看板 + 数据列表（原地图内浮层已迁入此栏） */
+.zht-right-rail {
+  width: min(400px, 100vw);
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--panel-border);
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 10;
+  padding: 10px 10px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease,
+    padding 0.32s ease,
+    border-color 0.32s ease;
+}
+
+/* 指标铺满地图时 / 底部管线表打开时：右栏收起，地图列占满余宽，底部抽屉右缘与视口右对齐 */
+.zht-right-rail.zht-right-rail--collapsed-for-stat-expand {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-left-width: 0 !important;
+  border-left-color: transparent;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  gap: 0;
+}
+
+/* 右侧分析看板（非地图搜索）：与地图列同高，三块卡片等高均分，内部滚动（不改变栏宽） */
+.zht-right-rail:not(.zht-right-rail--map-search) {
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) > .zht-right-widget {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) > .zht-right-widget > .zht-right-widget-hd {
+  flex-shrink: 0;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--compliance .zht-compliance-chart {
+  flex: 1;
+  min-height: 100px;
+  height: auto;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--compliance .zht-compliance-hint {
+  flex-shrink: 0;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--table .zht-pollution-scroll-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--calendar .zht-cal-meta-row,
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--calendar .zht-cal-weekdays {
+  flex-shrink: 0;
+}
+
+/* 三等分布局下，日历内容在卡片内部自适应并允许纵向滚动 */
+.zht-right-rail:not(.zht-right-rail--map-search) .zht-right-widget--calendar .zht-cal-cells {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  align-content: stretch;
+}
+
+.zht-right-widget {
+  flex-shrink: 0;
+  background: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 10px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.zht-right-widget-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.zht-right-widget-title {
+  margin: 0;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-title);
+  line-height: 1.35;
+}
+
+.zht-right-widget-pipe {
+  color: var(--accent-cyan);
+  margin-right: 4px;
+}
+
+.zht-pollution-formula-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 断面达标：年 / 月 / 日 Segmented */
+.zht-compliance-period.ant-segmented {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.zht-compliance-period .ant-segmented-item {
+  padding: 0 10px;
+  line-height: 26px;
+  min-height: 28px;
+}
+
+.zht-compliance-chart {
+  height: 200px;
+  width: 100%;
+  min-width: 0;
+}
+
+.zht-compliance-hint {
+  margin: 6px 0 0;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* 断面达标 · 日：全年断面统计表 */
+.zht-compliance-day-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.zht-compliance-day-table-scroll {
+  max-height: 100%;
+  overflow: auto;
+}
+
+.zht-compliance-day-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+}
+
+.zht-compliance-day-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 6px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-title);
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+}
+
+.zht-compliance-day-table thead th:first-child {
+  text-align: left;
+  width: 28%;
+}
+
+.zht-compliance-day-table tbody td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.zht-compliance-day-table__name {
+  text-align: left !important;
+  font-weight: 500;
+  color: var(--text-title);
+}
+
+.zht-compliance-day-table__row--alt td {
+  background: #fafafa;
+}
+
+.zht-compliance-day-table__cell--good {
+  color: #389e0d;
+  font-weight: 600;
+}
+
+.zht-compliance-day-table__cell--iv {
+  color: #d4b106;
+  font-weight: 600;
+}
+
+.zht-compliance-day-table__cell--v {
+  color: #d46b08;
+  font-weight: 600;
+}
+
+.zht-compliance-day-table__cell--bad {
+  color: #cf1322;
+  font-weight: 600;
+}
+
+.zht-compliance-day-table__cell--rate {
+  color: #1e5bb5;
+  font-weight: 700;
+}
+
+/* 汛期污染强度：表头固定；表体双份数据垂直无缝循环滚动，悬停暂停 */
+.zht-pollution-scroll-shell {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 断面名称最宽，污染强度与时间拉开间距，时间列偏窄（全文见 Tooltip） */
+  --zht-pollution-cols: minmax(0, 1.55fr) minmax(0, 0.62fr) minmax(3.25rem, 0.38fr) minmax(4.5rem, 0.32fr);
+}
+
+.zht-pollution-scroll-shell > .zht-pollution-scroll-thead {
+  flex-shrink: 0;
+}
+
+.zht-pollution-scroll-thead {
+  display: grid;
+  grid-template-columns: var(--zht-pollution-cols);
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 0;
+  padding: 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+  white-space: nowrap;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.zht-pollution-scroll-th {
+  min-width: 0;
+  padding: 0;
+}
+
+.zht-pollution-scroll-th--right {
+  text-align: right;
+  padding-right: 2px;
+}
+
+/* 与「污染强度」列留出空隙；时间列偏窄，左对齐易读 */
+.zht-pollution-scroll-th--time {
+  padding-left: 6px;
+  text-align: left;
+}
+
+.zht-pollution-scroll-viewport {
+  flex: 1;
+  min-height: 128px;
+  overflow: hidden;
+}
+
+.zht-pollution-scroll-viewport:hover .zht-pollution-scroll-track {
+  animation-play-state: paused;
+}
+
+.zht-pollution-scroll-track {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  animation: zht-pollution-marquee-y var(--zht-marquee-dur, 16s) linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zht-pollution-scroll-track {
+    animation: none;
+  }
+}
+
+@keyframes zht-pollution-marquee-y {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.zht-pollution-scroll-row {
+  display: grid;
+  grid-template-columns: var(--zht-pollution-cols);
+  align-items: stretch;
+  column-gap: 12px;
+  row-gap: 0;
+  padding: 8px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.zht-pollution-scroll-row:hover {
+  background: #f5f9ff;
+}
+
+.zht-pollution-scroll-row:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 1px #91caff;
+  background: #f5f9ff;
+}
+
+.zht-pollution-scroll-row--active {
+  background: #e6f4ff;
+}
+
+.zht-pollution-scroll-cell {
+  min-width: 0;
+  padding: 0;
+}
+
+.zht-pollution-scroll-cell--intensity {
+  text-align: right;
+  padding-right: 2px;
+}
+
+.zht-pollution-scroll-cell--time {
+  max-width: 100%;
+  padding-left: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.zht-pollution-scroll-cell--time .zht-pollution-cell-2l {
+  -webkit-line-clamp: 3;
+  max-height: calc(1.35em * 3 + 2px);
+  word-break: break-all;
+}
+
+.zht-pollution-cell-2l {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  line-height: 1.4;
+  max-height: calc(1.4em * 2 + 1px);
+}
+
+.zht-pollution-intensity-inner {
+  color: #fa8c16;
+  font-weight: 600;
+  text-align: right;
+}
+
+.zht-right-more-btn {
+  padding: 0 4px;
+  height: auto;
+  font-size: 13px;
+}
+
+/* 当前月（左）+ 图例（右）同一行 */
+.zht-cal-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.zht-cal-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.zht-cal-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border-radius: 2px;
+}
+
+.zht-cal-dot--ok {
+  background: #52c41a;
+}
+
+.zht-cal-dot--alarm {
+  background: #ff4d4f;
+}
+
+.zht-cal-month {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 0;
+  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.zht-cal-meta-row .zht-cal-legend {
+  margin-left: auto;
+}
+
+.zht-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 3px;
+}
+
+.zht-cal-wd {
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+}
+
+.zht-cal-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.zht-cal-cell {
+  height: auto;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zht-cal-cell--empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.zht-cal-cell--ok {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+}
+
+.zht-cal-cell--alarm {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #cf1322;
+}
+
+.zht-cal-cell--today {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+  font-weight: 700;
+}
+
+.zht-popup {
+  min-width: 200px;
+  max-width: 260px;
+  font-size: 13px;
+  color: #555;
+}
+
+.zht-popup-title {
+  font-size: 16px;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+
+.zht-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.zht-popup-val {
+  color: var(--metric-good);
+  font-weight: 500;
+}
+
+@media (max-width: 1100px) {
+  .zht-left {
+    width: 280px;
+  }
+
+  /* 左栏禁用滚动后须控制行数：窄屏仍保持三列（略挤但一屏放得下） */
+  .zht-left .zht-stat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .zht-right-rail {
+    width: min(320px, 100vw);
+  }
+}
+
+/* —— 左侧指标：每段标题 + 三列网格 —— */
+.zht-left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.zht-left-section--focus {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.zht-right-rail--map-search {
+  gap: 8px;
+  /* 与 `--panel-bg` 一致；保留声明避免 Ant Tabs 等子级透出底色 */
+  background: #fff;
+  /* 与中间地图列同高，表单固定、结果区占满剩余高度，避免卡片下方大块留白 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  /* 与默认右栏的 width 过渡解耦，避免搜索面板抖动 */
+  transition: none;
+}
+
+.zht-map-search-panel__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.zht-map-search-panel__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-title);
+  line-height: 1.35;
+}
+
+.zht-map-search-panel__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.zht-map-search-panel__body .ant-tabs {
+  flex-shrink: 0;
+}
+
+.zht-right-rail--map-search .ant-tabs-nav {
+  background: #fff;
+}
+
+.zht-right-rail--map-search .ant-tabs-content-holder,
+.zht-right-rail--map-search .ant-tabs-tabpane {
+  background: #fff;
+}
+
+.zht-map-search-panel__body .zht-search-results {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  overflow: hidden;
+}
+
+/* 占满「查询结果」标题之下的全部剩余高度，仅此处纵向滚动 */
+.zht-map-search-panel__body .zht-search-results__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: none;
+}
+
+.zht-search-tab-body {
+  padding-top: 4px;
+}
+
+/* 地图搜索：无表单项标题，压缩纵向间距 */
+.zht-search-form-compact .ant-form-item {
+  margin-bottom: 8px;
+}
+
+.zht-search-form-compact .ant-form-item:last-of-type {
+  margin-bottom: 10px;
+}
+
+.zht-spatial-origin-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.zht-spatial-origin-radio {
+  width: 100%;
+}
+
+.zht-spatial-origin-radio .ant-radio-button-wrapper {
+  flex: 1;
+  text-align: center;
+}
+
+.zht-spatial-map-origin__coords {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.zht-spatial-map-origin__hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.zht-spatial-map-origin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.zht-spatial-pick-active-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--primary-blue);
+  font-weight: 500;
+}
+
+.zht-search-form-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.zht-search-form-actions .ant-btn {
+  flex: 1;
+}
+
+.zht-search-results {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.zht-search-results__summary {
+  font-size: 14px;
+  color: var(--text-title);
+  margin-bottom: 10px;
+}
+
+.zht-search-results__summary--clearable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.zht-search-results__summary--clearable:hover {
+  color: var(--primary-blue);
+}
+
+.zht-search-results__count {
+  color: var(--primary-blue);
+  font-size: 16px;
+  margin: 0 4px;
+}
+
+.zht-search-results__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.zht-search-result-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 12px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* 与地图当前选中 POI 同步 */
+.zht-search-result-card--selected {
+  border-color: #fa8c16;
+  background: linear-gradient(180deg, rgba(255, 248, 235, 0.98) 0%, #fff 100%);
+  box-shadow: 0 4px 12px rgba(250, 140, 22, 0.2);
+}
+
+.zht-search-result-card:hover {
+  border-color: var(--primary-blue);
+  box-shadow: 0 2px 8px rgba(30, 91, 181, 0.12);
+}
+
+.zht-search-result-card--selected:hover {
+  border-color: #d46b08;
+  box-shadow: 0 4px 14px rgba(250, 140, 22, 0.25);
+}
+
+.zht-search-result-card:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.zht-search-result-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.zht-search-result-card__titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.zht-search-result-card__seq {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  /* 父级为 button 时防继承为正文色，须保持白字 */
+  color: #fff !important;
+  /* 与地图查询命中高亮一致（橙） */
+  background: #fa8c16;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(250, 140, 22, 0.4);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.zht-search-result-card__title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-title);
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+}
+
+.zht-search-result-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.zht-search-result-card__tag {
+  margin: 0 !important;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.zht-search-result-card__addr {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+/* 与 zht-stat-drawer-card 地址行：整行可点 → 地图定位 */
+.zht-search-result-card__addr-locate {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.zht-search-result-card__addr-locate:hover {
+  color: var(--primary-blue);
+}
+
+.zht-search-result-card__addr-locate:hover .zht-search-result-card__pin {
+  color: var(--primary-blue);
+}
+
+.zht-search-result-card__addrText {
+  flex: 1;
+  min-width: 0;
+}
+
+.zht-search-result-card__pin {
+  color: var(--primary-blue);
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* 详情弹窗标题：断面监测点胶囊标签（管控级别 + 目标水质等级） */
+.zht-map-detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-right: 40px;
+}
+
+.zht-map-detail-title__left {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zht-map-detail-title__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.zht-map-detail-title__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #d9d9d9;
+  background: #fafafa;
+  color: #595959;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.zht-map-detail-title__badge.is-i,
+.zht-map-detail-title__badge.is-ii {
+  color: #1677ff;
+  border-color: #91caff;
+  background: #e6f4ff;
+}
+
+.zht-map-detail-title__badge.is-iii {
+  color: #389e0d;
+  border-color: #95de64;
+  background: #f6ffed;
+}
+
+.zht-map-detail-title__badge.is-iv {
+  color: #d4b106;
+  border-color: #ffe58f;
+  background: #fffbe6;
+}
+
+.zht-map-detail-title__badge.is-v {
+  color: #d46b08;
+  border-color: #ffd591;
+  background: #fff7e6;
+}
+
+.zht-map-detail-title__badge.is-bad-v {
+  color: #cf1322;
+  border-color: #ffadd2;
+  background: #fff1f0;
+}
+
+/* 侧栏态详情：应急队伍 Descriptions 标签列宽统一且不换行 */
+.zht-map-detail-modal--no-mini-map .zht-emg-team-detail-desc .ant-descriptions-item-label {
+  width: 132px;
+  white-space: nowrap;
+}
+
+/* 河段详情：字段标签列统一宽度，避免长短不一导致视觉不齐 */
+.zht-map-detail-modal .zht-river-section-detail-desc .ant-descriptions-item-label {
+  width: 168px;
+  white-space: nowrap;
+}
+
+/* 河流/河段详情地图行：在统一 Descriptions 内也要占满整行内容宽度 */
+.zht-map-detail-modal .zht-river-section-detail-desc td.facility-river-detail-map-item.ant-descriptions-item-content {
+  width: 100%;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  td.facility-river-detail-map-item.ant-descriptions-item-content
+  > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.zht-map-detail-modal .zht-river-section-detail-desc .facility-river-detail-map-wrap {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map.emergency-event-form-map-wrap,
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map
+  .emergency-event-form-map-shell.emergency-event-form-map,
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map
+  .emergency-event-form-map-host,
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map
+  .maplibregl-map,
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map
+  .maplibregl-canvas-container,
+.zht-map-detail-modal
+  .zht-river-section-detail-desc
+  .facility-river-detail-map-wrap
+  .river-wgs84-detail-map
+  canvas.maplibregl-canvas {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.zht-section-trace-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.zht-section-trace-entry--footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.zht-section-trace-modal-fullscreen .ant-modal-content {
+  height: calc(100vh - 24px);
+}
+
+.zht-section-trace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zht-section-trace-card {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  padding: 12px 16px;
+}
+
+.zht-section-trace-card__title {
+  color: #003a8c;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.zht-section-trace-card__desc {
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 8px;
+}
+
+.zht-section-trace-chart {
+  height: 240px;
+}
+
+.zht-section-trace-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.zht-section-trace-v2 {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(420px, 0.9fr);
+  gap: 12px;
+  height: 100%;
+}
+
+.zht-section-trace-v2__left {
+  min-width: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.zht-section-trace-v2__right {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zht-section-trace-v2__window {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zht-section-trace-guide p {
+  margin: 0;
+}
+
+.zht-section-trace-guide ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.zht-section-trace-v2__map-stage {
+  position: relative;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 540px;
+  background: #f7f9fc;
+}
+
+.zht-section-trace-map {
+  width: 100%;
+  height: 100%;
+}
+
+.zht-section-trace-v2__legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.zht-section-trace-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.zht-section-trace-dot--monitor {
+  background: #1677ff;
+}
+
+.zht-section-trace-dot--outlet {
+  background: #52c41a;
+}
+
+.zht-section-trace-dot--selected {
+  background: #fa8c16;
+}

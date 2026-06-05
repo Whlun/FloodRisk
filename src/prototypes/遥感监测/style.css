@@ -1,0 +1,202 @@
+/* 遥感监测：左侧面板 + 全幅影像地图（嵌在一张图壳主内容区） */
+.yg-rs-root {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.yg-rs-sidebar {
+  flex: 0 0 min(360px, 32vw);
+  max-width: 400px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+}
+
+.yg-rs-sidebar__inner {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px 10px 16px;
+}
+
+.yg-rs-collapse.ant-collapse {
+  background: transparent;
+}
+
+.yg-rs-collapse .ant-collapse-item {
+  border: none !important;
+  margin-bottom: 8px;
+}
+
+.yg-rs-collapse .ant-collapse-header {
+  padding: 8px 4px !important;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.yg-rs-collapse .ant-collapse-content-box {
+  padding: 4px 2px 8px !important;
+}
+
+.yg-rs-collapse__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yg-rs-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yg-rs-block {
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.yg-rs-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.yg-rs-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.yg-rs-radio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yg-rs-radio-stack .ant-radio-wrapper {
+  margin-inline-end: 0;
+}
+
+.yg-rs-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.yg-rs-legend__bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #389e0d 0%, #fadb14 45%, #cf1322 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.yg-rs-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.yg-rs-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border-radius: 2px;
+}
+
+.yg-rs-swatch--issue {
+  background: rgba(250, 140, 22, 0.65);
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.9);
+}
+
+.yg-rs-swatch--change {
+  background: rgba(22, 119, 255, 0.25);
+  box-shadow: 0 0 0 2px #1677ff;
+}
+
+.yg-rs-swatch--solid {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.yg-rs-land-row .ant-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* 播放 + 时间范围选择器：同一行，左侧按钮、右侧选择器占满 */
+.yg-rs-data__range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.yg-rs-data__range-row .yg-rs-range {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.yg-rs-data__range-row .yg-rs-range.ant-picker {
+  width: 100%;
+}
+
+.yg-rs-data__play-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  height: 28px;
+  padding: 0 8px;
+}
+
+.yg-rs-time-list {
+  max-height: min(220px, 28vh);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.yg-rs-time-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yg-rs-time-radios .ant-radio-wrapper {
+  margin-inline-end: 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.yg-rs-time-radios .ant-radio-wrapper:hover {
+  background: rgba(30, 91, 181, 0.06);
+}
+
+.yg-rs-map {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.yg-rs-map .maplibregl-ctrl-bottom-right {
+  bottom: 12px;
+  right: 12px;
+}

@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Firecrawl Design Tokens - Light theme */
+:root {
+  /* Background Colors */
+  --background: #f9f9f9;
+  --foreground: #262626;
+
+  /* Surface Colors */
+  --card: #ffffff;
+  --card-foreground: #262626;
+  --popover: #ffffff;
+  --popover-foreground: #262626;
+
+  /* Primary - Firecrawl Orange */
+  --primary: #fa5d19;
+  --primary-foreground: #ffffff;
+
+  /* Secondary */
+  --secondary: #ededed;
+  --secondary-foreground: #262626;
+
+  /* Muted */
+  --muted: rgba(0, 0, 0, 0.04);
+  --muted-foreground: rgba(38, 38, 38, 0.64);
+
+  /* Accent */
+  --accent: #fa5d19;
+  --accent-foreground: #ffffff;
+
+  /* Subtle */
+  --subtle: rgba(38, 38, 38, 0.48);
+
+  /* Destructive */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* Border */
+  --border: #e5e7eb;
+  --border-subtle: #ededed;
+  --input: rgba(0, 0, 0, 0.1);
+  --ring: #fa5d19;
+
+  /* Radius */
+  --radius: 0.5rem;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 999px;
+
+  /* Spacing */
+  --spacing-1: 2px;
+  --spacing-2: 4px;
+  --spacing-3: 6px;
+  --spacing-4: 8px;
+  --spacing-6: 12px;
+  --spacing-8: 16px;
+  --spacing-10: 20px;
+  --spacing-12: 24px;
+  --spacing-20: 40px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.56);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "Suisse", "Suisse Fallback", ui-sans-serif, system-ui, sans-serif;
+  }
+}

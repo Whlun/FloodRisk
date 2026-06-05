@@ -1,0 +1,489 @@
+@import "../zonghe-taishi/style.css";
+@import "../zonghe-taishi/facility-detail-panel.css";
+@import "../huzhou-lifecycle-shared/lifecycle-detail.css";
+
+/* 湖州 · 地图画布压暗（浅色矢量底图） */
+.hz-maplibre-canvas .maplibregl-canvas {
+  filter: brightness(0.58) saturate(0.88);
+}
+
+.hz-spatial-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 左右看板同宽（综合态势默认左 380 / 右 400，空间画像统一） */
+.hz-spatial-body > .zht-left.hz-left-panel,
+.hz-spatial-body > .zht-right-rail.hz-right-panel {
+  width: min(400px, 100vw);
+}
+
+@media (max-width: 1100px) {
+  .hz-spatial-body > .zht-left.hz-left-panel,
+  .hz-spatial-body > .zht-right-rail.hz-right-panel {
+    width: min(320px, 100vw);
+  }
+}
+
+/* 左右看板互换：供地/用地统计 ↔ 可利用空间统计视觉对调，地图列保持居中 */
+.hz-spatial-body--panels-swapped {
+  flex-direction: row-reverse;
+}
+
+.hz-spatial-body--panels-swapped .zht-left {
+  border-right: none;
+  border-left: 1px solid var(--panel-border);
+}
+
+.hz-spatial-body--panels-swapped .zht-right-rail {
+  border-left: none;
+  border-right: 1px solid var(--panel-border);
+}
+
+.hz-map-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hz-left-panel,
+.hz-right-panel {
+  overflow: hidden;
+}
+
+/* 左右看板：四块均分高度，禁止纵向滚动 */
+.hz-left-panel-inner.zht-left-inner,
+.hz-right-panel-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.hz-left-panel .zht-right-widget-title,
+.hz-right-panel .zht-right-widget-title {
+  font-size: 15px;
+}
+
+.hz-left-panel .hz-panel-title,
+.hz-right-panel .hz-panel-title {
+  flex-shrink: 0;
+  margin-bottom: 6px !important;
+}
+
+.hz-left-panel .hz-panel-block,
+.hz-right-panel .hz-panel-block {
+  flex: 1 1 0;
+  min-height: 0;
+  margin-bottom: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hz-left-panel .hz-panel-block:last-child,
+.hz-right-panel .hz-panel-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.hz-left-panel .hz-chart--flex,
+.hz-right-panel .hz-chart--flex {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  height: auto !important;
+}
+
+.hz-left-panel .hz-panel-block-body--chart .hz-chart--flex:not(.hz-chart-pane--hidden),
+.hz-right-panel .hz-panel-block-body--chart .hz-chart--flex {
+  position: absolute;
+  inset: 0;
+}
+
+.hz-panel-block-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hz-panel-block-body--chart {
+  position: relative;
+}
+
+.hz-panel-block-hd__meta {
+  font-size: 11px !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.hz-left-panel .hz-panel-block--status .hz-panel-block-body {
+  justify-content: center;
+}
+
+.hz-left-panel .hz-status-legend {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.hz-left-panel .hz-inefficient {
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+}
+
+.hz-left-panel .hz-inefficient__hero {
+  padding: 6px 8px;
+}
+
+.hz-left-panel .hz-inefficient__hero-value {
+  font-size: 20px;
+}
+
+.hz-left-panel .hz-inefficient__rows {
+  gap: 5px;
+}
+
+.hz-left-panel .hz-inefficient__row {
+  padding: 5px 8px;
+}
+
+.hz-left-panel .hz-inefficient__row-label {
+  font-size: 10px;
+}
+
+.hz-left-panel .hz-inefficient__row-value {
+  font-size: 12px;
+}
+
+/* 湖州右栏：覆盖综合态势「分析看板」模式 padding:0，四块均分无滚动 */
+.zht-right-rail.hz-right-panel:not(.zht-right-rail--map-search) {
+  padding: 10px 12px 12px;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* 右栏 · 工业用地指标行（对齐左栏 hz-inefficient 卡片风格） */
+.hz-industrial-metrics {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.hz-industrial-metrics__row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.hz-industrial-metrics__hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.hz-industrial-metrics__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.hz-industrial-metrics__value {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.hz-industrial-metrics__unit {
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.hz-industrial-metrics__track-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.hz-industrial-metrics__track {
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e8ecf0;
+}
+
+.hz-industrial-metrics__fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.hz-panel-title {
+  margin-bottom: 8px !important;
+}
+
+.hz-panel-block {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.hz-panel-block__hd {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-blue);
+  margin-bottom: 8px;
+}
+
+/* 供地分布：标题 + Segmented 同行（对齐 zht-right-widget-hd） */
+.hz-panel-block-hd.zht-right-widget-hd {
+  margin-bottom: 6px;
+}
+
+.hz-supply-dist-tabs.ant-segmented {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 62%;
+}
+
+.hz-supply-dist-tabs .ant-segmented-item {
+  padding: 0 5px;
+  line-height: 24px;
+  min-height: 26px;
+  font-size: 11px;
+}
+
+.hz-supply-dist-tabs .ant-segmented-item-label {
+  padding: 0 2px;
+  min-width: 0;
+}
+
+.hz-chart-pane--hidden {
+  display: none;
+}
+
+.hz-panel-sub {
+  font-size: 12px;
+  display: block;
+  margin-top: -4px;
+}
+
+.hz-chart {
+  width: 100%;
+}
+.hz-chart--trend {
+  height: 160px;
+}
+.hz-chart--donut {
+  height: 200px;
+}
+.hz-chart--donut-sm {
+  height: 180px;
+}
+.hz-chart--bar {
+  height: 140px;
+}
+
+.hz-status-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hz-status-legend__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.hz-status-legend__dot--blue {
+  background: #1677ff;
+}
+.hz-status-legend__dot--orange {
+  background: #fa8c16;
+}
+.hz-status-legend__dot--green {
+  background: #52c41a;
+}
+
+.hz-inefficient {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.hz-inefficient__hero {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e6f4ff 0%, #f8fafc 100%);
+  border: 1px solid #d6e8ff;
+  text-align: center;
+}
+
+.hz-inefficient__hero-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-blue);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.hz-inefficient__hero-label {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.hz-inefficient__unit {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.hz-inefficient__rows {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.hz-inefficient__row {
+  padding: 7px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.hz-inefficient__row-hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.hz-inefficient__row-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.hz-inefficient__row-value {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.hz-inefficient__track-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hz-inefficient__track {
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e8ecf0;
+}
+
+.hz-inefficient__fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+}
+
+.hz-inefficient__pct {
+  flex-shrink: 0;
+  min-width: 38px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c8c8c;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hz-industrial-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hz-industrial-list__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+/* 图层控制样式见 src/common/layer-control/layer-control.css（ax-lc-*） */
+
+.hz-map-popup {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hz-maplibre-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.hz-maplibre-host {
+  position: relative;
+}
+
+.hz-maplibre-canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.hz-maplibre-canvas-wrap .maplibregl-map {
+  width: 100%;
+  height: 100%;
+}

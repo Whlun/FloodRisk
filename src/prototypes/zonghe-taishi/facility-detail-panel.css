@@ -1,0 +1,641 @@
+/**
+ * 综合态势 · 设施详情弹窗样式子集
+ * 自 `src/prototypes/韶山水环境设施管理系统/style.css` 抽取（详情分组、Descriptions、facility-detail-tabs、实时监测/视频监控），与列表详情一致。
+ * 维护：若设施管理详情视觉变更，请同步更新本文件对应片段。
+ */
+/* ==================== 详情页分组信息 ==================== */
+
+.detail-section {
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.detail-section-title {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: #fafafa;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-section-content {
+  padding: 16px;
+}
+/* ==================== 描述列表（详情页） ==================== */
+
+.ant-descriptions-bordered .ant-descriptions-item-label {
+  background: #fafafa !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  padding: 10px 12px !important;
+}
+
+.ant-descriptions-bordered .ant-descriptions-item-content {
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+  color: var(--text-primary) !important;
+}
+
+/* ==================== 湘潭风格详情页（标签页+分组卡片） ==================== */
+
+/* 详情页标签页样式 */
+.detail-tabs {
+  margin-top: -8px;
+}
+
+.detail-tabs .ant-tabs-nav {
+  margin-bottom: 0 !important;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-tabs .ant-tabs-tab {
+  font-size: 14px;
+  padding: 12px 16px !important;
+  margin: 0 8px 0 0 !important;
+}
+
+.detail-tabs .ant-tabs-tab-active {
+  background: var(--primary-blue-light) !important;
+  border-radius: 4px 4px 0 0 !important;
+}
+
+.detail-tabs .ant-tabs-ink-bar {
+  background: var(--primary-blue) !important;
+}
+
+/* 详情弹窗内 Tabs（与生态整治「河湖长制 · 事务详情」一致）：仅 facility-detail-tabs、不配 detail-tabs —— 紧凑顶栏 + 底线色，不用卡片式浅蓝选中底 */
+.facility-detail-tabs .ant-tabs-nav,
+.facility-mgmt-detail-tabs .ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+
+.facility-detail-tabs.ant-tabs-top > .ant-tabs-nav::before,
+.facility-mgmt-detail-tabs.ant-tabs-top > .ant-tabs-nav::before {
+  border-bottom-color: var(--border-color);
+}
+
+/* 详情页内容区（独立整页详情用；列表弹窗详情已对齐生态整治，不再包此层） */
+.detail-content {
+  background: #fff;
+  padding: 16px;
+}
+
+/* 设施详情弹窗：Tab 内首块与生态整治「项目详情」一致顶距 16px */
+/* 详情仅单块、无 Tab 顶栏时与 Tab 内首块顶距一致 */
+.facility-detail-tabs.detail-tabs-single-pane > .detail-section:first-child,
+.facility-detail-tabs.detail-tabs-single-pane > .ant-descriptions:first-child {
+  margin-top: 16px;
+}
+
+.facility-detail-tabs .ant-tabs-tabpane > .detail-section:first-child,
+.facility-detail-tabs .ant-tabs-tabpane > .ant-descriptions:first-child {
+  margin-top: 16px;
+}
+
+.detail-value-empty,
+.detail-table .detail-value-empty {
+  color: #999;
+}
+/* ==================== 泵站详情 · 实时监测（物联网平台数据占位，对齐二次泵站监测稿；排水管点无此页） ==================== */
+
+/* 详情弹窗内：实时监测面板与上方 Tab 切换条拉开距离，避免设备卡片贴 Tab 底线 */
+.facility-detail-tabs.facility-mgmt-detail-tabs .ant-tabs-tabpane > .facility-monitoring-realtime--v2 {
+  margin-top: 0;
+}
+
+.facility-detail-tabs.facility-mgmt-detail-tabs .ant-tabs-tabpane > .facility-monitoring-realtime--v2.facility-monitoring-realtime--no-equipment {
+  margin-top: 0;
+}
+
+.facility-detail-tabs.facility-mgmt-detail-tabs .ant-tabs-tabpane > .facility-monitoring-realtime--v2.facility-monitoring-realtime--no-equipment .facility-monitoring-device-info-section {
+  margin-top: 0;
+}
+
+/* 详情弹窗内：视频监控面板与 Tab 导航留白（与实时监测一致） */
+.facility-detail-tabs.facility-mgmt-detail-tabs .ant-tabs-tabpane > .facility-video-tab-root {
+  margin-top: 0;
+}
+
+.facility-monitoring-tab-root {
+  margin-top: 0;
+}
+
+.facility-monitoring-inner-tabs .ant-tabs-nav {
+  margin-bottom: 12px !important;
+}
+
+.facility-monitoring-section-title {
+  margin: 0 !important;
+  font-weight: 600 !important;
+}
+
+.facility-monitoring-equipment-section {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.facility-monitoring-equip-toolbar {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.facility-monitoring-equip-empty {
+  margin-top: 8px;
+  padding: 24px 16px;
+  background: #fafafa;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+}
+
+.facility-monitoring-link-alert {
+  margin-top: 8px;
+}
+
+/* ==================== 设施详情 · 视频监控（关联视频通道，逻辑对齐实时监测） ==================== */
+
+.facility-video-section {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.facility-video-toolbar {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.facility-video-empty {
+  margin-top: 8px;
+  padding: 24px 16px;
+  background: #fafafa;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+}
+
+.facility-video-alert {
+  margin-top: 8px;
+}
+
+/* 视频监控：固定每行最多 2 路，整齐对齐 */
+.facility-video-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.facility-video-tree-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.facility-video-tree-panel__search {
+  margin-bottom: 8px;
+}
+
+.facility-video-tree-panel__hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.facility-video-tree-panel__tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.facility-video-tree-node {
+  display: block;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.facility-video-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.facility-video-card {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.facility-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  background: #111;
+  border: 1px dashed #d9d9d9;
+  color: rgba(255, 255, 255, 0.65);
+  padding: 0;
+}
+
+.facility-video-tab-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.facility-video-placeholder-ico {
+  font-size: 40px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.facility-video-placeholder--empty {
+  background: #1f1f1f;
+  border-style: dashed;
+  border-color: #434343;
+}
+
+.facility-monitoring-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: 24px 16px;
+}
+
+.facility-monitoring-equip-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.facility-monitoring-equip-card {
+  flex: 0 0 auto;
+  min-width: 170px;
+  max-width: 204px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+  font: inherit;
+  background: #fff;
+  position: relative;
+}
+
+.facility-monitoring-equip-card:hover:not(.active) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.facility-monitoring-equip-card.tone-red {
+  background: linear-gradient(145deg, #fff2f0 0%, #ffffff 100%);
+  border-color: #ffa39e;
+}
+.facility-monitoring-equip-card.tone-offline {
+  background: linear-gradient(145deg, #fafafa 0%, #ffffff 100%);
+  border-color: #d9d9d9;
+}
+.facility-monitoring-equip-card.tone-pink {
+  background: linear-gradient(145deg, #fff5f8 0%, #ffffff 100%);
+  border-color: #ffd6e7;
+}
+.facility-monitoring-equip-card.tone-orange {
+  background: linear-gradient(145deg, #fff7e6 0%, #ffffff 100%);
+  border-color: #ffd591;
+}
+.facility-monitoring-equip-card.tone-yellow {
+  background: linear-gradient(145deg, #feffe6 0%, #ffffff 100%);
+  border-color: #ffe58f;
+}
+.facility-monitoring-equip-card.tone-blue {
+  background: linear-gradient(145deg, #e6f4ff 0%, #ffffff 100%);
+  border-color: #91caff;
+}
+.facility-monitoring-equip-card.tone-green {
+  background: linear-gradient(145deg, #f6ffed 0%, #ffffff 100%);
+  border-color: #b7eb8f;
+}
+
+/* 选中态须在 tone-* 之后，否则会被子样式边框色盖住 */
+.facility-monitoring-equip-card.active {
+  z-index: 1;
+  border-color: #1677ff;
+  box-shadow:
+    0 0 0 3px rgba(22, 119, 255, 0.22),
+    0 6px 16px rgba(22, 119, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.facility-monitoring-equip-card.active .facility-monitoring-equip-name {
+  color: #0958d9;
+}
+
+.facility-monitoring-equip-card.active .facility-monitoring-equip-ico {
+  color: #0958d9;
+}
+
+.facility-monitoring-equip-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.facility-monitoring-equip-ico {
+  flex-shrink: 0;
+  color: #1677ff;
+  font-size: 16px;
+}
+
+.facility-monitoring-equip-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 标题行最右侧：在线绿 / 离线灰 WiFi，无 Tag 边框 */
+.facility-monitoring-equip-online-ico {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.facility-monitoring-equip-online-ico--on {
+  color: #52c41a;
+}
+
+.facility-monitoring-equip-online-ico--off {
+  color: #8c8c8c;
+}
+
+.facility-monitoring-equip-foot {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-top: 2px;
+  line-height: 1.3;
+}
+
+.facility-monitoring-device-info-section {
+  margin-top: 4px;
+}
+
+.facility-monitoring-device-info-section > .facility-monitoring-section-title {
+  margin-bottom: 12px !important;
+}
+
+.facility-monitoring-side-meta {
+  background: #fafafa;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0;
+  font-size: 13px;
+  max-height: min(520px, 62vh);
+  overflow-y: auto;
+}
+
+.facility-monitoring-side-meta--striped .facility-monitoring-meta-row {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.facility-monitoring-side-meta--striped .facility-monitoring-meta-row:nth-child(even) {
+  background: #f7f8fa;
+}
+
+.facility-monitoring-side-meta--striped .facility-monitoring-meta-row:nth-child(odd) {
+  background: #ffffff;
+}
+
+.facility-monitoring-meta-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.facility-monitoring-meta-row:last-child {
+  border-bottom: none !important;
+}
+
+.facility-monitoring-meta-label {
+  flex: 0 0 100px;
+  color: var(--text-secondary);
+}
+
+.facility-monitoring-meta-value {
+  flex: 1;
+  color: #1677ff;
+  word-break: break-all;
+}
+
+.facility-monitoring-metric-cards {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+/* 仅一条监测指标时（报警详情监测 Tab）：不要铺满整行，宽度自适应 */
+.facility-monitoring-metric-cards--single-metric .facility-monitoring-metric-card {
+  flex: 0 0 auto;
+  min-width: 168px;
+  max-width: 260px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.facility-monitoring-metric-card {
+  flex: 0 0 auto;
+  width: 144px;
+  min-width: 144px;
+  max-width: 144px;
+  padding: 14px 12px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+/* 电量等非图表切换项：禁止拉伸占满第二行 */
+.facility-monitoring-metric-card:disabled {
+  flex: 0 0 auto;
+  width: 144px;
+  min-width: 144px;
+  max-width: 144px;
+  opacity: 1;
+}
+
+.facility-monitoring-metric-card:hover {
+  border-color: #91caff;
+}
+
+.facility-monitoring-metric-card.primary {
+  background: linear-gradient(180deg, #e6f4ff 0%, #f0f7ff 100%);
+  border-color: #91caff;
+}
+
+.facility-monitoring-metric-card.active {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+  background: #fff;
+}
+
+.facility-monitoring-metric-card.primary.active {
+  background: linear-gradient(180deg, #d6ebff 0%, #e6f4ff 100%);
+}
+
+.facility-monitoring-metric-card-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* 监测项数值：绿=运行、灰=停止、红=异常 */
+.facility-monitoring-metric-card-val {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.facility-monitoring-metric-card-val--run {
+  color: #52c41a;
+}
+
+.facility-monitoring-metric-card-val--stop {
+  color: #8c8c8c;
+}
+
+.facility-monitoring-metric-card-val--alert {
+  color: #ff4d4f;
+}
+
+.facility-monitoring-metric-card-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.facility-monitoring-hint-ico {
+  color: #faad14;
+  font-size: 16px;
+  cursor: help;
+}
+
+.facility-monitoring-chart-legend-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.facility-monitoring-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facility-monitoring-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.facility-monitoring-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.facility-monitoring-chart-tools .ant-btn {
+  font-size: 18px;
+}
+
+.facility-monitoring-chart-area {
+  position: relative;
+  min-height: 300px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+
+.facility-monitoring-echart {
+  width: 100%;
+  height: 300px;
+}
+
+.facility-monitoring-threshold-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.facility-monitoring-threshold-legend .thr-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facility-monitoring-threshold-legend .thr-dash {
+  display: inline-block;
+  width: 20px;
+  border-top: 2px dashed currentColor;
+}

@@ -1,0 +1,102 @@
+.hz-phase-alert-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 0 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 4px;
+  background: #fff7e6;
+  color: #ad6800;
+}
+
+.hz-phase-alert-line--compact {
+  margin: 0;
+}
+
+.hz-phase-alert-line__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 14px;
+  color: #ff4d4f;
+}
+
+.hz-phase-alert-line__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.hz-phase-alert-line--l4 {
+  background: #fffbe6;
+  color: #ad6800;
+}
+
+.hz-phase-alert-line--l3,
+.hz-phase-alert-line--warning {
+  background: #fff2e8;
+  color: #d4380d;
+}
+
+.hz-phase-alert-line--l2,
+.hz-phase-alert-line--serious {
+  background: #fff1f0;
+  color: #cf1322;
+}
+
+.hz-lc-cm-nav__dot--alert {
+  border-color: #ff4d4f;
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.hz-lc-cm-nav__dot--alert.hz-lc-cm-nav__dot--selected:not(.hz-lc-cm-nav__dot--done) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #ff4d4f 28%, transparent);
+}
+
+.hz-lc-cm-nav__dot-alert-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 0;
+}
+
+.hz-lc-cm-nav__dot-alert-ico svg {
+  display: block;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-head .hz-lc-cm-nav__dot--alert:not(.hz-lc-cm-nav__dot--done) {
+  background: #fff1f0;
+}
+
+/* Tooltip 包裹层与圆点同宽同高，避免节点在轨道上偏移 */
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-head > .ant-tooltip-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert {
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  justify-content: center;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert.hz-phase-alert-line--no-icon {
+  gap: 0;
+  align-items: center;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert .hz-phase-alert-line__text {
+  flex: 1 1 100%;
+  text-align: center;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step--has-alert {
+  align-self: stretch;
+}

@@ -1,0 +1,169 @@
+@import "../huzhou-construction-portrait/style.css";
+
+.hz-alert-root {
+  height: 100%;
+  min-height: 0;
+}
+
+.hz-alert-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/*
+ * 左栏纵向：KPI + 阶段列表按内容高度；两个图表均分剩余空间（对齐空间利用画像 chart 填满 block）
+ */
+.zht-left.hz-alert-left-panel.hz-left-panel {
+  padding: 10px 12px 12px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.hz-alert-left-panel .hz-left-panel-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.hz-alert-left-panel .zht-section-title.hz-panel-title {
+  flex-shrink: 0;
+  margin-bottom: 6px !important;
+}
+
+.hz-alert-left-panel__intro {
+  flex-shrink: 0;
+  padding-bottom: 6px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.hz-alert-left-panel__summary.hz-cm-summary-row {
+  gap: 0;
+  padding: 0;
+}
+
+.hz-alert-left-panel__summary .hz-cm-summary-stat {
+  padding: 2px 12px 6px;
+}
+
+.hz-alert-left-panel__summary .hz-cm-summary-stat:first-child {
+  padding-left: 0;
+}
+
+.hz-alert-left-panel__filter {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px !important;
+  line-height: 1.35;
+}
+
+.hz-alert-left-panel .hz-panel-block {
+  min-height: 0;
+  padding: 4px 0;
+}
+
+/* 覆盖空间画像「四块均分」：图表块吃剩余高度，阶段块仅内容高 */
+.hz-alert-left-panel .hz-panel-block--alert-level {
+  flex: 1.12 1 0;
+  min-height: 96px;
+  overflow: hidden;
+}
+
+.hz-alert-left-panel .hz-panel-block--alert-days {
+  flex: 1 1 0;
+  min-height: 100px;
+  overflow: hidden;
+}
+
+.hz-alert-left-panel .hz-panel-block--alert-phase {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.hz-alert-left-panel .hz-panel-block:last-child {
+  border-bottom: none;
+}
+
+.hz-alert-left-panel .hz-panel-block-hd.zht-right-widget-hd {
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.hz-alert-left-panel .hz-panel-block--alert-level .hz-panel-block-body--chart,
+.hz-alert-left-panel .hz-panel-block--alert-days .hz-panel-block-body--chart {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.hz-alert-left-panel .hz-panel-block--alert-phase .hz-panel-block-body {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+  padding-top: 0;
+}
+
+.hz-alert-phase-metrics.hz-industrial-metrics {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  gap: 3px;
+  justify-content: flex-start;
+}
+
+.hz-alert-phase-metrics--filtered .hz-alert-phase-metrics__row:not(.hz-alert-phase-metrics__row--selected) {
+  opacity: 0.45;
+}
+
+.hz-alert-phase-metrics__row {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.hz-alert-phase-metrics__row:hover {
+  border-color: color-mix(in srgb, var(--hz-alert-phase-accent, #1677ff) 35%, var(--panel-border));
+}
+
+.hz-alert-phase-metrics__row--selected {
+  border-color: var(--hz-alert-phase-accent, #1677ff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hz-alert-phase-accent, #1677ff) 18%, transparent);
+}
+
+.hz-alert-phase-metrics__share {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--hz-alert-phase-accent-deep, var(--text-secondary, #666));
+}
+
+.hz-alert-phase-metrics__row .hz-industrial-metrics__label {
+  font-size: 11px;
+}
+
+.hz-alert-phase-metrics__row .hz-industrial-metrics__value {
+  font-size: 12px;
+}
+
+.hz-alert-phase-empty {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+.zht-alarm-rail__grid .hz-cm-project-card.zht-stat-drawer-card {
+  margin: 0;
+}

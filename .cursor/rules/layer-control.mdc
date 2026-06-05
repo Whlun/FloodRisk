@@ -1,0 +1,26 @@
+---
+description: 地图图层控制（一级/二级勾选树）必须使用公共模块与固化交互，禁止手写 Checkbox 联动
+globs:
+  - src/prototypes/**/*Layer*
+  - src/prototypes/**/*layer*
+  - src/prototypes/**/*Map*
+  - src/prototypes/**/hzLayerControl*
+  - src/common/layer-control/**
+alwaysApply: false
+---
+
+# 图层控制
+
+实现或修改**地图图层控制 / 空间图层树 / 一级二级勾选**前，**必须先阅读** [`rules/layer-control-guide.md`](../../rules/layer-control-guide.md)。
+
+## 强制要求
+
+1. UI 使用 [`src/common/layer-control/`](../../src/common/layer-control/) 的 `LayerControlTree`（或 `LayerControlGroup` + `LayerControlRow`）。
+2. 勾选联动使用 `layerControlState.ts` 中的 `computeGroupCheckState` / `setAllChildrenChecked` / `toggleChildChecked`。
+3. **禁止**复制韶山/湖州原型内的 Checkbox 逻辑到新项目。
+4. 交互对齐韶山 POI：一级 `checked={allChecked}`、`indeterminate={someChecked}`、一级点击全开/全关。
+
+## 参考
+
+- 公共样式：`ax-lc-*`（`layer-control.css`）
+- 已接入示例：`src/prototypes/huzhou-spatial-portrait/components/HzLayerControlPopover.tsx`

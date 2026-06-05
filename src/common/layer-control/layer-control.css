@@ -1,0 +1,236 @@
+/**
+ * 地图图层控制 · 公共样式（四列：展开箭头 | 勾选 | 名称 | 统计）
+ * 原型 Popover 根节点加 class：ax-lc-popover
+ */
+.ax-lc-popover {
+  --ax-lc-chevron: 22px;
+  --ax-lc-check: 16px;
+  --ax-lc-stat: 84px;
+  --ax-lc-gap: 6px;
+  --ax-lc-pad-x: 4px;
+  min-width: 300px;
+  max-width: 360px;
+}
+
+.ax-lc-row {
+  display: grid;
+  grid-template-columns: var(--ax-lc-chevron) var(--ax-lc-check) minmax(0, 1fr) var(--ax-lc-stat);
+  column-gap: var(--ax-lc-gap);
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px var(--ax-lc-pad-x);
+}
+
+.ax-lc-row--parent {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.ax-lc-row--sub {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.ax-lc-row__cell {
+  min-width: 0;
+}
+
+.ax-lc-row__cell--chevron {
+  width: var(--ax-lc-chevron);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ax-lc-row__cell--check {
+  width: var(--ax-lc-check);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ax-lc-row__cell--label {
+  overflow: hidden;
+}
+
+.ax-lc-row__cell--stat {
+  width: var(--ax-lc-stat);
+  text-align: right;
+}
+
+.ax-lc-chevron-btn {
+  width: var(--ax-lc-chevron);
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+}
+
+.ax-lc-chevron-btn:hover,
+.ax-lc-section__chevron:hover {
+  color: var(--primary-blue, #1677ff);
+  background: rgba(22, 119, 255, 0.06);
+}
+
+.ax-lc-chevron__svg {
+  transition: transform 0.15s ease;
+}
+
+.ax-lc-chevron__svg--open {
+  transform: rotate(90deg);
+}
+
+.ax-lc-check.ant-checkbox-wrapper {
+  margin: 0 !important;
+  line-height: 1;
+  width: var(--ax-lc-check);
+}
+
+.ax-lc-check .ant-checkbox {
+  top: 0;
+}
+
+.ax-lc-label {
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ax-lc-label--sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ax-lc-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ax-lc-stat {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ax-lc-section {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* 平铺行（如行政区划）：对齐韶山 Collapse 无箭头项 */
+.ax-lc-flat-row {
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ax-lc-flat-row .ant-checkbox-wrapper {
+  width: 100%;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* 分区标题（如空间图层）：对齐韶山 Collapse 父级表头 */
+.ax-lc-section__header {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 8px 4px;
+}
+
+.ax-lc-section__chevron {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+}
+
+.ax-lc-section__check.ant-checkbox-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 !important;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* 分区内一级组：对齐韶山 Collapse content-box 缩进 */
+.ax-lc-section__body {
+  --ax-lc-chevron: 18px;
+  padding: 4px 8px 10px;
+}
+
+.ax-lc-section__body .ax-lc-group {
+  border-bottom: none;
+}
+
+.ax-lc-section__body .ax-lc-group + .ax-lc-group {
+  margin-top: 2px;
+}
+
+.ax-lc-section__body .ax-lc-row--parent {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.ax-lc-section__body .ax-lc-subs {
+  padding-left: 20px;
+  padding-bottom: 4px;
+}
+
+.ax-lc-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.ax-lc-group {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ax-lc-group:last-child {
+  border-bottom: none;
+}
+
+.ax-lc-subs {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+}
+
+.ax-lc-hint {
+  margin: 8px var(--ax-lc-pad-x) 0;
+  font-size: 11px;
+  color: #888;
+  line-height: 1.4;
+}

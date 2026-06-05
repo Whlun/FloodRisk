@@ -1,0 +1,340 @@
+/**
+ * @name 地图组件样式
+ */
+
+/* 与项目 postcss.config 一致：使用 Tailwind 指令（避免 @import "tailwindcss" 被 postcss-import 误解析导致构建失败） */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 地图容器基础样式 */
+.map-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+  border-radius: 8px;
+}
+
+/* 地图网格背景（模拟底图效果） */
+.map-grid-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(200, 200, 200, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200, 200, 200, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+/* 标记点脉冲动画 */
+@keyframes markerPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.map-marker-pulse {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(24, 144, 255, 0.4);
+  animation: markerPulse 2s ease-out infinite;
+}
+
+.map-marker-pulse.alert {
+  background: rgba(245, 34, 45, 0.4);
+}
+
+.map-marker-pulse.warning {
+  background: rgba(250, 173, 20, 0.4);
+}
+
+/* 标记点核心 */
+.map-marker-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1890ff;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.map-marker-dot.alert {
+  background: #f5222d;
+}
+
+.map-marker-dot.warning {
+  background: #faad14;
+}
+
+/* 地图工具栏 */
+.map-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.map-toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: white;
+  border: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.map-toolbar-btn:hover {
+  background: #f5f5f5;
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+/* 地图图例 */
+.map-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+.map-legend-item:last-child {
+  margin-bottom: 0;
+}
+
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.map-legend-dot.normal {
+  background: #1890ff;
+}
+
+.map-legend-dot.alert {
+  background: #f5222d;
+}
+
+.map-legend-dot.warning {
+  background: #faad14;
+}
+
+/* 地图信息卡片 */
+.map-info-card {
+  position: absolute;
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 200;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.map-info-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.map-info-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.map-info-card-close {
+  cursor: pointer;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.map-info-card-close:hover {
+  color: #333;
+}
+
+.map-info-card-body {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.map-info-card-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.map-info-card-label {
+  color: #999;
+}
+
+.map-info-card-value {
+  color: #333;
+  font-weight: 500;
+}
+
+/* 图层切换器 */
+.map-layer-switcher {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.map-layer-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  transition: all 0.3s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.map-layer-item:last-child {
+  border-bottom: none;
+}
+
+.map-layer-item:hover {
+  background: #f5f5f5;
+  color: #1890ff;
+}
+
+.map-layer-item.active {
+  background: #e6f7ff;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 缩放控件 */
+.map-zoom-control {
+  position: absolute;
+  bottom: 80px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.map-zoom-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  background: white;
+  font-size: 18px;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.map-zoom-btn:hover {
+  background: #f5f5f5;
+  color: #1890ff;
+}
+
+.map-zoom-btn:first-child {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .map-toolbar {
+    top: 8px;
+    right: 8px;
+  }
+
+  .map-toolbar-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .map-legend {
+    bottom: 8px;
+    left: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .map-layer-switcher {
+    top: 8px;
+    left: 8px;
+  }
+
+  .map-layer-item {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* 大屏适配 */
+@media (min-width: 1920px) {
+  .map-container {
+    min-height: 600px;
+  }
+
+  .map-legend {
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+
+  .map-legend-dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  .map-toolbar-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+}
