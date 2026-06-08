@@ -17,9 +17,9 @@ export type CmPhaseAccentKey =
   | 'land-permit'
   | 'first-reg'
   | 'eng-permit'
-  | 'con-permit'
   | 'land-review'
-  | 'plan-verify';
+  | 'plan-verify'
+  | 'estate-cert';
 
 /** 与建管左栏 PHASE_METRICS.label 对齐 */
 export const CM_PHASE_LABELS: Record<CmPhaseAccentKey, string> = {
@@ -29,9 +29,9 @@ export const CM_PHASE_LABELS: Record<CmPhaseAccentKey, string> = {
   'land-permit': '用地规划许可',
   'first-reg': '土地首次登记',
   'eng-permit': '工程规划许可',
-  'con-permit': '工程施工许可',
   'land-review': '用地复核验收',
   'plan-verify': '规划核实',
+  'estate-cert': '不动产权证',
 };
 
 /** 与建管左栏 PHASE_METRICS.label 对齐，用于按中文名匹配主题色 */
@@ -47,12 +47,13 @@ const MATTER_STAGE_TO_PHASE: Partial<Record<MatterStageKey, CmPhaseAccentKey>> =
   'design-review': 'eng-permit',
   'engineering-permit': 'eng-permit',
   'first-registration': 'first-reg',
-  'construction-permit': 'con-permit',
-  'project-base': 'con-permit',
-  'construction-project': 'con-permit',
+  'construction-permit': 'eng-permit',
+  'project-base': 'eng-permit',
+  'construction-project': 'eng-permit',
   'planning-verification': 'plan-verify',
-  attachments: 'con-permit',
-  'process-events': 'con-permit',
+  'estate-certificate': 'estate-cert',
+  attachments: 'eng-permit',
+  'process-events': 'eng-permit',
 };
 
 export function matterStageToCmPhaseAccentKey(stageKey: MatterStageKey): CmPhaseAccentKey {
@@ -79,23 +80,19 @@ export const CM_PHASES: CmPhaseConfig[] = [
   {
     key: 'eng-permit',
     label: CM_PHASE_LABELS['eng-permit'],
-    matterKeys: ['design-review', 'engineering-permit'],
-  },
-  {
-    key: 'con-permit',
-    label: CM_PHASE_LABELS['con-permit'],
-    matterKeys: ['construction-permit', 'project-base', 'construction-project'],
+    matterKeys: ['design-review', 'engineering-permit', 'construction-permit', 'project-base', 'construction-project'],
   },
   { key: 'land-review', label: CM_PHASE_LABELS['land-review'], matterKeys: ['land-review'] },
   { key: 'plan-verify', label: CM_PHASE_LABELS['plan-verify'], matterKeys: ['planning-verification'] },
+  { key: 'estate-cert', label: CM_PHASE_LABELS['estate-cert'], matterKeys: ['estate-certificate'] },
 ];
 
-/** 详情左栏 5 大阶段分组（布局展示；交互仍为 9 个细项阶段） */
-export type CmPhaseMacroKey = 'approve' | 'supply' | 'use' | 'build' | 'verify';
+/** 详情左栏 6 大阶段分组（布局展示；交互仍为 9 个细项阶段） */
+export type CmPhaseMacroKey = 'approve' | 'supply' | 'use' | 'build' | 'verify' | 'cert';
 
 export type CmPhaseMacroGroup = {
   key: CmPhaseMacroKey;
-  /** 单字大阶段名：批 / 供 / 用 / 建 / 验 */
+  /** 单字大阶段名：批 / 供 / 用 / 建 / 验 / 证 */
   label: string;
   phaseKeys: readonly CmPhaseAccentKey[];
 };
@@ -104,8 +101,9 @@ export const CM_PHASE_MACRO_GROUPS: readonly CmPhaseMacroGroup[] = [
   { key: 'approve', label: '批', phaseKeys: ['pre-review', 'farmland'] },
   { key: 'supply', label: '供', phaseKeys: ['land-supply'] },
   { key: 'use', label: '用', phaseKeys: ['land-permit', 'first-reg'] },
-  { key: 'build', label: '建', phaseKeys: ['eng-permit', 'con-permit'] },
+  { key: 'build', label: '建', phaseKeys: ['eng-permit'] },
   { key: 'verify', label: '验', phaseKeys: ['land-review', 'plan-verify'] },
+  { key: 'cert', label: '证', phaseKeys: ['estate-cert'] },
 ] as const;
 
 const CM_PHASE_BY_KEY = Object.fromEntries(CM_PHASES.map(p => [p.key, p])) as Record<
@@ -181,9 +179,9 @@ const CM_PHASE_NAV_DATE: Record<
   'land-permit': { label: '发证时间', code: 'ydgh_fzsj' },
   'first-reg': { label: '登记日期' },
   'eng-permit': { label: '发证日期', code: 'gcgh_fzrq' },
-  'con-permit': { label: '计划开工日期', code: 'gcsg_jhkgrq' },
   'land-review': { label: '拟开工时间', code: 'ydfhys_plan_starttime' },
   'plan-verify': { label: '核发日期', code: 'ghhs_hfrq' },
+  'estate-cert': { label: '登记时间', code: 'djsj' },
 };
 
 export type CmPhaseNavDate = {

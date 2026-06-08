@@ -5,6 +5,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Segmented, Typography } from 'antd';
 import type { EChartsOption } from 'echarts';
 import * as echarts from 'echarts';
+import { AnimatedNumber } from '../../../../common/AnimatedNumber';
+import { AnimatedProgressFill } from '../../../../common/AnimatedProgressFill';
+import { setChartOptionWithAnimation, withChartAnimation } from '../../../../common/chartAnimation';
+import { useSpatialEcharts } from './useSpatialEcharts';
 import type { HzRegionKey } from '../../../huzhou-lifecycle-shared/hzRegionScope';
 import type { HuzhouSpaceMode } from '../../huzhouMapConstants';
 import { getSpatialStatsForRegion } from '../../mock/regionScopedSpatialStats';
@@ -24,7 +28,7 @@ const SUPPLY_DIST_TABS: { label: string; value: SupplyDistTab }[] = [
 function buildSupplyBarOption(
   rows: { name: string; value: number }[],
 ): EChartsOption {
-  return {
+  return withChartAnimation({
     grid: { left: 8, right: 8, top: 12, bottom: 36 },
     tooltip: { trigger: 'axis', formatter: '{b}: {c}' },
     xAxis: {
@@ -47,7 +51,7 @@ function buildSupplyBarOption(
         barMaxWidth: 22,
       },
     ],
-  };
+  });
 }
 
 /** 供地分布 · 结构分布饼图 */
@@ -55,7 +59,7 @@ function buildSupplyStructPieOption(
   pie: { name: string; value: number; color: string }[],
   total: number,
 ): EChartsOption {
-  return {
+  return withChartAnimation({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: {
       orient: 'vertical',
@@ -99,27 +103,7 @@ function buildSupplyStructPieOption(
         },
       },
     ],
-  } as EChartsOption;
-}
-
-function useEcharts(
-  ref: React.RefObject<HTMLDivElement | null>,
-  getOption: () => EChartsOption,
-  deps: React.DependencyList,
-) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const chart = echarts.init(el);
-    chart.setOption(getOption());
-    const ro = new ResizeObserver(() => chart.resize());
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      chart.dispose();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref, ...deps]);
+  } as EChartsOption);
 }
 
 export type SpatialLeftPanelProps = {
@@ -136,19 +120,22 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
   const trendRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
 
-  useEcharts(
+  useSpatialEcharts(
     usageBarRef,
     () => buildSupplyBarOption(stats.supplyUsageBars),
+    supplyTab === 'usage',
     [regionKey, stats.supplyUsageBars],
   );
-  useEcharts(
+  useSpatialEcharts(
     spatialBarRef,
     () => buildSupplyBarOption(stats.supplySpatialBars),
+    supplyTab === 'spatial',
     [regionKey, stats.supplySpatialBars],
   );
-  useEcharts(
+  useSpatialEcharts(
     structPieRef,
     () => buildSupplyStructPieOption(stats.supplyStructPie, stats.supplyStructTotal),
+    supplyTab === 'struct',
     [regionKey, stats.supplyStructPie, stats.supplyStructTotal],
   );
 
@@ -183,7 +170,7 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
     const el = trendRef.current;
     if (!el) return;
     const chart = echarts.init(el);
-    chart.setOption({
+    setChartOptionWithAnimation(chart, withChartAnimation({
       grid: { left: 36, right: 12, top: 24, bottom: 28 },
       tooltip: { trigger: 'axis' },
       xAxis: {
@@ -208,7 +195,7 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
           itemStyle: { color: '#1e5bb5' },
         },
       ],
-    });
+    }));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(el);
     return () => {
@@ -302,7 +289,10 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
             <div className="hz-inefficient">
               <div className="hz-inefficient__hero">
                 <div className="hz-inefficient__hero-value">
-                  {stats.inefficientLand.area.toFixed(2)}
+                  <AnimatedNumber
+                    value={stats.inefficientLand.area}
+                    formatter={n => n.toFixed(2)}
+                  />
                   <span className="hz-inefficient__unit">公顷</span>
                 </div>
                 <div className="hz-inefficient__hero-label">低效用地面积</div>
@@ -325,14 +315,15 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
                       color: '#08cc91',
                     },
                   ] as const
-                ).map(row => {
-                  const pctDisplay = (row.pct * 100).toFixed(1);
-                  return (
+                ).map(row => (
                     <div key={row.key} className="hz-inefficient__row">
                       <div className="hz-inefficient__row-hd">
                         <span className="hz-inefficient__row-label">{row.label}</span>
                         <span className="hz-inefficient__row-value">
-                          {row.value.toFixed(2)}
+                          <AnimatedNumber
+                            value={row.value}
+                            formatter={n => n.toFixed(2)}
+                          />
                           <span className="hz-inefficient__unit">公顷</span>
                         </span>
                       </div>
@@ -340,24 +331,27 @@ export const SpatialLeftPanel: React.FC<SpatialLeftPanelProps> = ({ spaceMode, r
                         <div
                           className="hz-inefficient__track"
                           role="progressbar"
-                          aria-valuenow={Number(pctDisplay)}
+                          aria-valuenow={Math.round(row.pct * 100)}
                           aria-valuemin={0}
                           aria-valuemax={100}
                           aria-label={`${row.label}占比`}
                         >
-                          <span
+                          <AnimatedProgressFill
                             className="hz-inefficient__fill"
-                            style={{
-                              width: `${Math.min(row.pct * 100, 100)}%`,
-                              backgroundColor: row.color,
-                            }}
+                            percent={row.pct * 100}
+                            style={{ backgroundColor: row.color }}
                           />
                         </div>
-                        <span className="hz-inefficient__pct">{pctDisplay}%</span>
+                        <span className="hz-inefficient__pct">
+                          <AnimatedNumber
+                            value={row.pct * 100}
+                            formatter={n => n.toFixed(1)}
+                          />
+                          %
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                ))}
               </div>
             </div>
           </div>

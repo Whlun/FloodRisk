@@ -50,14 +50,6 @@
   --hz-cm-phase-accent-fill: #ff85c0;
 }
 
-.hz-cm-phase-card--phase-con-permit,
-.hz-cm-phase-stage-tag.hz-cm-phase-card--phase-con-permit {
-  --hz-cm-phase-accent: #fa541c;
-  --hz-cm-phase-accent-deep: #d4380d;
-  --hz-cm-phase-accent-bg: #fff2e8;
-  --hz-cm-phase-accent-fill: #ff9c6e;
-}
-
 .hz-cm-phase-card--phase-land-review,
 .hz-cm-phase-stage-tag.hz-cm-phase-card--phase-land-review {
   --hz-cm-phase-accent: #faad14;
@@ -72,6 +64,14 @@
   --hz-cm-phase-accent-deep: #1d39c4;
   --hz-cm-phase-accent-bg: #f0f5ff;
   --hz-cm-phase-accent-fill: #85a5ff;
+}
+
+.hz-cm-phase-card--phase-estate-cert,
+.hz-cm-phase-stage-tag.hz-cm-phase-card--phase-estate-cert {
+  --hz-cm-phase-accent: #d4b106;
+  --hz-cm-phase-accent-deep: #ad8b00;
+  --hz-cm-phase-accent-bg: #fffbe6;
+  --hz-cm-phase-accent-fill: #ffe58f;
 }
 
 .hz-cm-phase-stage-tag.zht-stat-drawer-card__tag,

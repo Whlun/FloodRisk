@@ -130,22 +130,45 @@
   color: #1677ff;
 }
 
+.hz-wb-alert-type-tag {
+  margin-inline-end: 0;
+  font-weight: 600;
+}
+
+.hz-wb-alert-type-tag--approved-not-supplied {
+  color: #0958d9;
+  background: #e6f4ff;
+  border-color: #91caff;
+}
+
+.hz-wb-alert-type-tag--supplied-not-used {
+  color: #08979c;
+  background: #e6fffb;
+  border-color: #87e8de;
+}
+
+.hz-wb-alert-type-tag--used-not-complete {
+  color: #531dab;
+  background: #f9f0ff;
+  border-color: #d3adf7;
+}
+
 .hz-wb-alert-tag--serious {
-  color: #ff4d4f;
-  background: #fff1f0;
-  border-color: #ffa39e;
+  color: #0958d9;
+  background: #e6f4ff;
+  border-color: #91caff;
 }
 
 .hz-wb-alert-tag--warning {
-  color: #fa8c16;
-  background: #fff7e6;
-  border-color: #ffd591;
+  color: #1677ff;
+  background: #e6f4ff;
+  border-color: #91caff;
 }
 
 .hz-wb-alert-tag--hint {
-  color: #faad14;
-  background: #fffbe6;
-  border-color: #ffe58f;
+  color: #4096ff;
+  background: #f0f5ff;
+  border-color: #adc6ff;
 }
 
 .hz-wb-link-btn {

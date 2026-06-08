@@ -5,43 +5,99 @@ import {
 } from '../huzhou-lifecycle-shared/mock/demoParcels';
 import type { ParcelLifecycle } from '../huzhou-lifecycle-shared/types';
 import { cmRegionToDistrictName, type CmRegionKey } from './cmRegionFilter';
-import type { CmProjectWithPhaseAlert } from './cmProjectPhaseAlert';
+import { getCmIndustrialLandAlert, listCmIndustrialLandAlerts } from './cmIndustrialLandAlert';
+import type { CmProjectWithIndustrialLandAlert } from './cmIndustrialLandAlert';
+import { getAlertTypeAccent } from './cmAlertTypeAccent';
+import { getRegionAlertProjects } from './mock/regionAlertProjects';
 import { resolveProjectParcelId } from './mock/projects';
-import type { ConstructionProject, PhaseKey } from './types';
+import type { CmAlertType, ConstructionProject, PhaseKey } from './types';
 import { getPhaseAccent } from './phaseAccentColors';
 
-/** 预警工程画像 · 地图滞留地块标红（对齐报警 l2 色） */
-export const HZ_ALERT_MAP_HIGHLIGHT_COLORS = {
-  lineColor: '#ff4d4f',
-  fillColor: '#ff4d4f',
-} as const;
+export type HzAlertParcelColorMaps = {
+  featureIds: string[];
+  fillColorById: Record<string, string>;
+  lineColorById: Record<string, string>;
+};
 
-export function collectAlertParcelFeatureIds(
-  rows: Array<CmProjectWithPhaseAlert | ConstructionProject>,
+function resolveAlertTypeFromRow(
+  row: CmProjectWithIndustrialLandAlert | ConstructionProject,
+): CmAlertType | null {
+  if ('alert' in row) return row.alert.alertType;
+  return getCmIndustrialLandAlert(row)?.alertType ?? null;
+}
+
+/** 预警地块 osm_id 与类型主题色（与前三未类型标签 `getAlertTypeAccent` 一致） */
+export function buildAlertParcelColorMaps(
+  rows: Array<CmProjectWithIndustrialLandAlert | ConstructionProject>,
   districtName?: string | null,
-): string[] {
+): HzAlertParcelColorMaps {
   const featureIds: string[] = [];
+  const fillColorById: Record<string, string> = {};
+  const lineColorById: Record<string, string> = {};
+
   for (const row of rows) {
     const project = 'project' in row ? row.project : row;
+    const alertType = resolveAlertTypeFromRow(row);
+    if (!alertType) continue;
+
     const parcelId = resolveProjectParcelId(project);
     if (!parcelMatchesDistrict(parcelId, districtName ?? project.region)) continue;
     const parcel = getParcelById(parcelId);
     const fid = parcel?.mapFeatureId?.trim();
     if (!fid || featureIds.includes(fid)) continue;
+
+    const accent = getAlertTypeAccent(alertType);
     featureIds.push(fid);
+    fillColorById[fid] = accent.accent;
+    lineColorById[fid] = accent.accentDeep;
   }
-  return featureIds;
+
+  return { featureIds, fillColorById, lineColorById };
 }
 
-/** 预警列表对应地块批量标红 */
+export function collectAlertParcelFeatureIds(
+  rows: Array<CmProjectWithIndustrialLandAlert | ConstructionProject>,
+  districtName?: string | null,
+): string[] {
+  return buildAlertParcelColorMaps(rows, districtName).featureIds;
+}
+
+/** 预警列表对应地块按类型主题色高亮 */
 export function buildHzAlertProjectsMapHighlight(
-  rows: Array<CmProjectWithPhaseAlert | ConstructionProject>,
+  rows: Array<CmProjectWithIndustrialLandAlert | ConstructionProject>,
+  districtName?: string | null,
 ): HzMapProjectHighlight | null {
-  const featureIds = collectAlertParcelFeatureIds(rows);
+  const { featureIds, fillColorById, lineColorById } = buildAlertParcelColorMaps(
+    rows,
+    districtName,
+  );
   if (featureIds.length === 0) return null;
+  const fallback = fillColorById[featureIds[0]!] ?? '#1677ff';
   return {
     featureIds,
-    ...HZ_ALERT_MAP_HIGHLIGHT_COLORS,
+    lineColor: lineColorById[featureIds[0]!] ?? fallback,
+    fillColor: fallback,
+    featureFillColorById: fillColorById,
+    featureLineColorById: lineColorById,
+  };
+}
+
+/** 选中前三未类型时，按类型主题色高亮预警地块 */
+export function buildHzAlertTypeMapHighlight(
+  alertType: CmAlertType,
+  regionKey: CmRegionKey,
+): HzMapProjectHighlight | null {
+  const district = cmRegionToDistrictName(regionKey);
+  const rows = listCmIndustrialLandAlerts(getRegionAlertProjects(regionKey)).filter(
+    ({ alert }) => alert.alertType === alertType,
+  );
+  const featureIds = collectAlertParcelFeatureIds(rows, district);
+  if (featureIds.length === 0) return null;
+  const accent = getAlertTypeAccent(alertType);
+  return {
+    featureIds,
+    lineColor: accent.accent,
+    fillColor: accent.accent,
   };
 }
 
@@ -57,6 +113,22 @@ export function buildHzMapProjectHighlight(
     phasePropertyKey: 'cmPhaseKey',
     districtName: cmRegionToDistrictName(regionKey),
     lineColor: accent.accent,
+    fillColor: accent.accent,
+  };
+}
+
+/** 预警画像 · 项目定位：单地块高亮，颜色与前三未类型标签一致 */
+export function buildFocusedAlertParcelHighlight(
+  project: ConstructionProject,
+  parcel: ParcelLifecycle,
+  alertType: CmAlertType,
+): HzMapProjectHighlight | null {
+  const featureId = parcel.mapFeatureId?.trim();
+  if (!featureId) return null;
+  const accent = getAlertTypeAccent(alertType);
+  return {
+    featureIds: [featureId],
+    lineColor: accent.accentDeep,
     fillColor: accent.accent,
   };
 }

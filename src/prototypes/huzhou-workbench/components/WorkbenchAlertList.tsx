@@ -1,18 +1,14 @@
 import React from 'react';
 import { Card, Empty, List, Tag } from 'antd';
-import type { CmProjectWithPhaseAlert } from '../../huzhou-construction-portrait/cmProjectPhaseAlert';
-import { getPhaseMetric } from '../../huzhou-construction-portrait/mock/phaseDistribution';
-
-const LEVEL_LABEL: Record<string, string> = {
-  serious: '长期滞留',
-  warning: '阶段滞留',
-  hint: '停留偏久',
-};
-
+import {
+  CM_ALERT_TYPE_LABEL,
+  CM_INDUSTRIAL_LEVEL_LABEL,
+  type CmProjectWithIndustrialLandAlert,
+} from '../../huzhou-construction-portrait/cmIndustrialLandAlert';
 import type { ConstructionProject } from '../../huzhou-construction-portrait/types';
 
 type WorkbenchAlertListProps = {
-  rows: CmProjectWithPhaseAlert[];
+  rows: CmProjectWithIndustrialLandAlert[];
   onViewAll: () => void;
   onProjectClick: (project: ConstructionProject) => void;
 };
@@ -24,7 +20,7 @@ export const WorkbenchAlertList: React.FC<WorkbenchAlertListProps> = ({
 }) => (
   <Card
     className="hz-wb-list-card"
-    title="阶段滞留预警"
+    title="预警信息"
     size="small"
     bordered
     extra={
@@ -43,12 +39,19 @@ export const WorkbenchAlertList: React.FC<WorkbenchAlertListProps> = ({
             <div className="hz-wb-list-row__main">
               <div className="hz-wb-list-row__head">
                 <span className="hz-wb-list-row__title">{project.name}</span>
-                <Tag className={`hz-wb-alert-tag--${alert.level}`}>
-                  {LEVEL_LABEL[alert.level]}
-                </Tag>
+                <div className="hz-wb-list-row__tags">
+                  <Tag className={`hz-wb-alert-type-tag hz-wb-alert-type-tag--${alert.alertType}`}>
+                    {CM_ALERT_TYPE_LABEL[alert.alertType]}
+                  </Tag>
+                  <Tag className={`hz-wb-alert-tag--${alert.level}`}>
+                    {CM_INDUSTRIAL_LEVEL_LABEL[alert.level]}
+                  </Tag>
+                </div>
               </div>
               <div className="hz-wb-list-row__meta">
-                {getPhaseMetric(project.phaseKey).label} · 已停留 {alert.daysInPhase} 天
+                {alert.delayDays != null ? `超期 ${alert.delayDays} 天` : ''}
+                {alert.delayDays != null && alert.unusedAreaMu != null ? ' · ' : ''}
+                {alert.unusedAreaMu != null ? `未开发 ${alert.unusedAreaMu.toFixed(1)} 亩` : ''}
               </div>
             </div>
           </List.Item>

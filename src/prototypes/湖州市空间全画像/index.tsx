@@ -51,7 +51,7 @@ function isSubKey(x: string): x is SubKey {
 /** 进入壳地址未带子路径、或子路径非法时，落到工作台 */
 const DEFAULT_SUB: SubKey = ROUTE_YIZHANGTU;
 
-import { countCmProjectAlerts } from '../huzhou-construction-portrait/cmProjectPhaseAlert';
+import { countCmIndustrialLandAlerts } from '../huzhou-construction-portrait/cmIndustrialLandAlert';
 import { getRegionAlertProjects } from '../huzhou-construction-portrait/mock/regionAlertProjects';
 import SpatialPortraitPage from '../huzhou-spatial-portrait/index';
 import ConstructionPortraitPage from '../huzhou-construction-portrait/index';
@@ -101,9 +101,9 @@ function readKeyAndFixUrlIfNeeded(): SubKey {
 const ShellInnerContent: React.FC = () => {
   const [subKey, setSubKey] = useState<SubKey>(DEFAULT_SUB);
   const { regionKey, setRegionKey } = useHzShellRegion();
-  /** 全画像公共预警角标：当前壳顶栏区县下建管项目阶段滞留数（与各 Tab 无关） */
+  /** 全画像公共预警角标：当前壳顶栏区县下前三未预警项目数（与各 Tab 无关） */
   const projectAlertCount = useMemo(
-    () => countCmProjectAlerts(getRegionAlertProjects(regionKey)),
+    () => countCmIndustrialLandAlerts(getRegionAlertProjects(regionKey)),
     [regionKey],
   );
 
@@ -160,8 +160,8 @@ const ShellInnerContent: React.FC = () => {
     <HzShellNavProvider navigateSub={pushSub}>
       <div className="ss-one-map-shell">
         <header className="ss-one-map-shell__header hz-spatial-shell__header" role="banner">
-          <h1 className="ss-one-map-shell__title" title="湖州市工业用地全画像">
-            湖州市工业用地全画像
+          <h1 className="ss-one-map-shell__title" title="湖州项目全生命周期管理">
+            湖州项目全生命周期管理
           </h1>
           <nav className="ss-one-map-shell__nav hz-spatial-shell__nav" aria-label="空间全画像一级导航">
             {MENU.map(m => {

@@ -3,10 +3,12 @@
  */
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Typography } from 'antd';
-import type { EChartsOption } from 'echarts';
 import * as echarts from 'echarts';
+import { AnimatedNumber } from '../../../../common/AnimatedNumber';
+import { AnimatedProgressFill } from '../../../../common/AnimatedProgressFill';
 import type { HzRegionKey } from '../../../huzhou-lifecycle-shared/hzRegionScope';
 import { getSpatialStatsForRegion } from '../../mock/regionScopedSpatialStats';
+import { useSpatialEcharts } from './useSpatialEcharts';
 import {
   buildAvailableDonutOption,
   buildPublicDonutOption,
@@ -15,26 +17,6 @@ import {
 } from './spatialChartTheme';
 
 const { Title } = Typography;
-
-function usePanelChart(
-  ref: React.RefObject<HTMLDivElement | null>,
-  getOption: () => EChartsOption,
-  deps: React.DependencyList,
-) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const chart = echarts.init(el);
-    chart.setOption(getOption());
-    const ro = new ResizeObserver(() => chart.resize());
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      chart.dispose();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref, ...deps]);
-}
 
 export type SpatialRightPanelProps = {
   regionKey: HzRegionKey;
@@ -49,19 +31,22 @@ export const SpatialRightPanel: React.FC<SpatialRightPanelProps> = ({ regionKey 
 
   const industrialMax = Math.max(...stats.industrialRows.map(r => r.value), 1);
 
-  usePanelChart(
+  useSpatialEcharts(
     donutRef,
     () => buildAvailableDonutOption(stats.availableDonut, stats.availableTotal),
+    true,
     [regionKey, stats.availableDonut, stats.availableTotal],
   );
-  usePanelChart(
+  useSpatialEcharts(
     barRef,
     () => buildResidentialBarOption(stats.residentialBars),
+    true,
     [regionKey, stats.residentialBars],
   );
-  usePanelChart(
+  useSpatialEcharts(
     publicDonutRef,
     () => buildPublicDonutOption(stats.publicDonut, stats.publicDonutTotal),
+    true,
     [regionKey, stats.publicDonut, stats.publicDonutTotal],
   );
 
@@ -128,7 +113,10 @@ export const SpatialRightPanel: React.FC<SpatialRightPanelProps> = ({ regionKey 
                     <div className="hz-industrial-metrics__hd">
                       <span className="hz-industrial-metrics__label">{row.name}</span>
                       <span className="hz-industrial-metrics__value">
-                        {row.value.toFixed(2)}
+                        <AnimatedNumber
+                          value={row.value}
+                          formatter={n => n.toFixed(2)}
+                        />
                         <span className="hz-industrial-metrics__unit">公顷</span>
                       </span>
                     </div>
@@ -141,9 +129,10 @@ export const SpatialRightPanel: React.FC<SpatialRightPanelProps> = ({ regionKey 
                         aria-valuemax={100}
                         aria-label={`${row.name}占比`}
                       >
-                        <span
+                        <AnimatedProgressFill
                           className="hz-industrial-metrics__fill"
-                          style={{ width: `${pct}%`, backgroundColor: color }}
+                          percent={pct}
+                          style={{ backgroundColor: color }}
                         />
                       </div>
                     </div>

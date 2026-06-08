@@ -2,6 +2,7 @@
  * 空间利用画像 · 看板图表主题（对齐 zonghe-taishi 白底蓝系）
  */
 import type { EChartsOption } from 'echarts';
+import { withChartAnimation } from '../../../../common/chartAnimation';
 
 export const HZ_CHART = {
   primary: '#1e5bb5',
@@ -47,7 +48,7 @@ export function buildAvailableDonutOption(
   rows: { name: string; value: number }[],
   total: number,
 ): EChartsOption {
-  return {
+  return withChartAnimation({
     tooltip: { ...baseTooltip, trigger: 'item', formatter: '{b}<br/>{c} 公顷 ({d}%)' },
     legend: {
       orient: 'vertical',
@@ -113,11 +114,11 @@ export function buildAvailableDonutOption(
         },
       },
     ],
-  };
+  });
 }
 
 export function buildResidentialBarOption(rows: { name: string; value: number }[]): EChartsOption {
-  return {
+  return withChartAnimation({
     grid: { left: 4, right: 16, top: 8, bottom: 4, containLabel: true },
     tooltip: { ...baseTooltip, trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}<br/>{c} 公顷' },
     xAxis: {
@@ -145,14 +146,14 @@ export function buildResidentialBarOption(rows: { name: string; value: number }[
         backgroundStyle: { color: '#f0f4f8', borderRadius: [0, 4, 4, 0] },
       },
     ],
-  };
+  });
 }
 
 export function buildPublicDonutOption(
   rows: { name: string; value: number }[],
   total: number,
 ): EChartsOption {
-  return {
+  return withChartAnimation({
     tooltip: { ...baseTooltip, trigger: 'item', formatter: '{b}<br/>{c} 公顷 ({d}%)' },
     legend: {
       bottom: 0,
@@ -217,5 +218,5 @@ export function buildPublicDonutOption(
         },
       },
     ],
-  };
+  });
 }

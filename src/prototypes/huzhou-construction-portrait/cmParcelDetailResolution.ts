@@ -9,7 +9,7 @@ import {
   buildConstructionProjectSnapshot,
   mergeParcelForConstructionProject,
 } from './mock/constructionProjectParcel';
-import { getCmPhaseAlertLevelTone, getCmProjectPhaseAlert, formatCmPhaseAlertTimelineMessage } from './cmProjectPhaseAlert';
+import { resolveCmDetailPhaseAlert } from './resolveCmProjectCardAlert';
 import {
   findConstructionProjectByParcelId,
   getProjectById,
@@ -20,20 +20,11 @@ import type { ConstructionProject } from './types';
 export function buildConstructionOpenOptions(
   project: ConstructionProject,
 ): OpenParcelDetailOptions {
-  const alert = getCmProjectPhaseAlert(project);
   return {
     stageAccentPhaseKey: project.phaseKey,
     constructionProjectId: project.id,
     constructionProject: buildConstructionProjectSnapshot(project),
-    phaseAlert: alert
-      ? {
-          message: alert.message,
-          timelineMessage: formatCmPhaseAlertTimelineMessage(alert),
-          enteredAt: alert.enteredAt,
-          levelTone: getCmPhaseAlertLevelTone(alert.level),
-          phaseKey: alert.phaseKey,
-        }
-      : null,
+    phaseAlert: resolveCmDetailPhaseAlert(project),
   };
 }
 

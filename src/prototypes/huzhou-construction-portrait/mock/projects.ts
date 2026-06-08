@@ -179,7 +179,7 @@ export const CONSTRUCTION_PROJECTS: ConstructionProject[] = [
   },
   {
     id: 'p8',
-    phaseKey: 'plan-verify',
+    phaseKey: 'estate-cert',
     parcelId: DEMO_PARCEL_IDS[9],
     name: '吴兴区东林镇保障性租赁住房项目',
     region: '吴兴区',
@@ -245,7 +245,7 @@ export const CONSTRUCTION_PROJECTS: ConstructionProject[] = [
   },
   {
     id: 'p12',
-    phaseKey: 'con-permit',
+    phaseKey: 'eng-permit',
     parcelId: DEMO_PARCEL_IDS[7],
     name: '德清县莫干山高新区科创中心项目',
     region: '德清县',
@@ -398,7 +398,7 @@ export const CONSTRUCTION_PROJECTS: ConstructionProject[] = [
   },
   {
     id: 'p21',
-    phaseKey: 'con-permit',
+    phaseKey: 'eng-permit',
     parcelId: DEMO_PARCEL_IDS[6],
     name: '长兴县和平镇新能源装备产业基地项目',
     region: '长兴县',

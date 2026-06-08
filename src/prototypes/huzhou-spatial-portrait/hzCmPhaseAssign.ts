@@ -9,9 +9,9 @@ export const HZ_CM_PHASE_KEYS = [
   'land-permit',
   'first-reg',
   'eng-permit',
-  'con-permit',
   'land-review',
   'plan-verify',
+  'estate-cert',
 ] as const;
 
 export type HzCmPhaseKey = (typeof HZ_CM_PHASE_KEYS)[number];

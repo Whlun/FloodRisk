@@ -14,10 +14,24 @@ export function normalizeCmProjectDate(raw: string): string | null {
   return null;
 }
 
-/** 当前阶段时间节点：优先 phaseEnteredAt，否则时间轴该阶段受理/办结日期 */
+/** 前三未预警项目 · 用于申报时间筛选的关键节点日期 */
+function resolveIndustrialLandMilestoneDate(project: ConstructionProject): string | null {
+  const raw =
+    project.nongzhuanDate ??
+    project.supplyDate ??
+    project.contractStartDate ??
+    project.constructDate ??
+    project.applyDate;
+  return raw ? normalizeCmProjectDate(raw) : null;
+}
+
+/** 当前阶段时间节点：优先 phaseEnteredAt，否则前三未关键节点 / 时间轴受理日期 */
 export function resolveProjectCurrentPhaseTime(project: ConstructionProject): string | null {
   const entered = resolveProjectCurrentPhaseEnteredAt(project);
   if (entered) return normalizeCmProjectDate(entered);
+
+  const milestone = resolveIndustrialLandMilestoneDate(project);
+  if (milestone) return milestone;
 
   const phaseTime = buildCmPhaseAcceptTimes(project)[project.phaseKey];
   if (phaseTime) return normalizeCmProjectDate(String(phaseTime));

@@ -1,7 +1,7 @@
 /**
  * @name 预警工程画像
  *
- * 三栏：左预警统计看板 + 中地图（与空间利用/建设工程画像同源）+ 右项目阶段预警列表（复用建管 CmProjectAlertRailPanel）。
+ * 三栏：左预警统计看板 + 中地图（与空间利用/建设工程画像同源）+ 右预警信息列表（复用建管 CmProjectAlertRailPanel）。
  *
  * 参考资料：
  * - src/prototypes/huzhou-construction-portrait/

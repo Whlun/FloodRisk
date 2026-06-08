@@ -1,5 +1,5 @@
 /**
- * 建设工程画像 · 详情弹窗连续横向时间轴（顶行 5 大阶段标签 + 9 细项节点）
+ * 建设工程画像 · 详情弹窗连续横向时间轴（顶行 6 大阶段标签 + 9 细项节点）
  */
 import React, { useCallback, useMemo } from 'react';
 import { ExclamationCircleFilled } from '@ant-design/icons';
@@ -50,7 +50,7 @@ function CmPhaseNavDot({
         .filter(Boolean)
         .join(' ')}
       aria-hidden={!hasAlert}
-      aria-label={hasAlert ? '阶段滞留预警' : undefined}
+      aria-label={hasAlert ? '前三未预警' : undefined}
     >
       {hasAlert ? (
         <ExclamationCircleFilled className="hz-lc-cm-nav__dot-alert-ico" aria-hidden />
@@ -89,8 +89,9 @@ function macroGroupTitle(key: CmPhaseMacroKey): string {
     approve: '批 · 预审与选址、农转用报批',
     supply: '供 · 土地供应',
     use: '用 · 用地规划许可、土地首次登记',
-    build: '建 · 工程规划许可、工程施工许可',
+    build: '建 · 工程规划许可',
     verify: '验 · 用地复核验收、规划核实',
+    cert: '证 · 不动产权证',
   };
   return titles[key];
 }
@@ -119,9 +120,7 @@ export const CmPhaseLifecycleNav: React.FC<CmPhaseLifecycleNavProps> = ({
         nextPhaseKey != null &&
         cmPhaseButtonState(parcel, nextPhaseKey) === 'done';
       const stepAlertText =
-        phaseAlert?.phaseKey === phase.key
-          ? phaseAlert.timelineMessage ?? phaseAlert.message
-          : undefined;
+        phaseAlert?.phaseKey === phase.key ? phaseAlert.message : undefined;
       const showStepAlert = phaseAlert?.phaseKey === phase.key;
 
       return (
@@ -168,10 +167,12 @@ export const CmPhaseLifecycleNav: React.FC<CmPhaseLifecycleNavProps> = ({
               compact
               showIcon={false}
               className="hz-lc-cm-nav__step-alert"
-              message={phaseAlert.timelineMessage ?? phaseAlert.message}
+              message={phaseAlert.message}
               enteredAt={phaseAlert.enteredAt}
               levelTone={phaseAlert.levelTone}
               phaseKey={phaseAlert.phaseKey}
+              typeTag={phaseAlert.typeTag}
+              typeTagClassName={phaseAlert.typeTagClassName}
             />
           ) : null}
         </div>

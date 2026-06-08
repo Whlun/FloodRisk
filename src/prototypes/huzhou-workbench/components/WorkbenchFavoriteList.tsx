@@ -1,10 +1,14 @@
 import React from 'react';
-import { Card, Empty, List } from 'antd';
+import { Card, Empty, List, Tag } from 'antd';
 import type { ConstructionProject } from '../../huzhou-construction-portrait/types';
+import {
+  CM_ALERT_TYPE_LABEL,
+  CM_INDUSTRIAL_LEVEL_LABEL,
+  getCmIndustrialLandAlert,
+} from '../../huzhou-construction-portrait/cmIndustrialLandAlert';
 import { getPhaseMetric } from '../../huzhou-construction-portrait/mock/phaseDistribution';
 import { CmPhaseStageTag } from '../../huzhou-lifecycle-shared/components/CmPhaseStageTag';
 import { CmProjectFavoriteStar } from '../../huzhou-construction-portrait/components/CmProjectFavoriteStar';
-import { getCmProjectPhaseAlert } from '../../huzhou-construction-portrait/cmProjectPhaseAlert';
 
 type WorkbenchFavoriteListProps = {
   projects: ConstructionProject[];
@@ -41,7 +45,7 @@ export const WorkbenchFavoriteList: React.FC<WorkbenchFavoriteListProps> = ({
       <List
         dataSource={projects}
         renderItem={project => {
-          const alert = getCmProjectPhaseAlert(project);
+          const alert = getCmIndustrialLandAlert(project);
           return (
             <List.Item className="hz-wb-list-row">
               <div
@@ -59,6 +63,16 @@ export const WorkbenchFavoriteList: React.FC<WorkbenchFavoriteListProps> = ({
                 <div className="hz-wb-list-row__head">
                   <span className="hz-wb-list-row__title">{project.name}</span>
                   <div className="hz-wb-list-row__tags">
+                    {alert ? (
+                      <>
+                        <Tag className={`hz-wb-alert-type-tag hz-wb-alert-type-tag--${alert.alertType}`}>
+                          {CM_ALERT_TYPE_LABEL[alert.alertType]}
+                        </Tag>
+                        <Tag className={`hz-wb-alert-tag--${alert.level}`}>
+                          {CM_INDUSTRIAL_LEVEL_LABEL[alert.level]}
+                        </Tag>
+                      </>
+                    ) : null}
                     <CmPhaseStageTag phaseKey={project.phaseKey}>
                       {getPhaseMetric(project.phaseKey).label}
                     </CmPhaseStageTag>
@@ -70,7 +84,9 @@ export const WorkbenchFavoriteList: React.FC<WorkbenchFavoriteListProps> = ({
                 </div>
                 <div className="hz-wb-list-row__meta">
                   {project.region}
-                  {alert ? ` · 已停留 ${alert.daysInPhase} 天` : ''}
+                  {alert?.delayDays != null ? ` · 超期 ${alert.delayDays} 天` : ''}
+                  {alert?.delayDays != null && alert.unusedAreaMu != null ? ' · ' : ''}
+                  {alert?.unusedAreaMu != null ? `未开发 ${alert.unusedAreaMu.toFixed(1)} 亩` : ''}
                 </div>
               </div>
             </List.Item>

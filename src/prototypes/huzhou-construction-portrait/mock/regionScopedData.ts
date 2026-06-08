@@ -1,82 +1,87 @@
 import { projectCurrentPhaseTimeInRange } from '../cmProjectPhaseTime';
-import { HUZHOU_LANDUSE_GEOJSON } from '../../huzhou-spatial-portrait/huzhouMapConstants';
 import {
   cmRegionToDistrictName,
   projectMatchesRegion,
   type CmRegionKey,
 } from '../cmRegionFilter';
 import type { PhaseKey, PhaseMetric } from '../types';
+import { CONSTRUCTION_PROJECTS } from './projects';
 import { getPhaseCountPercent, PHASE_METRICS } from './phaseDistribution';
-import { CONSTRUCTION_PROJECTS, CONSTRUCTION_PROJECT_SUMMARY } from './projects';
 import type { ConstructionProject } from '../types';
 
-const LANDUSE_FEATURES = HUZHOU_LANDUSE_GEOJSON.features;
-const CITY_LANDUSE_TOTAL = LANDUSE_FEATURES.length;
+export type CmSummaryMetricGroup = {
+  count: number;
+  areaHa: number;
+};
 
-function landuseInRegion(regionKey: CmRegionKey) {
-  const district = cmRegionToDistrictName(regionKey);
-  if (!district) return LANDUSE_FEATURES;
-  return LANDUSE_FEATURES.filter(f => String(f.properties?.hzDistrictName ?? '') === district);
+/** 汇总条里程碑：立项（批）/ 供地 / 竣工（验）对应阶段 */
+const SUMMARY_MILESTONE_PHASE_KEYS = {
+  initiation: ['pre-review', 'farmland'] as const satisfies readonly PhaseKey[],
+  supply: ['land-supply'] as const satisfies readonly PhaseKey[],
+  completion: ['land-review', 'plan-verify'] as const satisfies readonly PhaseKey[],
+};
+
+function sumPhaseMetrics(
+  metrics: PhaseMetric[],
+  keys: readonly PhaseKey[],
+): CmSummaryMetricGroup {
+  const keySet = new Set<PhaseKey>(keys);
+  return metrics
+    .filter(m => keySet.has(m.key))
+    .reduce(
+      (acc, m) => ({
+        count: acc.count + m.count,
+        areaHa: acc.areaHa + m.area / 10000,
+      }),
+      { count: 0, areaHa: 0 },
+    );
 }
 
-function cityPhaseFeatureCount(phaseKey: PhaseKey): number {
-  return LANDUSE_FEATURES.filter(f => String(f.properties?.cmPhaseKey ?? '') === phaseKey).length;
+export function getMilestoneStatsFromPhaseMetrics(metrics: PhaseMetric[]): {
+  initiation: CmSummaryMetricGroup;
+  supply: CmSummaryMetricGroup;
+  completion: CmSummaryMetricGroup;
+} {
+  return {
+    initiation: sumPhaseMetrics(metrics, SUMMARY_MILESTONE_PHASE_KEYS.initiation),
+    supply: sumPhaseMetrics(metrics, SUMMARY_MILESTONE_PHASE_KEYS.supply),
+    completion: sumPhaseMetrics(metrics, SUMMARY_MILESTONE_PHASE_KEYS.completion),
+  };
+}
+
+function resolveProjectAreaSqm(project: ConstructionProject): number {
+  const mu = project.totalAreaMu ?? project.landAreaMu ?? 0;
+  return mu * 666.67;
 }
 
 function getRegionProjects(regionKey: CmRegionKey): ConstructionProject[] {
   return CONSTRUCTION_PROJECTS.filter(p => projectMatchesRegion(p.region, regionKey));
 }
 
-function getTimeScaleRatios(
+/** 与右栏列表同源：区县 + 当前阶段时间节点（不含关键词/收藏） */
+function getFilteredRegionProjects(
   regionKey: CmRegionKey,
   dateFrom?: string,
   dateTo?: string,
-): { globalRatio: number; phaseRatios: Record<PhaseKey, number> } {
-  const all = getRegionProjects(regionKey);
-  const phaseRatios = Object.fromEntries(
-    PHASE_METRICS.map(m => [m.key, 1]),
-  ) as Record<PhaseKey, number>;
-
-  if (!dateFrom && !dateTo) {
-    return { globalRatio: 1, phaseRatios };
-  }
-
-  const filtered = all.filter(p => projectCurrentPhaseTimeInRange(p, dateFrom, dateTo));
-  const globalRatio = all.length > 0 ? filtered.length / all.length : 0;
-
-  for (const m of PHASE_METRICS) {
-    const phaseAll = all.filter(p => p.phaseKey === m.key);
-    const phaseFiltered = phaseAll.filter(p =>
-      projectCurrentPhaseTimeInRange(p, dateFrom, dateTo),
-    );
-    phaseRatios[m.key] = phaseAll.length > 0 ? phaseFiltered.length / phaseAll.length : 0;
-  }
-
-  return { globalRatio, phaseRatios };
+): ConstructionProject[] {
+  const rows = getRegionProjects(regionKey);
+  if (!dateFrom && !dateTo) return rows;
+  return rows.filter(p => projectCurrentPhaseTimeInRange(p, dateFrom, dateTo));
 }
 
-/** 按区县缩放后的阶段分布指标 */
-export function getPhaseMetricsForRegion(regionKey: CmRegionKey): PhaseMetric[] {
-  if (regionKey === 'all') return PHASE_METRICS;
-
-  const regionFeatures = landuseInRegion(regionKey);
-  const regionTotal = regionFeatures.length;
-  if (regionTotal <= 0) {
-    return PHASE_METRICS.map(m => ({ ...m, count: 0, area: 0 }));
-  }
-
+function buildPhaseMetricsFromProjects(projects: ConstructionProject[]): PhaseMetric[] {
   return PHASE_METRICS.map(m => {
-    const phaseInRegion = regionFeatures.filter(
-      f => String(f.properties?.cmPhaseKey ?? '') === m.key,
-    ).length;
-    const cityPhaseTotal = cityPhaseFeatureCount(m.key);
-    const ratio = cityPhaseTotal > 0 ? phaseInRegion / cityPhaseTotal : 0;
+    const phaseProjects = projects.filter(p => p.phaseKey === m.key);
     return {
       ...m,
-      count: Math.max(phaseInRegion > 0 ? 1 : 0, Math.round(m.count * ratio)),
-      area: m.area * ratio,
+      count: phaseProjects.length,
+      area: phaseProjects.reduce((sum, p) => sum + resolveProjectAreaSqm(p), 0),
     };
   });
+}
+
+export function getPhaseMetricsForRegion(regionKey: CmRegionKey): PhaseMetric[] {
+  return getPhaseMetricsForRegionAndTime(regionKey);
 }
 
 export function getPhaseCountPercentForRegion(regionKey: CmRegionKey): Record<string, number> {
@@ -87,47 +92,31 @@ export function getSummaryForRegion(regionKey: CmRegionKey): {
   totalCount: number;
   totalAreaHa: number;
 } {
-  if (regionKey === 'all') return { ...CONSTRUCTION_PROJECT_SUMMARY };
-
-  const regionFeatures = landuseInRegion(regionKey);
-  const ratio = CITY_LANDUSE_TOTAL > 0 ? regionFeatures.length / CITY_LANDUSE_TOTAL : 0;
-  return {
-    totalCount: Math.max(1, Math.round(CONSTRUCTION_PROJECT_SUMMARY.totalCount * ratio)),
-    totalAreaHa: CONSTRUCTION_PROJECT_SUMMARY.totalAreaHa * ratio,
-  };
+  return getSummaryForRegionAndTime(regionKey);
 }
 
-/** 按区县 + 当前阶段时间节点缩放后的汇总 */
+/** 汇总条：演示项目台账按区县 + 阶段时间过滤后的真实条数/面积 */
 export function getSummaryForRegionAndTime(
   regionKey: CmRegionKey,
   dateFrom?: string,
   dateTo?: string,
 ): { totalCount: number; totalAreaHa: number } {
-  const base = getSummaryForRegion(regionKey);
-  if (!dateFrom && !dateTo) return base;
-
-  const { globalRatio } = getTimeScaleRatios(regionKey, dateFrom, dateTo);
+  const projects = getFilteredRegionProjects(regionKey, dateFrom, dateTo);
+  const totalAreaSqm = projects.reduce((sum, p) => sum + resolveProjectAreaSqm(p), 0);
   return {
-    totalCount: Math.round(base.totalCount * globalRatio),
-    totalAreaHa: base.totalAreaHa * globalRatio,
+    totalCount: projects.length,
+    totalAreaHa: totalAreaSqm / 10000,
   };
 }
 
-/** 按区县 + 当前阶段时间节点缩放后的阶段分布指标 */
+/** 阶段分布：与右栏 `getProjectsByPhaseAndRegion` + 时间筛选同口径 */
 export function getPhaseMetricsForRegionAndTime(
   regionKey: CmRegionKey,
   dateFrom?: string,
   dateTo?: string,
 ): PhaseMetric[] {
-  const base = getPhaseMetricsForRegion(regionKey);
-  if (!dateFrom && !dateTo) return base;
-
-  const { phaseRatios } = getTimeScaleRatios(regionKey, dateFrom, dateTo);
-  return base.map(m => ({
-    ...m,
-    count: Math.round(m.count * phaseRatios[m.key]),
-    area: m.area * phaseRatios[m.key],
-  }));
+  const projects = getFilteredRegionProjects(regionKey, dateFrom, dateTo);
+  return buildPhaseMetricsFromProjects(projects);
 }
 
 export function getPhaseCountPercentForRegionAndTime(
@@ -149,4 +138,62 @@ export function getProjectsByPhaseAndRegion(
       ? CONSTRUCTION_PROJECTS
       : CONSTRUCTION_PROJECTS.filter(p => p.phaseKey === phaseKey);
   return byPhase.filter(p => projectMatchesRegion(p.region, regionKey));
+}
+
+const DISTRICT_REGION_KEYS = [
+  'wuxing',
+  'nanxun',
+  'changxing',
+  'anji',
+  'deqing',
+] as const satisfies readonly Exclude<CmRegionKey, 'all'>[];
+
+export type CmDistrictCompareItem = {
+  key: CmRegionKey;
+  label: string;
+  metrics: CmSummaryMetricGroup;
+};
+
+export type CmDistrictMilestoneItem = {
+  key: CmRegionKey;
+  label: string;
+  initiation: CmSummaryMetricGroup;
+  supply: CmSummaryMetricGroup;
+  completion: CmSummaryMetricGroup;
+};
+
+/** 全市视图 · 五区县项目个数与面积对比 */
+export function getDistrictComparisonForTime(
+  dateFrom?: string,
+  dateTo?: string,
+): CmDistrictCompareItem[] {
+  return DISTRICT_REGION_KEYS.map(key => {
+    const summary = getSummaryForRegionAndTime(key, dateFrom, dateTo);
+    return {
+      key,
+      label: cmRegionToDistrictName(key) ?? key,
+      metrics: {
+        count: summary.totalCount,
+        areaHa: summary.totalAreaHa,
+      },
+    };
+  });
+}
+
+/** 全市视图 · 五区县 × 立项 / 供地 / 竣工 */
+export function getDistrictMilestoneComparisonForTime(
+  dateFrom?: string,
+  dateTo?: string,
+): CmDistrictMilestoneItem[] {
+  return DISTRICT_REGION_KEYS.map(key => {
+    const metrics = getPhaseMetricsForRegionAndTime(key, dateFrom, dateTo);
+    const milestone = getMilestoneStatsFromPhaseMetrics(metrics);
+    return {
+      key,
+      label: cmRegionToDistrictName(key) ?? key,
+      initiation: milestone.initiation,
+      supply: milestone.supply,
+      completion: milestone.completion,
+    };
+  });
 }

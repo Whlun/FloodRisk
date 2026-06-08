@@ -63,7 +63,7 @@ export const DEMO_PARCELS: ParcelLifecycle[] = [
       farmland: '2024-04-20',
       'land-supply': '2024-06-01',
       'eng-permit': '2024-06-06 14:21:33',
-      'con-permit': '2024-07-12',
+      'estate-cert': '2024-07-12',
     },
     stages: {
       'project-base': {
@@ -512,7 +512,7 @@ export const DEMO_PARCELS: ParcelLifecycle[] = [
     cmPhaseAcceptTimes: {
       'land-supply': '2024-01-10',
       'eng-permit': '2024-01-08 09:30:00',
-      'con-permit': '2024-02-15',
+      'estate-cert': '2024-02-15',
     },
     stages: {
       'land-supply': {
@@ -665,13 +665,13 @@ export const DEMO_PARCELS: ParcelLifecycle[] = [
     region: '长兴县',
     address: '长兴县和平镇回车岭工业功能区',
     spatialTags: ['已利用空间'],
-    currentStageKey: 'construction-permit',
+    currentStageKey: 'engineering-permit',
     mapFeatureId: '202662934',
-    stageStatus: { 'construction-permit': active },
+    stageStatus: { 'engineering-permit': active },
     stages: {
-      'construction-permit': { xmdm: '2403-330522-36-03-880704', jsgcxm_construct_nature: '新建' },
+      'engineering-permit': { xmdm: '2403-330522-36-03-880704', gcgh_jsxmmc: '长兴县和平镇新能源装备产业基地项目' },
     },
-    processEvents: [{ stageName: '建', matterName: '工程施工许可', time: '2024-03-20', status: '进行中' }],
+    processEvents: [{ stageName: '建', matterName: '工程规划许可', time: '2024-03-20', status: '进行中' }],
     attachments: [],
   },
   {
@@ -781,17 +781,17 @@ export const DEMO_PARCELS: ParcelLifecycle[] = [
     region: '德清县',
     address: '德清县洛舍镇镇区东侧产业配套片区',
     spatialTags: ['规划建设空间'],
-    currentStageKey: 'construction-permit',
+    currentStageKey: 'engineering-permit',
     mapFeatureId: '228035278',
     mapBounds: [
       [119.8494, 30.5768],
       [119.8550, 30.5779],
     ],
-    stageStatus: { 'construction-permit': active },
+    stageStatus: { 'engineering-permit': active },
     stages: {
-      'construction-permit': { xmdm: '2024-330521-36-03-556688', jsgcxm_construct_nature: '新建' },
+      'engineering-permit': { xmdm: '2024-330521-36-03-556688', gcgh_jsxmmc: '德清县洛舍镇产业配套用地预警地块' },
     },
-    processEvents: [{ stageName: '建', matterName: '工程施工许可', time: '2024-02-28', status: '进行中' }],
+    processEvents: [{ stageName: '建', matterName: '工程规划许可', time: '2024-02-28', status: '进行中' }],
     attachments: [],
   },
   {

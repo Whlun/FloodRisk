@@ -47,12 +47,6 @@ export const CM_PHASE_MAP_COLORS: Record<CmPhaseAccentKey, CmPhaseMapColors> = {
     accentBg: '#fff0f6',
     accentFill: '#ff85c0',
   },
-  'con-permit': {
-    accent: '#fa541c',
-    accentDeep: '#d4380d',
-    accentBg: '#fff2e8',
-    accentFill: '#ff9c6e',
-  },
   'land-review': {
     accent: '#faad14',
     accentDeep: '#d48806',
@@ -64,6 +58,12 @@ export const CM_PHASE_MAP_COLORS: Record<CmPhaseAccentKey, CmPhaseMapColors> = {
     accentDeep: '#1d39c4',
     accentBg: '#f0f5ff',
     accentFill: '#85a5ff',
+  },
+  'estate-cert': {
+    accent: '#d4b106',
+    accentDeep: '#ad8b00',
+    accentBg: '#fffbe6',
+    accentFill: '#ffe58f',
   },
 };
 

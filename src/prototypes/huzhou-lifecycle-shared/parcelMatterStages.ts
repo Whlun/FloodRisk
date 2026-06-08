@@ -1,7 +1,7 @@
 /**
  * 地块全生命周期 · 批供用建阶段与事项配置
  */
-export type LifecyclePhaseKey = 'batch' | 'supply' | 'use' | 'build';
+export type LifecyclePhaseKey = 'batch' | 'supply' | 'use' | 'build' | 'cert';
 
 export type MatterStageKey =
   | 'pre-review'
@@ -18,6 +18,7 @@ export type MatterStageKey =
   | 'planning-verification'
   | 'land-review'
   | 'first-registration'
+  | 'estate-certificate'
   | 'attachments'
   | 'process-events';
 
@@ -37,6 +38,7 @@ export const LIFECYCLE_PHASES: { key: LifecyclePhaseKey; label: string }[] = [
   { key: 'supply', label: '供' },
   { key: 'use', label: '用' },
   { key: 'build', label: '建' },
+  { key: 'cert', label: '证' },
 ];
 
 export const MATTER_STAGES: MatterStageConfig[] = [
@@ -54,6 +56,7 @@ export const MATTER_STAGES: MatterStageConfig[] = [
   { key: 'construction-project', label: '建设工程项目', tableName: 't_xm_jsgcxm', phase: 'build' },
   { key: 'planning-verification', label: '规划核实', tableName: 't_sx_ghhs', phase: 'build' },
   { key: 'land-review', label: '用地复核验收', tableName: 't_sx_ydfhys', phase: 'build' },
+  { key: 'estate-certificate', label: '不动产权证', tableName: 't_estate_certificate', phase: 'cert' },
   { key: 'attachments', label: '附件', tableName: 't_xm_fj', phase: 'build', hiddenInPills: true },
   { key: 'process-events', label: '项目过程', tableName: 't_xm_xmgc', phase: 'build', hiddenInPills: true },
 ];

@@ -84,6 +84,9 @@ export type HuzhouMapBoardProps = {
    * 视野切换与建管画像一致（全市 / 区县 fitBounds）。
    */
   exclusiveLanduseFeatureIds?: string[];
+  /** 预警画像：按 osm_id 着色（与前三未类型标签一致）；未传时沿用默认预警色 */
+  exclusiveLanduseFeatureFillColors?: Record<string, string>;
+  exclusiveLanduseFeatureLineColors?: Record<string, string>;
   /** 地图工具条全屏按钮下方的扩展项 */
   mapToolbarExtraAfterFullscreen?: React.ReactNode;
 };
@@ -107,6 +110,20 @@ function buildOsmIdInFilter(
 
 const HZ_ALERT_EXCLUSIVE_FILL = '#ff4d4f';
 const HZ_ALERT_EXCLUSIVE_LINE = '#cf1322';
+
+function buildOsmIdColorMatchExpr(
+  colorById: Record<string, string> | undefined,
+  fallback: string,
+): maplibregl.ExpressionSpecification | string {
+  const entries = Object.entries(colorById ?? {});
+  if (entries.length === 0) return fallback;
+  return [
+    'match',
+    ['to-string', ['get', 'osm_id']],
+    ...entries.flatMap(([id, color]) => [id, color]),
+    fallback,
+  ] as maplibregl.ExpressionSpecification;
+}
 
 function appendDistrictFilter(
   base: maplibregl.FilterSpecification,
@@ -157,27 +174,31 @@ function buildAlertExclusiveLandFilter(
 function buildAlertExclusiveFillColorExpr(
   exclusiveIds: string[],
   layers: HzLayerControlState,
+  fillColorById?: Record<string, string>,
 ): maplibregl.ExpressionSpecification | string {
   if (exclusiveIds.length === 0) {
     return buildLanduseFillColorExpr(layers) as maplibregl.ExpressionSpecification;
   }
   const normalExpr = buildLanduseFillColorExpr(layers);
+  const alertColorExpr = buildOsmIdColorMatchExpr(fillColorById, HZ_ALERT_EXCLUSIVE_FILL);
   return [
     'case',
     ['in', ['to-string', ['get', 'osm_id']], ['literal', exclusiveIds]],
-    HZ_ALERT_EXCLUSIVE_FILL,
+    alertColorExpr,
     normalExpr,
   ] as maplibregl.ExpressionSpecification;
 }
 
 function buildAlertExclusiveLineColorExpr(
   exclusiveIds: string[],
+  lineColorById?: Record<string, string>,
 ): maplibregl.ExpressionSpecification | string {
   if (exclusiveIds.length === 0) return '#ffffff';
+  const alertLineExpr = buildOsmIdColorMatchExpr(lineColorById, HZ_ALERT_EXCLUSIVE_LINE);
   return [
     'case',
     ['in', ['to-string', ['get', 'osm_id']], ['literal', exclusiveIds]],
-    HZ_ALERT_EXCLUSIVE_LINE,
+    alertLineExpr,
     '#ffffff',
   ] as maplibregl.ExpressionSpecification;
 }
@@ -237,7 +258,7 @@ function buildHighlightFilter(
   districtName?: string | null,
 ): maplibregl.FilterSpecification {
   const useExactFeature =
-    !highlight.phaseKey && (highlight.featureIds?.length ?? 0) > 0;
+    !highlight.phaseKey && (highlight.featureIds?.length ?? 0) === 1;
   if (useExactFeature) {
     // 单地块定位：仅按 osm_id，不受二级图层勾选 / 区县 filter 限制
     return buildFeatureIdFilter(highlight);
@@ -333,11 +354,21 @@ function applyProjectHighlight(
   highlight: HzMapProjectHighlight | null,
   layers: HzLayerControlState,
   districtName?: string | null,
+  exclusiveLanduseIds?: string[],
 ) {
   ensureProjectHighlightLayers(map);
   const layerKeys = resolveVisibleLayerKeys(layers);
-  const showLanduse = layerKeys.length > 0;
-  const landFilter = buildLanduseLayerKeyFilter(layerKeys);
+  const exclusiveMode = exclusiveLanduseIds !== undefined;
+  const exclusiveIdList = exclusiveLanduseIds ?? [];
+  const showLanduse = exclusiveMode
+    ? exclusiveIdList.length > 0 || layerKeys.length > 0
+    : layerKeys.length > 0;
+  const landFilter =
+    layerKeys.length > 0
+      ? buildLanduseLayerKeyFilter(layerKeys)
+      : exclusiveIdList.length > 0
+        ? buildOsmIdInFilter(exclusiveIdList)
+        : (['==', ['get', 'osm_id'], ''] as maplibregl.FilterSpecification);
   const show = showLanduse && highlightIsActive(highlight);
   const vis = show ? 'visible' : 'none';
   const filter =
@@ -353,8 +384,16 @@ function applyProjectHighlight(
 
   if (!show || !highlight) return;
 
-  map.setPaintProperty(HZ_LYR_PROJECT_HIGHLIGHT_FILL, 'fill-color', highlight.fillColor);
-  map.setPaintProperty(HZ_LYR_PROJECT_HIGHLIGHT_LINE, 'line-color', highlight.lineColor);
+  map.setPaintProperty(
+    HZ_LYR_PROJECT_HIGHLIGHT_FILL,
+    'fill-color',
+    buildOsmIdColorMatchExpr(highlight.featureFillColorById, highlight.fillColor),
+  );
+  map.setPaintProperty(
+    HZ_LYR_PROJECT_HIGHLIGHT_LINE,
+    'line-color',
+    buildOsmIdColorMatchExpr(highlight.featureLineColorById, highlight.lineColor),
+  );
 
   // 高亮层始终叠在土地利用面之上
   for (const layerId of [HZ_LYR_PROJECT_HIGHLIGHT_FILL, HZ_LYR_PROJECT_HIGHLIGHT_LINE]) {
@@ -480,8 +519,14 @@ function ensureHuzhouLayers(map: maplibregl.Map, layers: HzLayerControlState) {
   ensureProjectHighlightLayers(map);
 }
 
-function mapCanApplyLayers(map: maplibregl.Map | null, mapIsReady: boolean): map is maplibregl.Map {
-  return Boolean(mapIsReady && map);
+function mapCanApplyLayers(
+  map: maplibregl.Map | null,
+  mapIsReady: boolean,
+  styleReady: boolean,
+): map is maplibregl.Map {
+  if (!mapIsReady || !map || !styleReady) return false;
+  if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) return false;
+  return true;
 }
 
 /** 区县视野定位：首屏 load 后 mapIsReady 即可，勿依赖 isStyleLoaded（filter 后常短暂为 false） */
@@ -499,6 +544,8 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
   districtFilter,
   districtFocus,
   exclusiveLanduseFeatureIds,
+  exclusiveLanduseFeatureFillColors,
+  exclusiveLanduseFeatureLineColors,
   mapToolbarExtraAfterFullscreen,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -507,6 +554,7 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapIsReady, setMapIsReady] = useState(false);
+  const [styleReady, setStyleReady] = useState(false);
   const [basemapKind, setBasemapKind] = useState<ZhtBasemapKind>('vector');
   const [mapTransparencyPercent, setMapTransparencyPercent] = useState(0);
   const layerControlRef = useRef(layerControl);
@@ -519,6 +567,8 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
   const districtFocusRef = useRef(districtFocus);
   const regionScopeEnabledRef = useRef(regionScopeEnabled);
   const exclusiveLanduseFeatureIdsRef = useRef(exclusiveLanduseFeatureIds);
+  const exclusiveLanduseFillColorsRef = useRef(exclusiveLanduseFeatureFillColors);
+  const exclusiveLanduseLineColorsRef = useRef(exclusiveLanduseFeatureLineColors);
   /** 首屏是否已应用区县/全市视野（避免 load 与 effect 重复 fit） */
   const regionCameraReadyRef = useRef(false);
   const lastRegionCameraKeyRef = useRef<string | null>(null);
@@ -533,6 +583,8 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
   districtFocusRef.current = districtFocus;
   regionScopeEnabledRef.current = regionScopeEnabled;
   exclusiveLanduseFeatureIdsRef.current = exclusiveLanduseFeatureIds;
+  exclusiveLanduseFillColorsRef.current = exclusiveLanduseFeatureFillColors;
+  exclusiveLanduseLineColorsRef.current = exclusiveLanduseFeatureLineColors;
 
   const regionCameraKey = (districtName: string | null | undefined) =>
     districtName?.trim() ? districtName.trim() : '__city__';
@@ -581,6 +633,8 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
     const regionScopeOn = regionScopeEnabledRef.current === true;
     const regionDistrict = districtFilterRef.current;
     const exclusiveIds = exclusiveLanduseFeatureIdsRef.current;
+    const exclusiveFillColors = exclusiveLanduseFillColorsRef.current;
+    const exclusiveLineColors = exclusiveLanduseLineColorsRef.current;
     const exclusiveMode = exclusiveIds !== undefined;
 
     const layerKeys = resolveVisibleLayerKeys(layers);
@@ -613,7 +667,7 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
         HZ_LYR_LANDUSE_FILL,
         'fill-color',
         exclusiveMode
-          ? buildAlertExclusiveFillColorExpr(exclusiveIdList, layers)
+          ? buildAlertExclusiveFillColorExpr(exclusiveIdList, layers, exclusiveFillColors)
           : (buildLanduseFillColorExpr(layers) as maplibregl.ExpressionSpecification),
       );
       map.setPaintProperty(
@@ -629,7 +683,7 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
         map.setPaintProperty(
           HZ_LYR_LANDUSE_LINE,
           'line-color',
-          buildAlertExclusiveLineColorExpr(exclusiveIdList),
+          buildAlertExclusiveLineColorExpr(exclusiveIdList, exclusiveLineColors),
         );
         map.setPaintProperty(
           HZ_LYR_LANDUSE_LINE,
@@ -700,7 +754,13 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
     raiseEmphasisOutlineLineLayers(map);
 
     if (exclusiveMode) {
-      applyProjectHighlight(map, null, layers, districtFilterRef.current);
+      applyProjectHighlight(
+        map,
+        projectHighlightRef.current ?? null,
+        layers,
+        districtFilterRef.current,
+        exclusiveIdList,
+      );
     } else if (projectHighlightRef.current !== undefined) {
       applyProjectHighlight(map, projectHighlightRef.current, layers, districtFilterRef.current);
     }
@@ -741,6 +801,7 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
           projectHighlightRef.current,
           layerControlRef.current,
           districtFilterRef.current,
+          exclusiveLanduseFeatureIdsRef.current,
         );
       }
       basemapOpacityCacheRef.current = rebuildBasemapOpacityCache(map);
@@ -800,11 +861,13 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
       if (!regionScopeEnabledRef.current) {
         fitDefaultView(instantCamera);
       }
+      setStyleReady(true);
       setMapIsReady(true);
     };
 
     const onStyleLoad = () => {
       syncOverlayLayers(map);
+      setStyleReady(true);
     };
 
     map.once('load', onLoad);
@@ -859,6 +922,7 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
 
     return () => {
       setMapIsReady(false);
+      setStyleReady(false);
       regionCameraReadyRef.current = false;
       lastRegionCameraKeyRef.current = null;
       popupRef.current?.remove();
@@ -872,32 +936,41 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapCanApplyLayers(map, mapIsReady)) return;
+    if (!mapCanApplyLayers(map, mapIsReady, styleReady)) return;
     if (regionScopeEnabled) {
       syncRegionScopeLayers(map);
       return;
     }
     applyLayerVisibility(map, layerControl);
-  }, [layerControl, mapIsReady, regionScopeEnabled, applyLayerVisibility, syncRegionScopeLayers]);
+  }, [layerControl, mapIsReady, styleReady, regionScopeEnabled, applyLayerVisibility, syncRegionScopeLayers]);
 
   useEffect(() => {
     if (exclusiveLanduseFeatureIds !== undefined) {
       const map = mapRef.current;
-      if (mapCanApplyLayers(map, mapIsReady)) {
+      if (mapCanApplyLayers(map, mapIsReady, styleReady)) {
         applyLayerVisibility(map, layerControl);
       }
       return;
     }
     if (projectHighlight === undefined) return;
     const map = mapRef.current;
-    if (!mapCanApplyLayers(map, mapIsReady)) return;
-    applyProjectHighlight(map, projectHighlight, layerControl, districtFilter);
+    if (!mapCanApplyLayers(map, mapIsReady, styleReady)) return;
+    applyProjectHighlight(
+      map,
+      projectHighlight,
+      layerControl,
+      districtFilter,
+      exclusiveLanduseFeatureIds,
+    );
   }, [
     exclusiveLanduseFeatureIds,
+    exclusiveLanduseFeatureFillColors,
+    exclusiveLanduseFeatureLineColors,
     projectHighlight,
     layerControl,
     districtFilter,
     mapIsReady,
+    styleReady,
     applyLayerVisibility,
   ]);
 
@@ -976,19 +1049,20 @@ export const HuzhouMapBoard: React.FC<HuzhouMapBoardProps> = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapCanApplyLayers(map, mapIsReady)) return;
+    if (!mapCanApplyLayers(map, mapIsReady, styleReady)) return;
     if (basemapOpacityCacheRef.current.size === 0) {
       basemapOpacityCacheRef.current = rebuildBasemapOpacityCache(map);
     }
     syncBasemapOpacity(map, mapTransparencyPercent, basemapOpacityCacheRef.current);
-  }, [mapTransparencyPercent, mapIsReady]);
+  }, [mapTransparencyPercent, mapIsReady, styleReady]);
 
   /** 仅切换底图样式；勿把 layerControl 放进依赖，否则会反复 setStyle 导致行政界闪动 */
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapCanApplyLayers(map, mapIsReady)) return;
+    if (!map || !mapIsReady) return;
     if (lastBasemapKindRef.current === basemapKind) return;
     lastBasemapKindRef.current = basemapKind;
+    setStyleReady(false);
     map.setStyle(zhtBasemapStyleForKind(basemapKind));
   }, [mapIsReady, basemapKind]);
 

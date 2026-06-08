@@ -1,5 +1,6 @@
 /**
  * 建管工程画像 · 当前阶段滞留预警（演示：统一天数阈值）
+ * @deprecated UI 已统一为前三未预警（cmIndustrialLandAlert.ts）；保留供后续扩展或离线统计
  */
 import dayjs from 'dayjs';
 import { resolveProjectCurrentPhaseEnteredAt } from './mock/constructionProjectParcel';
@@ -15,10 +16,11 @@ export const CM_PHASE_ALERT_THRESHOLDS = {
   seriousDays: 120,
 } as const;
 
+/** 与前三未预警等级文案一致：I 级最重，III 级最轻 */
 const LEVEL_LABEL: Record<CmPhaseAlertLevel, string> = {
-  hint: '停留偏久',
-  warning: '阶段滞留',
-  serious: '长期滞留',
+  serious: 'I级',
+  warning: 'II级',
+  hint: 'III级',
 };
 
 const LEVEL_RANK: Record<CmPhaseAlertLevel, number> = {

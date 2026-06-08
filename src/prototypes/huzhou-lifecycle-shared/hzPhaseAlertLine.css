@@ -22,9 +22,36 @@
   color: #ff4d4f;
 }
 
+.hz-phase-alert-line__type-tag {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.hz-phase-alert-line--has-type-tag {
+  align-items: center;
+  gap: 6px;
+}
+
+.hz-phase-alert-line--has-type-tag .hz-phase-alert-line__icon {
+  margin-top: 0;
+}
+
 .hz-phase-alert-line__text {
   min-width: 0;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 前三未 / 阶段滞留：类型或阶段主题色（不用红橙黄等级色） */
+.hz-phase-alert-line--type-tone {
+  background: var(--hz-cm-alert-accent-bg, var(--hz-cm-phase-accent-bg, #e6f4ff));
+  color: var(--hz-cm-alert-accent-deep, var(--hz-cm-phase-accent-deep, #0958d9));
+}
+
+.hz-phase-alert-line--type-tone .hz-phase-alert-line__icon {
+  color: var(--hz-cm-alert-accent, var(--hz-cm-phase-accent, #1677ff));
 }
 
 .hz-phase-alert-line--l4 {
@@ -87,9 +114,21 @@
   justify-content: center;
 }
 
-.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert.hz-phase-alert-line--no-icon {
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert.hz-phase-alert-line--no-icon:not(.hz-phase-alert-line--has-type-tag) {
   gap: 0;
   align-items: center;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert.hz-phase-alert-line--has-type-tag {
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert.hz-phase-alert-line--has-type-tag .hz-phase-alert-line__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
 }
 
 .hz-lc-cm-nav--horizontal .hz-lc-cm-nav__step-alert .hz-phase-alert-line__text {

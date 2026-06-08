@@ -30,7 +30,7 @@ import {
 } from '../cmProjectTableColumns';
 import { getProjectById } from '../mock/projects';
 import { getProjectsByPhaseAndRegion } from '../mock/regionScopedData';
-import { getCmProjectPhaseAlert } from '../cmProjectPhaseAlert';
+import { resolveCmProjectCardAlert } from '../resolveCmProjectCardAlert';
 import type { CmProjectListPanelState } from '../useCmProjectListPanelState';
 import { applyProjectQuery } from '../cmProjectQuery';
 import type { ConstructionProject, PhaseKey } from '../types';
@@ -276,7 +276,7 @@ export const CmProjectLeftPanel: React.FC<CmProjectLeftPanelProps> = ({
         <CmProjectCard
           key={p.id}
           project={p}
-          phaseAlert={getCmProjectPhaseAlert(p)}
+          cardAlert={resolveCmProjectCardAlert(p)}
           isLocateActive={p.id === locateHighlightedProjectId}
           selectable={exportMode}
           selected={isSelected(p.id)}

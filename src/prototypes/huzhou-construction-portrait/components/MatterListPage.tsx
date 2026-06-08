@@ -6,6 +6,8 @@ import { Button, Form, Input, Layout, Menu, Space, Table, Typography } from 'ant
 import { ArrowLeftOutlined, EyeOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { useEffect, useRef } from 'react';
+import { setChartOptionWithAnimation, withChartAnimation } from '../../../common/chartAnimation';
+import { AnimatedNumber } from '../../../common/AnimatedNumber';
 import { buildMatterTableRows, MATTER_CONFIGS, getMatterConfig } from '../matterConfigs';
 import type { MatterKey } from '../types';
 
@@ -34,13 +36,13 @@ export const MatterListPage: React.FC<MatterListPageProps> = ({
     const el = chartRef.current;
     if (!el) return;
     const chart = echarts.init(el);
-    chart.setOption({
+    setChartOptionWithAnimation(chart, withChartAnimation({
       grid: { left: 48, right: 12, top: 12, bottom: 28 },
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: config.districtBars.map(d => d.name), axisLabel: { fontSize: 10 } },
       yAxis: { type: 'value' },
       series: [{ type: 'bar', data: config.districtBars.map(d => d.value), itemStyle: { color: '#d4a017' } }],
-    });
+    }));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(el);
     return () => {
@@ -65,11 +67,21 @@ export const MatterListPage: React.FC<MatterListPageProps> = ({
       <Content className="hz-cm-matter-content">
         <div className="hz-cm-matter-kpi">
           <div className="hz-cm-matter-kpi__card">
-            <div className="hz-cm-matter-kpi__value">{config.caseCount.toLocaleString()}</div>
+            <div className="hz-cm-matter-kpi__value">
+              <AnimatedNumber
+                value={config.caseCount}
+                formatter={n => Math.round(n).toLocaleString('zh-CN')}
+              />
+            </div>
             <div>办件个数（个）</div>
           </div>
           <div className="hz-cm-matter-kpi__card">
-            <div className="hz-cm-matter-kpi__value">{config.areaHa.toLocaleString()}</div>
+            <div className="hz-cm-matter-kpi__value">
+              <AnimatedNumber
+                value={config.areaHa}
+                formatter={n => Math.round(n).toLocaleString('zh-CN')}
+              />
+            </div>
             <div>用地面积（公顷）</div>
           </div>
           <div ref={chartRef} className="hz-cm-matter-chart" />

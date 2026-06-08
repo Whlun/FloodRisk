@@ -15,9 +15,9 @@ export type CmPhaseKey =
   | 'land-permit'
   | 'first-reg'
   | 'eng-permit'
-  | 'con-permit'
   | 'land-review'
-  | 'plan-verify';
+  | 'plan-verify'
+  | 'estate-cert';
 
 export type CmPhaseAcceptTimeMap = Partial<Record<CmPhaseKey, string>>;
 

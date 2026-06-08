@@ -2,8 +2,11 @@
  * 建设工程画像 · 左侧看板：建设总览（卡片列表，可切换联动右侧）
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatedNumber } from '../../../common/AnimatedNumber';
+import { useAnimatedNumber } from '../../../common/useAnimatedNumber';
 import type { CmRegionKey } from '../cmRegionFilter';
 import {
+  getMilestoneStatsFromPhaseMetrics,
   getPhaseCountPercentForRegionAndTime,
   getPhaseMetricsForRegionAndTime,
   getSummaryForRegionAndTime,
@@ -12,6 +15,7 @@ import type { CmProjectListPanelState } from '../useCmProjectListPanelState';
 import type { PhaseKey } from '../types';
 import { CmPhaseListSettings } from './CmPhaseListSettings';
 import { CmProjectTimeFilter } from './CmProjectTimeFilter';
+import { CmSummaryChart } from './CmSummaryChart';
 
 export type CmPhaseDistributionPanelProps = {
   regionKey: CmRegionKey;
@@ -21,9 +25,19 @@ export type CmPhaseDistributionPanelProps = {
   panelState: CmProjectListPanelState;
 };
 
-/** 平方米 → 公顷（与顶部汇总一致） */
-function formatAreaHa(m2: number): string {
-  return (m2 / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+function PhaseCountPercent({ value }: { value: number }) {
+  const animated = useAnimatedNumber(value, { duration: 500 });
+  return <>{Math.round(animated)}%</>;
+}
+
+function PhaseProgressFill({ percent }: { percent: number }) {
+  const animated = useAnimatedNumber(percent, { duration: 600 });
+  return (
+    <span
+      className="hz-cm-phase-card__fill"
+      style={{ width: `${Math.max(animated, 2)}%` }}
+    />
+  );
 }
 
 export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> = ({
@@ -53,6 +67,10 @@ export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> =
   const summary = useMemo(
     () => getSummaryForRegionAndTime(regionKey, dateFrom, dateTo),
     [dateFrom, dateTo, regionKey],
+  );
+  const milestoneStats = useMemo(
+    () => getMilestoneStatsFromPhaseMetrics(phaseMetrics),
+    [phaseMetrics],
   );
   const phaseOptions = useMemo(
     () => phaseMetrics.map(m => ({ key: m.key, label: m.label })),
@@ -86,50 +104,69 @@ export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> =
 
   return (
     <aside className="zht-left hz-cm-left hz-cm-phase-panel">
-      <div className="zht-left-inner hz-cm-phase-panel-inner">
+      <div
+        className="zht-left-inner hz-cm-phase-panel-inner"
+        style={
+          {
+            '--hz-cm-phase-list-cards': visiblePhaseMetrics.length,
+          } as React.CSSProperties
+        }
+      >
         <header className="zht-stat-drawer__hd hz-cm-phase-panel__hd">
-          <div className="zht-stat-drawer__hd-top">
+          <div className="zht-stat-drawer__hd-top hz-cm-phase-panel__hd-top">
             <h2 className="zht-stat-drawer__title" id="hz-cm-phase-panel-title">
               <span className="zht-stat-drawer__pipe">|</span>
               建设总览
             </h2>
+            <CmProjectTimeFilter
+              mode={timeFilterMode}
+              periodAnchor={periodAnchor}
+              dateRange={dateRange}
+              onModeChange={setTimeFilterMode}
+              onPeriodAnchorChange={setPeriodAnchor}
+              onDateRangeChange={setDateRange}
+            />
           </div>
         </header>
 
-        <div className="zht-stat-drawer__filters hz-cm-phase-panel__filters">
-          <CmProjectTimeFilter
-            mode={timeFilterMode}
-            periodAnchor={periodAnchor}
-            dateRange={dateRange}
-            onModeChange={setTimeFilterMode}
-            onPeriodAnchorChange={setPeriodAnchor}
-            onDateRangeChange={setDateRange}
+        <section className="hz-cm-phase-panel__summary" aria-label="汇总统计">
+          <div className="hz-cm-summary-row hz-cm-phase-panel__summary-totals">
+            <div className="hz-cm-summary-stat">
+              <div className="hz-cm-summary-stat__label">项目总数</div>
+              <div className="hz-cm-summary-stat__value">
+                <AnimatedNumber
+                  value={summary.totalCount}
+                  formatter={n => Math.round(n).toLocaleString('zh-CN')}
+                />
+                <em className="hz-cm-summary-stat__unit">个</em>
+              </div>
+            </div>
+            <div className="hz-cm-summary-stat">
+              <div className="hz-cm-summary-stat__label">总面积</div>
+              <div className="hz-cm-summary-stat__value">
+                <AnimatedNumber
+                  value={summary.totalAreaHa}
+                  formatter={n =>
+                    n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+                  }
+                />
+                <em className="hz-cm-summary-stat__unit">公顷</em>
+              </div>
+            </div>
+          </div>
+          <CmSummaryChart
+            regionKey={regionKey}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            initiation={milestoneStats.initiation}
+            supply={milestoneStats.supply}
+            completion={milestoneStats.completion}
           />
-        </div>
+        </section>
 
         <div
-          className="hz-cm-summary-row hz-cm-phase-panel__summary"
-          aria-label="汇总统计"
+          className={`hz-cm-phase-list-wrap${selectedPhaseKey ? ' hz-cm-phase-list-wrap--expanded' : ''}`}
         >
-          <div className="hz-cm-summary-stat">
-            <div className="hz-cm-summary-stat__label">项目总数</div>
-            <div className="hz-cm-summary-stat__value">
-              {summary.totalCount.toLocaleString('zh-CN')}
-              <em className="hz-cm-summary-stat__unit">个</em>
-            </div>
-          </div>
-          <div className="hz-cm-summary-stat">
-            <div className="hz-cm-summary-stat__label">总面积</div>
-            <div className="hz-cm-summary-stat__value">
-              {summary.totalAreaHa.toLocaleString('zh-CN', {
-                maximumFractionDigits: 2,
-              })}
-              <em className="hz-cm-summary-stat__unit">公顷</em>
-            </div>
-          </div>
-        </div>
-
-        <div className="hz-cm-phase-list-wrap">
           <div className="hz-cm-phase-list__hd">
             <h3 className="hz-cm-phase-list__title" id="hz-cm-phase-list-title">
               事项阶段分布
@@ -169,7 +206,9 @@ export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> =
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     <span className="hz-cm-phase-card__title">{m.label}</span>
-                    <span className="hz-cm-phase-card__pct">{countPct}%</span>
+                    <span className="hz-cm-phase-card__pct">
+                      <PhaseCountPercent value={countPct} />
+                    </span>
                   </div>
 
                   {selected ? (
@@ -177,14 +216,22 @@ export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> =
                       <div className="hz-cm-phase-metric hz-cm-phase-metric--count">
                         <span className="hz-cm-phase-metric__label">个数</span>
                         <span className="hz-cm-phase-metric__value">
-                          {m.count.toLocaleString('zh-CN')}
+                          <AnimatedNumber
+                            value={m.count}
+                            formatter={n => Math.round(n).toLocaleString('zh-CN')}
+                          />
                           <em className="hz-cm-phase-metric__unit">个</em>
                         </span>
                       </div>
                       <div className="hz-cm-phase-metric hz-cm-phase-metric--area">
                         <span className="hz-cm-phase-metric__label">面积</span>
                         <span className="hz-cm-phase-metric__value">
-                          {formatAreaHa(m.area)}
+                          <AnimatedNumber
+                            value={m.area / 10000}
+                            formatter={n =>
+                              n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+                            }
+                          />
                           <em className="hz-cm-phase-metric__unit">公顷</em>
                         </span>
                       </div>
@@ -199,10 +246,7 @@ export const CmPhaseDistributionPanel: React.FC<CmPhaseDistributionPanelProps> =
                     aria-valuemax={100}
                     aria-label={`${m.label} 个数占比`}
                   >
-                    <span
-                      className="hz-cm-phase-card__fill"
-                      style={{ width: `${Math.max(countPct, 2)}%` }}
-                    />
+                    <PhaseProgressFill percent={countPct} />
                   </div>
                 </div>
               );

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Card, Col, Row } from 'antd';
 import * as echarts from 'echarts';
+import { setChartOptionWithAnimation, withChartAnimation } from '../../../common/chartAnimation';
 import { HZ_CHART } from '../../huzhou-spatial-portrait/components/spatial/spatialChartTheme';
 import type { PhaseMetric } from '../../huzhou-construction-portrait/types';
 
@@ -22,7 +23,7 @@ export const WorkbenchChartPanel: React.FC<WorkbenchChartPanelProps> = ({
     const el = trendRef.current;
     if (!el) return;
     const chart = echarts.init(el);
-    chart.setOption({
+    setChartOptionWithAnimation(chart, withChartAnimation({
       grid: { left: 48, right: 16, top: 32, bottom: 32 },
       tooltip: {
         trigger: 'axis',
@@ -52,7 +53,7 @@ export const WorkbenchChartPanel: React.FC<WorkbenchChartPanelProps> = ({
           itemStyle: { color: HZ_CHART.primary },
         },
       ],
-    });
+    }));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(el);
     return () => {
@@ -71,7 +72,7 @@ export const WorkbenchChartPanel: React.FC<WorkbenchChartPanelProps> = ({
       .slice(0, 5);
     const names = sorted.map(m => m.label);
     const values = sorted.map(m => m.count);
-    chart.setOption({
+    setChartOptionWithAnimation(chart, withChartAnimation({
       grid: { left: 8, right: 24, top: 16, bottom: 8, containLabel: true },
       tooltip: {
         trigger: 'axis',
@@ -119,7 +120,7 @@ export const WorkbenchChartPanel: React.FC<WorkbenchChartPanelProps> = ({
           barMaxWidth: 14,
         },
       ],
-    });
+    }));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(el);
     return () => {

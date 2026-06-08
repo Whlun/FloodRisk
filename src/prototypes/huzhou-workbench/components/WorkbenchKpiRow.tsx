@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Col, Row, Statistic } from 'antd';
+import { AnimatedNumber } from '../../../common/AnimatedNumber';
 import {
   AlertOutlined,
   AreaChartOutlined,
@@ -17,7 +18,7 @@ type WorkbenchKpiRowProps = {
     projectCount: number;
     projectAreaHa: number;
     alertCount: number;
-    maxDaysInPhase: number;
+    maxDelayDays: number;
   };
   onNavigate: (key: HzShellSubKey) => void;
 };
@@ -71,8 +72,8 @@ const KPI_ITEMS: Array<{
     precision: 0,
   },
   {
-    key: 'maxDaysInPhase',
-    title: '最长滞留',
+    key: 'maxDelayDays',
+    title: '最长超期',
     unit: '天',
     icon: <FieldTimeOutlined />,
     nav: 'zhongda',
@@ -96,6 +97,19 @@ export const WorkbenchKpiRow: React.FC<WorkbenchKpiRowProps> = ({ kpis, onNaviga
               value={kpis[item.key]}
               precision={item.precision}
               prefix={item.icon}
+              formatter={val => (
+                <AnimatedNumber
+                  value={Number(val)}
+                  formatter={n =>
+                    (item.precision ?? 0) > 0
+                      ? n.toLocaleString('zh-CN', {
+                          minimumFractionDigits: item.precision,
+                          maximumFractionDigits: item.precision,
+                        })
+                      : Math.round(n).toLocaleString('zh-CN')
+                  }
+                />
+              )}
             />
           </Card>
         </Col>

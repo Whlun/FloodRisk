@@ -14,4 +14,7 @@ export type HzMapProjectHighlight = {
   districtPropertyKey?: string;
   lineColor: string;
   fillColor: string;
+  /** 按 osm_id 分别着色（预警画像等多类型地块） */
+  featureFillColorById?: Record<string, string>;
+  featureLineColorById?: Record<string, string>;
 };

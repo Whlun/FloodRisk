@@ -280,6 +280,42 @@ const PLAN_VERIFY_DISPLAY_FIELDS: MatterDisplayField[] = [
   { code: 'ydmj', label: '用地面积（m²）' },
 ];
 
+/** 不动产权证办理（TD/T 1066-2021 字段清单） */
+const ESTATE_CERT_DISPLAY_FIELDS: MatterDisplayField[] = [
+  { code: 'ywh', label: '业务号' },
+  { code: 'xmmc', label: '项目名称' },
+  { code: 'xmdm', label: '项目代码' },
+  { code: 'dkbh', label: '地块编号' },
+  { code: 'ybdcqzh', label: '原不动产权证号' },
+  { code: 'sffgdj', label: '是否分割登记' },
+  { code: 'bdcdyh', label: '不动产单元号' },
+  { code: 'zddm', label: '宗地代码' },
+  { code: 'zl', label: '坐落' },
+  { code: 'zdmj', label: '宗地面积（㎡）' },
+  { code: 'yt', label: '用途' },
+  { code: 'rjll', label: '容积率' },
+  { code: 'qlrmc', label: '权利人名称' },
+  { code: 'qlrlx', label: '权利人类型' },
+  { code: 'zjzl', label: '证件种类' },
+  { code: 'zjh', label: '证件号' },
+  { code: 'qlbl', label: '权利比例' },
+  { code: 'gyfs', label: '共有方式' },
+  { code: 'qllx', label: '权利类型' },
+  { code: 'qlxz', label: '权利性质' },
+  { code: 'syqmj', label: '使用权面积（㎡）' },
+  { code: 'syqqssj', label: '使用权起始时间' },
+  { code: 'syqjssj', label: '使用权结束时间' },
+  { code: 'qdjg', label: '取得价格（万元）' },
+  { code: 'djlx', label: '登记类型' },
+  { code: 'djyy', label: '登记原因' },
+  { code: 'djsj', label: '登记时间' },
+  { code: 'djjg', label: '登记机构' },
+  { code: 'dbr', label: '登簿人' },
+  { code: 'qszt', label: '权属状态' },
+  { code: 'bdcqzh', label: '不动产权证号' },
+  { code: 'fj', label: '附记' },
+];
+
 const DISPLAY_FIELDS_BY_MATTER: Partial<Record<MatterStageKey, MatterDisplayField[]>> = {
   'pre-review': PRE_REVIEW_DISPLAY_FIELDS,
   'farmland-conversion': FARMLAND_DISPLAY_FIELDS,
@@ -290,6 +326,7 @@ const DISPLAY_FIELDS_BY_MATTER: Partial<Record<MatterStageKey, MatterDisplayFiel
   'construction-permit': CON_PERMIT_DISPLAY_FIELDS,
   'land-review': LAND_REVIEW_DISPLAY_FIELDS,
   'planning-verification': PLAN_VERIFY_DISPLAY_FIELDS,
+  'estate-certificate': ESTATE_CERT_DISPLAY_FIELDS,
 };
 
 const DISPLAY_COLUMNS_BY_MATTER: Partial<Record<MatterStageKey, number>> = {
@@ -302,6 +339,7 @@ const DISPLAY_COLUMNS_BY_MATTER: Partial<Record<MatterStageKey, number>> = {
   'construction-permit': 3,
   'land-review': 3,
   'planning-verification': 3,
+  'estate-certificate': 3,
 };
 
 export function getMatterDisplayFields(matterKey: MatterStageKey): MatterDisplayField[] | undefined {

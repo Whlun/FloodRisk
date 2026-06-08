@@ -8,8 +8,8 @@ import { HzPhaseAlertLine } from '../../huzhou-lifecycle-shared/components/HzPha
 import { compactDrawerAddressDetail } from '../../zonghe-taishi/zhtLeftStatDrawer';
 import { getPhaseMetric } from '../mock/phaseDistribution';
 import { getProjectCardMetrics } from '../mock/projectCardMetrics';
-import type { CmPhaseAlert, CmProjectCardMetric, ConstructionProject } from '../types';
-import { getCmPhaseAlertLevelTone } from '../cmProjectPhaseAlert';
+import type { CmProjectCardMetric, ConstructionProject } from '../types';
+import type { CmProjectCardAlertDisplay } from '../resolveCmProjectCardAlert';
 import { CmDistrictTag } from '../../huzhou-lifecycle-shared/components/CmDistrictTag';
 import { CmProjectFavoriteStar } from './CmProjectFavoriteStar';
 
@@ -33,8 +33,8 @@ export type CmProjectCardProps = {
   onLocateOnMap?: () => void;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
-  /** 阶段停留预警（预警列表等场景） */
-  phaseAlert?: CmPhaseAlert | null;
+  /** 预警提示（前三未：批而未供 / 供而未用 / 用而未尽，由 resolveCmProjectCardAlert 解析） */
+  cardAlert?: CmProjectCardAlertDisplay | null;
 };
 
 export const CmProjectCard: React.FC<CmProjectCardProps> = ({
@@ -47,7 +47,7 @@ export const CmProjectCard: React.FC<CmProjectCardProps> = ({
   onLocateOnMap,
   isFavorite = false,
   onToggleFavorite,
-  phaseAlert = null,
+  cardAlert = null,
 }) => {
   const phaseLabel = getPhaseMetric(project.phaseKey).label;
   const metrics = getProjectCardMetrics(project);
@@ -125,11 +125,13 @@ export const CmProjectCard: React.FC<CmProjectCardProps> = ({
           </div>
         ) : null}
       </div>
-      {phaseAlert ? (
+      {cardAlert ? (
         <HzPhaseAlertLine
-          message={phaseAlert.message}
-          enteredAt={phaseAlert.enteredAt}
-          levelTone={getCmPhaseAlertLevelTone(phaseAlert.level)}
+          message={cardAlert.message}
+          enteredAt={cardAlert.enteredAt}
+          levelTone={cardAlert.levelTone}
+          typeTag={cardAlert.alertTypeLabel}
+          typeTagClassName={cardAlert.alertTypeClass}
         />
       ) : null}
       <div

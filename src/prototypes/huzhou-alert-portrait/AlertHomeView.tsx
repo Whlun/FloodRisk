@@ -21,11 +21,17 @@ import { CmProjectFavoriteStar } from '../huzhou-construction-portrait/component
 import { useCmProjectFavorites } from '../huzhou-construction-portrait/useCmProjectFavorites';
 import { useCmProjectListPanelState } from '../huzhou-construction-portrait/useCmProjectListPanelState';
 import { cmRegionToDistrictName } from '../huzhou-construction-portrait/cmRegionFilter';
-import { listCmProjectAlerts } from '../huzhou-construction-portrait/cmProjectPhaseAlert';
-import { collectAlertParcelFeatureIds } from '../huzhou-construction-portrait/hzCmMapHighlight';
+import { listCmIndustrialLandAlerts } from '../huzhou-construction-portrait/cmIndustrialLandAlert';
+import type { HzMapProjectHighlight } from '../huzhou-spatial-portrait/hzMapProjectHighlight';
+import { getCmIndustrialLandAlert } from '../huzhou-construction-portrait/cmIndustrialLandAlert';
+import {
+  buildAlertParcelColorMaps,
+  buildFocusedAlertParcelHighlight,
+  buildHzAlertProjectsMapHighlight,
+} from '../huzhou-construction-portrait/hzCmMapHighlight';
 import { getRegionAlertProjects } from '../huzhou-construction-portrait/mock/regionAlertProjects';
 import { resolveProjectParcelId } from '../huzhou-construction-portrait/mock/projects';
-import type { CmPhaseAlertLevel, ConstructionProject, PhaseKey } from '../huzhou-construction-portrait/types';
+import type { CmAlertType, CmPhaseAlertLevel, ConstructionProject } from '../huzhou-construction-portrait/types';
 import { useHzShellRegion } from '../湖州市空间全画像/hzShellRegionContext';
 import { zhtResolveDetailModalContainer } from '../zonghe-taishi/zhtDetailModalShared';
 import { CmAlertStatsPanel } from './components/CmAlertStatsPanel';
@@ -38,7 +44,11 @@ export const AlertHomeView: React.FC = () => {
   const [layerControl, setLayerControl] = useState<HzLayerControlState>(ALERT_HZ_LAYER_CONTROL);
   const { regionKey } = useHzShellRegion();
   const [selectedAlertLevel, setSelectedAlertLevel] = useState<CmPhaseAlertLevel | null>(null);
-  const [selectedPhaseKey, setSelectedPhaseKey] = useState<PhaseKey | null>(null);
+  const [selectedAlertType, setSelectedAlertType] = useState<CmAlertType | null>(null);
+  const handleSelectAlertType = useCallback((type: CmAlertType | null) => {
+    setSelectedAlertType(type);
+    setSelectedAlertLevel(null);
+  }, []);
   const [alertListExpanded, setAlertListExpanded] = useState(false);
   const [alertListSlideOpen, setAlertListSlideOpen] = useState(false);
   const collapseOverlaysBeforeSwap = useCallback(() => {
@@ -49,30 +59,52 @@ export const AlertHomeView: React.FC = () => {
   });
   const listPanelSide = panelsSwapped ? 'left' : 'right';
   const [locateHighlightedProjectId, setLocateHighlightedProjectId] = useState<string | null>(null);
+  const [focusedParcelHighlight, setFocusedParcelHighlight] =
+    useState<HzMapProjectHighlight | null>(null);
   const alertListExpandedRef = useRef(false);
   const locateHighlightedProjectIdRef = useRef<string | null>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
   const districtFilter = useMemo(() => cmRegionToDistrictName(regionKey), [regionKey]);
 
-  /** 当前区县 + 左栏筛选：地图仅展示预警地块（红色） */
-  const exclusiveLanduseFeatureIds = useMemo(() => {
+  /** 当前区县全部预警行（地图着色口径；不随左栏类型/等级/收藏筛选变化，对齐建管阶段卡片） */
+  const regionAlertRows = useMemo(() => {
     const projects = getRegionAlertProjects(regionKey);
-    let rows = listCmProjectAlerts(projects);
+    return listCmIndustrialLandAlerts(projects);
+  }, [regionKey]);
+
+  const filteredAlertRows = useMemo(() => {
+    let rows = regionAlertRows;
     if (selectedAlertLevel) {
       rows = rows.filter(({ alert }) => alert.level === selectedAlertLevel);
     }
-    if (selectedPhaseKey) {
-      rows = rows.filter(({ project }) => project.phaseKey === selectedPhaseKey);
+    if (selectedAlertType) {
+      rows = rows.filter(({ alert }) => alert.alertType === selectedAlertType);
     }
     if (projectListPanelState.favoritesOnly) {
       rows = rows.filter(({ project }) => isFavorite(project.id));
     }
-    return collectAlertParcelFeatureIds(rows, districtFilter);
-  }, [regionKey, selectedAlertLevel, selectedPhaseKey, projectListPanelState.favoritesOnly, isFavorite, districtFilter]);
+    return rows;
+  }, [regionAlertRows, selectedAlertLevel, selectedAlertType, projectListPanelState.favoritesOnly, isFavorite]);
+
+  /** 地图仅展示预警地块并按类型着色；视野仅在区县切换时调整，左栏类型卡片点击不移动地图 */
+  const alertParcelColors = useMemo(
+    () => buildAlertParcelColorMaps(regionAlertRows, districtFilter),
+    [regionAlertRows, districtFilter],
+  );
+
+  /** 选中类型时叠加高亮层（对齐建管阶段卡片：未选无高亮，选中按类型主题色强调） */
+  const alertTypeHighlight = useMemo(() => {
+    if (!selectedAlertType) return null;
+    const rows = regionAlertRows.filter(({ alert }) => alert.alertType === selectedAlertType);
+    return buildHzAlertProjectsMapHighlight(rows, districtFilter);
+  }, [districtFilter, regionAlertRows, selectedAlertType]);
+
+  const mapProjectHighlight = focusedParcelHighlight ?? alertTypeHighlight;
 
   useEffect(() => {
     setLocateHighlightedProjectId(null);
-  }, [selectedAlertLevel, selectedPhaseKey, regionKey, projectListPanelState.favoritesOnly]);
+    setFocusedParcelHighlight(null);
+  }, [selectedAlertLevel, selectedAlertType, regionKey, projectListPanelState.favoritesOnly]);
 
   useEffect(() => {
     alertListExpandedRef.current = alertListExpanded;
@@ -107,6 +139,7 @@ export const AlertHomeView: React.FC = () => {
 
   const clearProjectLocateHighlight = useCallback(() => {
     setLocateHighlightedProjectId(null);
+    setFocusedParcelHighlight(null);
   }, []);
 
   const resolveDetailParcel = useCallback(
@@ -153,6 +186,11 @@ export const AlertHomeView: React.FC = () => {
         const parcel = getParcelById(resolveProjectParcelId(project));
         if (!parcel) return;
         locateParcelRef.current?.(parcel);
+        const alert = getCmIndustrialLandAlert(project);
+        const highlight = alert
+          ? buildFocusedAlertParcelHighlight(project, parcel, alert.alertType)
+          : null;
+        if (highlight) setFocusedParcelHighlight(highlight);
       };
 
       if (alertListExpandedRef.current) {
@@ -171,7 +209,7 @@ export const AlertHomeView: React.FC = () => {
   const alertListPanelProps = {
     regionKey,
     alertLevelFilter: selectedAlertLevel,
-    phaseKeyFilter: selectedPhaseKey,
+    alertTypeFilter: selectedAlertType,
     panelState: projectListPanelState,
     onOpenParcelDetail: handleOpenParcelFromProject,
     onLocateProjectOnMap: handleLocateProjectOnMap,
@@ -213,8 +251,8 @@ export const AlertHomeView: React.FC = () => {
         regionKey={regionKey}
         selectedLevel={selectedAlertLevel}
         onSelectLevel={setSelectedAlertLevel}
-        selectedPhaseKey={selectedPhaseKey}
-        onSelectPhase={setSelectedPhaseKey}
+        selectedAlertType={selectedAlertType}
+        onSelectAlertType={handleSelectAlertType}
       />
 
       <div ref={mapStageRef} className="zht-body-main hz-map-column hz-cm-map-stage">
@@ -228,7 +266,10 @@ export const AlertHomeView: React.FC = () => {
               zhtResolveDetailModalContainer(mapStageRef.current)
             }
             regionScopeEnabled
-            exclusiveLanduseFeatureIds={exclusiveLanduseFeatureIds}
+            projectHighlight={mapProjectHighlight}
+            exclusiveLanduseFeatureIds={alertParcelColors.featureIds}
+            exclusiveLanduseFeatureFillColors={alertParcelColors.fillColorById}
+            exclusiveLanduseFeatureLineColors={alertParcelColors.lineColorById}
             districtFilter={districtFilter}
             districtFocus={districtFilter}
             renderParcelDetailHeaderExtra={renderParcelDetailHeaderExtra}
@@ -236,24 +277,23 @@ export const AlertHomeView: React.FC = () => {
             resolveDetailParcel={resolveDetailParcel}
             mapToolbarExtraAfterFullscreen={layoutSwapToolBtn}
           />
+          {alertListExpanded ? (
+            <div
+              className={`zht-stat-drawer-map-host${
+                alertListSlideOpen ? ' zht-stat-drawer-map-host--open' : ''
+              }`}
+              role="presentation"
+            >
+              <CmProjectAlertRailPanel
+                variant="overlay"
+                {...alertListPanelProps}
+                listPanelSide={listPanelSide}
+                onMapCollapse={() => setAlertListExpanded(false)}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
-
-      {alertListExpanded ? (
-        <div
-          className={`zht-stat-drawer-map-host${
-            alertListSlideOpen ? ' zht-stat-drawer-map-host--open' : ''
-          }`}
-          role="presentation"
-        >
-          <CmProjectAlertRailPanel
-            variant="overlay"
-            {...alertListPanelProps}
-            listPanelSide={listPanelSide}
-            onMapCollapse={() => setAlertListExpanded(false)}
-          />
-        </div>
-      ) : null}
 
       {alertListExpanded ? (
         <aside className="zht-right-rail zht-right-rail--collapsed-for-stat-expand" aria-hidden="true" />

@@ -170,6 +170,22 @@ export const MATTER_CONFIGS: MatterConfig[] = [
       { key: 'result', title: '核实结论', width: 100 },
     ],
   },
+  {
+    key: 'estate-certificate',
+    label: '不动产权证',
+    caseCount: 3510,
+    areaHa: 4682.0,
+    districtBars: defaultBars(320),
+    searchFields: [
+      { key: 'name', placeholder: '项目名称' },
+      { key: 'cert', placeholder: '不动产权证号' },
+    ],
+    columns: [
+      { key: 'no', title: '序号', width: 56 },
+      { key: 'name', title: '项目名称', width: 200 },
+      { key: 'cert', title: '不动产权证号', width: 160 },
+    ],
+  },
 ];
 
 export function getMatterConfig(key: MatterKey): MatterConfig {

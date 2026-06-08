@@ -22,7 +22,7 @@ export type OpenParcelDetailOptions = {
   constructionProject?: ConstructionProjectBasicInfoSnapshot;
   /** 建管画像：来源建设工程项目 id（收藏等） */
   constructionProjectId?: string;
-  /** 建管画像：阶段滞留预警（与项目卡同源） */
+  /** 建管画像：前三未预警（农转用报批 / 土地供应 / 工程规划许可三固定节点，与项目卡同源） */
   phaseAlert?: OpenParcelDetailPhaseAlert | null;
 };
 
@@ -55,8 +55,11 @@ export type HuzhouMapWithParcelDetailProps = {
     parcelId: string,
     options?: OpenParcelDetailOptions,
   ) => ParcelLifecycle | undefined;
-  /** 预警画像：预警地块 osm_id 列表（红色）；regionScopeEnabled 时与建管同源区县过滤/视野 */
+  /** 预警画像：预警地块 osm_id 列表；regionScopeEnabled 时与建管同源区县过滤/视野 */
   exclusiveLanduseFeatureIds?: string[];
+  /** 预警画像：按 osm_id 着色（与前三未类型标签 `getAlertTypeAccent` 一致） */
+  exclusiveLanduseFeatureFillColors?: Record<string, string>;
+  exclusiveLanduseFeatureLineColors?: Record<string, string>;
   /** 地图工具条全屏按钮下方的扩展项 */
   mapToolbarExtraAfterFullscreen?: React.ReactNode;
 };
@@ -75,6 +78,8 @@ export const HuzhouMapWithParcelDetail: React.FC<HuzhouMapWithParcelDetailProps>
   resolveConstructionContextFromParcel,
   resolveDetailParcel,
   exclusiveLanduseFeatureIds,
+  exclusiveLanduseFeatureFillColors,
+  exclusiveLanduseFeatureLineColors,
   mapToolbarExtraAfterFullscreen,
 }) => {
   const [parcelDetailId, setParcelDetailId] = useState<string | null>(null);
@@ -188,6 +193,8 @@ export const HuzhouMapWithParcelDetail: React.FC<HuzhouMapWithParcelDetailProps>
         districtFilter={districtFilter}
         districtFocus={districtFocus}
         exclusiveLanduseFeatureIds={exclusiveLanduseFeatureIds}
+        exclusiveLanduseFeatureFillColors={exclusiveLanduseFeatureFillColors}
+        exclusiveLanduseFeatureLineColors={exclusiveLanduseFeatureLineColors}
         mapToolbarExtraAfterFullscreen={mapToolbarExtraAfterFullscreen}
       />
       <ParcelDetailModal

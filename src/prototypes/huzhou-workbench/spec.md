@@ -10,7 +10,7 @@
 
 - **KPI 指标卡 x6（P0）**：可利用空间、低效用地、建设项目、建设面积、预警项目、最长滞留；**单位写在标题括号内**（如「建设面积(公顷)」），数值区仅展示纯数字；点击跳转对应 Tab。
 - **统计图表 x2（P0）**：供地趋势折线（2018–2023）；建设阶段分布横向柱图（Top 5，数量从高到低，最高项在顶部）。
-- **列表面板 x3（P0）**：阶段滞留预警 Top 5；近期建设项目 Top 5；**我关注的项目**（`useCmProjectFavorites` + `localStorage` 键 `hz-cm-project-favorites`，与建管/预警画像收藏同源）；行点击弹出详情，关注列表行内可取消收藏。
+- **列表面板 x3（P0）**：**预警信息** Top 5（标题「预警信息」；行内展示前三未类型 Tag `批而未供/供而未用/用而未尽` + 等级 Tag `I级/II级/III级`）；近期建设项目 Top 5；**我关注的项目**（`useCmProjectFavorites` + `localStorage` 键 `hz-cm-project-favorites`，与建管/预警画像收藏同源；有前三未时行内展示类型 + 等级 Tag，meta 行展示超期天数 / 未开发面积）；行点击弹出详情，关注列表行内可取消收藏。
 - **快捷入口 x4（P0）**：空间利用画像 / 建设工程画像 / 预警工程画像 / 低效用地分析。
 
 ### 1.3 交互要点
@@ -30,7 +30,7 @@
 工作台
 ├── KPI 指标卡 x6
 ├── 统计图表（供地趋势 / 阶段分布）
-├── 列表（预警 Top5 / 项目 Top5 / 我关注的项目）
+├── 列表（预警信息 Top5 / 项目 Top5 / 我关注的项目）
 └── 快捷入口 x4
 ```
 
@@ -38,7 +38,7 @@
 
 - **空间指标**：`../huzhou-spatial-portrait/mock/regionScopedSpatialStats.ts` → `getSpatialStatsForRegion`
 - **建管汇总**：`../huzhou-construction-portrait/mock/regionScopedData.ts` → `getSummaryForRegion`、`getPhaseMetricsForRegion`、`getProjectsByPhaseAndRegion`
-- **预警统计**：`../huzhou-construction-portrait/cmAlertStats.ts` → `buildCmAlertRegionStats`；`listCmProjectAlerts` + `getRegionAlertProjects`
+- **预警统计**：`../huzhou-construction-portrait/cmAlertStats.ts` → `buildCmAlertRegionStats`；`listCmIndustrialLandAlerts` + `getRegionAlertProjects`
 - **项目收藏**：`../huzhou-construction-portrait/useCmProjectFavorites.ts` + `getProjectById`（`workbenchFavorites.ts`）
 - **区县**：`../huzhou-lifecycle-shared/hzRegionScope.ts` + 壳层 `useHzShellRegion`
 
@@ -73,7 +73,8 @@
 ### 4.2 自定义设计要点
 
 - 主色 `#1e5bb5`，数值强调 `#1677ff`（对齐建管画像 KPI）。
-- 预警等级 Tag：红 `#ff4d4f` / 橙 `#fa8c16` / 黄 `#faad14`。
+- 预警类型 Tag：**批而未供 / 供而未用 / 用而未尽**；色板与预警工程画像同源（蓝 `#1677ff` / 青 `#13c2c2` / 紫 `#722ed1`）。
+- 预警等级 Tag：**I级 / II级 / III级**；色板为蓝阶 `#0958d9` / `#1677ff` / `#4096ff`。
 - KPI 卡 hover 微抬升；可点击区域 `cursor: pointer`。
 
 ### 4.3 组件状态

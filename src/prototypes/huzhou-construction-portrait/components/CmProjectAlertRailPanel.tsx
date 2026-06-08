@@ -31,7 +31,11 @@ import {
   PipeLineColumnManager,
 } from '../../韶山水环境设施管理系统/pipe-line-table-kit';
 import { applyProjectQuery } from '../cmProjectQuery';
-import { listCmProjectAlerts } from '../cmProjectPhaseAlert';
+import {
+  listCmIndustrialLandAlerts,
+  type CmProjectWithIndustrialLandAlert,
+} from '../cmIndustrialLandAlert';
+import { resolveCmProjectCardAlert } from '../resolveCmProjectCardAlert';
 import type { CmRegionKey } from '../cmRegionFilter';
 import {
   buildCmProjectAllColumnConfigs,
@@ -39,8 +43,7 @@ import {
 import { getProjectById } from '../mock/projects';
 import { getRegionAlertProjects } from '../mock/regionAlertProjects';
 import type { CmProjectListPanelState } from '../useCmProjectListPanelState';
-import type { CmPhaseAlertLevel, ConstructionProject, PhaseKey } from '../types';
-import type { CmProjectWithPhaseAlert } from '../cmProjectPhaseAlert';
+import type { CmAlertType, CmPhaseAlertLevel, ConstructionProject } from '../types';
 import { CmProjectCard } from './CmProjectCard';
 import { CmProjectBatchExportModal } from './CmProjectBatchExportModal';
 import { CmProjectExportModeBar } from './CmProjectExportModeBar';
@@ -55,7 +58,7 @@ export type CmProjectAlertRailPanelProps = {
   regionKey: CmRegionKey;
   slideOpen?: boolean;
   alertLevelFilter?: CmPhaseAlertLevel | null;
-  phaseKeyFilter?: PhaseKey | null;
+  alertTypeFilter?: CmAlertType | null;
   /** 预警铺满 ↔ rail 共享筛选/视图（与建管 `CmProjectLeftPanel` 同源） */
   panelState?: CmProjectListPanelState;
   onOpenParcelDetail: (project: ConstructionProject) => void;
@@ -79,7 +82,7 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
   regionKey,
   slideOpen = false,
   alertLevelFilter = null,
-  phaseKeyFilter = null,
+  alertTypeFilter = null,
   panelState,
   onOpenParcelDetail,
   onLocateProjectOnMap,
@@ -102,39 +105,44 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
 
   const alertRows = useMemo(() => {
     const projects = getRegionAlertProjects(regionKey);
-    return listCmProjectAlerts(projects);
+    return listCmIndustrialLandAlerts(projects);
   }, [regionKey]);
 
   const applyBaseAlertFilters = useCallback(
-    (rows: CmProjectWithPhaseAlert[]) =>
+    (rows: CmProjectWithIndustrialLandAlert[]) =>
       rows.filter(({ project, alert }) => {
         if (alertLevelFilter && alert.level !== alertLevelFilter) return false;
-        if (phaseKeyFilter && project.phaseKey !== phaseKeyFilter) return false;
+        if (alertTypeFilter && alert.alertType !== alertTypeFilter) return false;
         if (favoritesOnly && !isFavorite(project.id)) return false;
         return true;
       }),
-    [alertLevelFilter, favoritesOnly, isFavorite, phaseKeyFilter],
+    [alertLevelFilter, alertTypeFilter, favoritesOnly, isFavorite],
+  );
+
+  /** 预警列表不按建管默认「年度申报时间」筛掉无 phaseEnteredAt 的前三未项目 */
+  const alertNameQuery = useMemo(
+    (): import('../useCmProjectListPanelState').CmProjectQuerySnapshot => ({
+      nameKw: (panelState?.nameKw ?? railKeyword).trim(),
+    }),
+    [panelState?.nameKw, railKeyword],
   );
 
   const railFilteredRows = useMemo(() => {
-    const snapshot = panelState?.querySnapshot;
     const projects = applyBaseAlertFilters(alertRows).map(r => r.project);
     const filteredIds = new Set(
-      applyProjectQuery(projects, {
-        nameKw: (panelState?.nameKw ?? railKeyword).trim(),
-        dateFrom: snapshot?.dateFrom,
-        dateTo: snapshot?.dateTo,
-      }).map(p => p.id),
+      applyProjectQuery(projects, alertNameQuery).map(p => p.id),
     );
     return applyBaseAlertFilters(alertRows).filter(r => filteredIds.has(r.project.id));
-  }, [alertRows, applyBaseAlertFilters, panelState?.nameKw, panelState?.querySnapshot, railKeyword]);
+  }, [alertRows, applyBaseAlertFilters, alertNameQuery]);
 
   const overlayFilteredRows = useMemo(() => {
     const base = applyBaseAlertFilters(alertRows);
     if (!panelState) return base;
     const projects = base.map(r => r.project);
     const filteredIds = new Set(
-      applyProjectQuery(projects, panelState.querySnapshot).map(p => p.id),
+      applyProjectQuery(projects, {
+        nameKw: panelState.querySnapshot.nameKw,
+      }).map(p => p.id),
     );
     return base.filter(r => filteredIds.has(r.project.id));
   }, [alertRows, applyBaseAlertFilters, panelState]);
@@ -212,11 +220,15 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
 
   const emptyDescription = favoritesOnly
     ? '暂无收藏预警项目'
-    : alertLevelFilter || phaseKeyFilter || (panelState?.nameKw ?? railKeyword).trim()
+    : alertLevelFilter || alertTypeFilter || (panelState?.nameKw ?? railKeyword).trim()
       ? '暂无匹配预警项目'
-      : '暂无阶段预警项目';
+      : '暂无预警项目';
 
-  const overlayTitle = isMapExpandOverlay ? '预警列表' : '项目阶段预警';
+  const drawerTitle = isMapExpandOverlay
+    ? '预警列表'
+    : variant === 'rail'
+      ? '预警信息'
+      : '前三未预警';
 
   const handleQueryClick = useCallback(() => {
     if (!panelState) return;
@@ -289,11 +301,11 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
     displayRows.length === 0 ? (
       <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />
     ) : (
-      displayRows.map(({ project, alert }) => (
+      displayRows.map(({ project }) => (
         <CmProjectCard
           key={project.id}
           project={project}
-          phaseAlert={alert}
+          cardAlert={resolveCmProjectCardAlert(project)}
           isLocateActive={project.id === locateHighlightedProjectId}
           selectable={exportMode}
           selected={isSelected(project.id)}
@@ -388,13 +400,13 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
             }
           >
             <span className="zht-stat-drawer__pipe">|</span>
-            {overlayTitle}
+            {drawerTitle}
           </h2>
           {!isMapExpandOverlay && variant === 'overlay' && onClose ? (
             <Button
               type="text"
               className="zht-stat-drawer__close"
-              aria-label="关闭阶段预警看板"
+              aria-label="关闭预警看板"
               onClick={onClose}
               icon={<CloseOutlined />}
             />
@@ -566,7 +578,7 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
   if (variant === 'rail') {
     return (
       <>
-      <aside className="zht-right-rail zht-right-rail--stat-drawer zht-right-rail--alarm-rail" aria-label="项目阶段预警">
+      <aside className="zht-right-rail zht-right-rail--stat-drawer zht-right-rail--alarm-rail" aria-label="预警信息">
         <div
           className="zht-alarm-rail zht-stat-drawer zht-stat-drawer--rail"
           role="region"
@@ -603,7 +615,7 @@ export const CmProjectAlertRailPanel: React.FC<CmProjectAlertRailPanelProps> = (
         slideOpen ? ' hz-cm-project-alert-rail-overlay--open' : ''
       }`}
       role="region"
-      aria-label="项目阶段预警"
+      aria-label="前三未预警"
     >
       {listInner}
     </div>

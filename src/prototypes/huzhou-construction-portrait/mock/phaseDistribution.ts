@@ -8,9 +8,9 @@ export const PHASE_METRICS: PhaseMetric[] = [
   { key: 'land-permit', label: '用地规划许可', area: 377643.35, count: 3824, progressPct: 14 },
   { key: 'first-reg', label: '土地首次登记', area: 1022076.66, count: 1734, progressPct: 18 },
   { key: 'eng-permit', label: '工程规划许可', area: 512300.55, count: 3824, progressPct: 16 },
-  { key: 'con-permit', label: '工程施工许可', area: 468200.0, count: 3510, progressPct: 15 },
   { key: 'land-review', label: '用地复核验收', area: 88600.2, count: 341, progressPct: 3 },
   { key: 'plan-verify', label: '规划核实', area: 245500.8, count: 2555, progressPct: 14 },
+  { key: 'estate-cert', label: '不动产权证', area: 468200.0, count: 3510, progressPct: 15 },
 ];
 
 export function getPhaseMetric(key: PhaseKey): PhaseMetric {

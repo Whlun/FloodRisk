@@ -4,7 +4,7 @@
 import { useMemo } from 'react';
 import type { HzRegionKey } from '../huzhou-lifecycle-shared/hzRegionScope';
 import { buildCmAlertRegionStats } from '../huzhou-construction-portrait/cmAlertStats';
-import { listCmProjectAlerts } from '../huzhou-construction-portrait/cmProjectPhaseAlert';
+import { listCmIndustrialLandAlerts } from '../huzhou-construction-portrait/cmIndustrialLandAlert';
 import {
   getPhaseMetricsForRegion,
   getProjectsByPhaseAndRegion,
@@ -22,7 +22,7 @@ export function useWorkbenchData(regionKey: HzRegionKey) {
       .slice()
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-    const alertRows = listCmProjectAlerts(getRegionAlertProjects(regionKey)).slice(0, 5);
+    const alertRows = listCmIndustrialLandAlerts(getRegionAlertProjects(regionKey)).slice(0, 5);
     const recentProjects = getProjectsByPhaseAndRegion(null, regionKey).slice(0, 5);
     return {
       kpis: {
@@ -31,7 +31,7 @@ export function useWorkbenchData(regionKey: HzRegionKey) {
         projectCount: construction.totalCount,
         projectAreaHa: construction.totalAreaHa,
         alertCount: alertStats.totalCount,
-        maxDaysInPhase: alertStats.maxDaysInPhase,
+        maxDelayDays: alertStats.maxDelayDays,
       },
       supplyTrendYears: spatial.supplyTrendYears,
       supplyTrendValues: spatial.supplyTrendValues,

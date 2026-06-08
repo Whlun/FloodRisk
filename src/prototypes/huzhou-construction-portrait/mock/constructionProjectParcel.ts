@@ -20,9 +20,9 @@ const CM_PHASE_ORDER: readonly CmPhaseAccentKey[] = [
   'land-permit',
   'first-reg',
   'eng-permit',
-  'con-permit',
   'land-review',
   'plan-verify',
+  'estate-cert',
 ] as const;
 
 const PHASE_PRIMARY_MATTER: Record<PhaseKey, MatterStageKey> = {
@@ -32,9 +32,9 @@ const PHASE_PRIMARY_MATTER: Record<PhaseKey, MatterStageKey> = {
   'land-permit': 'land-use-permit',
   'first-reg': 'first-registration',
   'eng-permit': 'engineering-permit',
-  'con-permit': 'construction-permit',
   'land-review': 'land-review',
   'plan-verify': 'planning-verification',
+  'estate-cert': 'estate-certificate',
 };
 
 const XZQDM_BY_REGION: Record<string, string> = {
@@ -467,6 +467,50 @@ function buildPlanVerifyRecord(project: ConstructionProject): MatterStageRecord 
   };
 }
 
+function buildEstateCertRecord(project: ConstructionProject): MatterStageRecord {
+  const xzqdm = regionXzqdm(project.region);
+  const applyYear = (project.applyDate ?? '2024').slice(0, 4);
+  const endYear = Number(applyYear) + 50;
+  const landSqm =
+    project.landAreaMu != null ? muToSqm(project.landAreaMu) : '—';
+  const djsj = shiftDate(project.applyDate ?? '2024-01-18', 60);
+
+  return {
+    ywh: `BD${project.id.replace(/\D/g, '').slice(-8)}`,
+    xmmc: project.name,
+    xmdm: project.unifiedCode ?? '',
+    dkbh: `DK-${xzqdm}-${project.id.replace(/\D/g, '').slice(-4)}`,
+    ybdcqzh: '',
+    sffgdj: '否',
+    bdcdyh: `${xzqdm}008011GB00033W00000000`,
+    zddm: `${xzqdm}008011GB00033`,
+    zl: project.address ?? '',
+    zdmj: landSqm,
+    yt: inferIndustry(project),
+    rjll: '2.0',
+    qlrmc: project.ownerName ?? '',
+    qlrlx: '企业',
+    zjzl: '统一社会信用代码',
+    zjh: project.ownerLegalCertNo ?? '91330500MA2D123456',
+    qlbl: '',
+    gyfs: '单独所有',
+    qllx: '国有建设用地使用权/房屋所有权',
+    qlxz: '出让',
+    syqmj: landSqm,
+    syqqssj: shiftDate(project.applyDate ?? '2021-09-15', 45),
+    syqjssj: `${endYear}-12-31`,
+    qdjg: project.totalFund ? String(Number(project.totalFund) / 10000) : '',
+    djlx: '首次登记',
+    djyy: '新建房屋',
+    djsj,
+    djjg: '湖州市自然资源和规划局',
+    dbr: '登记经办人',
+    qszt: '现状',
+    bdcqzh: `浙(${new Date().getFullYear()})湖州市不动产权第${project.id.replace(/\D/g, '').slice(-6)}号`,
+    fj: '依出让合同及规划条件办理不动产权登记。',
+  };
+}
+
 const MATTER_RECORD_BUILDERS: Partial<
   Record<MatterStageKey, (p: ConstructionProject) => MatterStageRecord>
 > = {
@@ -479,6 +523,7 @@ const MATTER_RECORD_BUILDERS: Partial<
   'construction-permit': buildConPermitRecord,
   'land-review': buildLandReviewRecord,
   'planning-verification': buildPlanVerifyRecord,
+  'estate-certificate': buildEstateCertRecord,
 };
 
 function buildStageStatus(project: ConstructionProject): Partial<Record<MatterStageKey, StageStatus>> {
@@ -514,10 +559,10 @@ export function buildCmPhaseAcceptTimes(project: ConstructionProject): CmPhaseAc
     if (project.phaseKey === 'land-supply' && rec.tdgy_qdrq) times['land-supply'] = String(rec.tdgy_qdrq);
     if (project.phaseKey === 'pre-review' && rec.nf) times['pre-review'] = String(rec.nf);
     if (project.phaseKey === 'eng-permit' && rec.gcgh_fzrq) times['eng-permit'] = String(rec.gcgh_fzrq);
-    if (project.phaseKey === 'con-permit' && rec.gcsg_jhkgrq) times['con-permit'] = String(rec.gcsg_jhkgrq);
     if (project.phaseKey === 'land-review' && rec.ydfhys_plan_starttime) {
       times['land-review'] = String(rec.ydfhys_plan_starttime);
     }
+    if (project.phaseKey === 'estate-cert' && rec.djsj) times['estate-cert'] = String(rec.djsj);
   }
   return times;
 }
@@ -622,9 +667,11 @@ export function mergeParcelForConstructionProject(
               ? '供'
               : key === 'land-permit' || key === 'first-reg'
                 ? '用'
-                : key === 'eng-permit' || key === 'con-permit'
+                : key === 'eng-permit'
                   ? '建'
-                  : '验';
+                  : key === 'estate-cert'
+                    ? '证'
+                    : '验';
         return {
           stageName: macro,
           matterName: MATTER_STAGE_BY_KEY[phase.matterKeys[0]]?.label ?? phase.label,

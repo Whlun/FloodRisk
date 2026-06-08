@@ -12,6 +12,7 @@
 import './style.css';
 
 import React, { useState, useCallback, useImperativeHandle, forwardRef, useEffect, useRef } from 'react';
+import { withChartAnimation } from '../../common/chartAnimation';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';
 import {
@@ -128,10 +129,7 @@ const Component = forwardRef<AxureHandle, AxureProps>(function LineChart(innerPr
   // 生成 ECharts 配置项
   const getChartOption = useCallback(function () {
     const colors = [primaryColor, '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
-    return {
-      animation: true,
-      animationDuration: 30,
-      animationEasing: 'cubicOut' as const,
+    return withChartAnimation({
       title: {
         text: title,
         left: 'center',
@@ -167,8 +165,6 @@ const Component = forwardRef<AxureHandle, AxureProps>(function LineChart(innerPr
           type: 'line',
           data: Array.isArray(item.data) ? item.data : [],
           smooth: true,
-          animation: true,
-          animationDuration: 30,
           itemStyle: {
             color: colors[index % colors.length]
           },
@@ -177,7 +173,7 @@ const Component = forwardRef<AxureHandle, AxureProps>(function LineChart(innerPr
           }
         };
       })
-    };
+    });
   }, [title, xAxisName, yAxisName, primaryColor, showLegend, showTooltip, xAxisData, seriesData]);
 
   // 【重要】直接使用 container 初始化图表，不需要返回 JSX 元素

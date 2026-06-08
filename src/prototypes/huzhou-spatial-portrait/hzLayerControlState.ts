@@ -41,7 +41,7 @@ export const DEFAULT_HZ_LAYER_CONTROL: HzLayerControlState = {
   modes: defaultModes(),
 };
 
-/** 预警工程画像：默认不勾选空间图层，地图仅展示红色预警地块；用户勾选后再叠底图 */
+/** 预警工程画像：默认不勾选空间图层，地图仅展示预警地块；用户勾选后再叠底图 */
 export const ALERT_HZ_LAYER_CONTROL: HzLayerControlState = {
   adminBoundary: true,
   activeMode: 'available',
