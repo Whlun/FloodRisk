@@ -4,6 +4,7 @@ import path from 'path';
 import zlib from 'zlib';
 
 import {
+  buildDevAuthEnabledFlagScript,
   buildDevAuthLogoutBodyInject,
   buildDevAuthLogoutHeadInject,
   resolveDevAuth,
@@ -174,7 +175,8 @@ export function serveAdminPlugin(): Plugin {
         const devAuthHeadInject = buildDevAuthLogoutHeadInject(devAuth);
         const devAuthBodyInject = buildDevAuthLogoutBodyInject(devAuth);
         // 左侧切换预览时 iframe 整页重载；经域名/穿透时白屏更长。除底色外，在 src 变更至 load 之间盖一层同色遮罩，减轻「闪」感。
-        const injectScript = `${devAuthHeadInject}
+        const injectScript = `${buildDevAuthEnabledFlagScript()}
+  ${devAuthHeadInject}
   <style id="axhub-admin-iframe-preview-bg">iframe{background:hsl(240 6% 93%);}</style>
   <script id="axhub-admin-boot-diag">
     (function () {

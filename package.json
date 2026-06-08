@@ -5,8 +5,10 @@
   "description": "Axhub Make（AI 辅助生成原型工具）",
   "type": "module",
   "scripts": {
-    "dev": "node --import ./scripts/network-interfaces-shim.mjs ./node_modules/vite/bin/vite.js",
-    "start": "node --import ./scripts/network-interfaces-shim.mjs ./node_modules/vite/bin/vite.js",
+    "dev": "node scripts/dev-server.mjs start",
+    "start": "node scripts/dev-server.mjs start",
+    "restart": "node scripts/dev-server.mjs restart",
+    "stop": "node scripts/dev-server.mjs stop",
     "build": "node scripts/scan-entries.js && node scripts/build-all.js && node scripts/generate-dist-html.js",
     "preview": "node --import ./scripts/network-interfaces-shim.mjs ./node_modules/vite/bin/vite.js preview",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",

@@ -2,7 +2,7 @@
 
 ## 功能
 
-- 单入口顶栏：**视觉与韶山系统壳一致** — 背景 `#1E5BB5`、左侧标题「湖州项目全生命周期管理」（`YouSheBiaoTiHei` 30px，窄屏 ≤1200px 为 18px）、**视口居中**一级菜单（每项带 Ant Design 图标：工作台/利用/建管/预警工程/低效用地分析）、右侧 **公共「预警」**（`BellOutlined` + 右上角小红点，有预警时显示、不展示数字）+ **「管理员 ▾」**（`ShellUserMenu`：点击展开下拉 → **退出登录** → 携带当前页面地址跳转 `/__axhub/auth/logout?redirect=…`，重新登录后回到**同一项目子路径**，不会进入管理台首页）+ **全局区县下拉**；**预警**与**管理员**悬浮态与一级菜单项一致（半透明白底 `rgba(255,255,255,0.12)`、文案高亮为 `#fff`）（`HzShellRegionProvider` + `hz-shell-region-select`）。角标为当前壳区县下 **前三未预警项目数**（`countCmIndustrialLandAlerts`，与所在 Tab 无关）。点击：**直接跳转** `zhongda`（预警工程画像），不再弹出建管页预警抽屉。
+- 单入口顶栏：**视觉与韶山系统壳一致** — 背景 `#1E5BB5`、左侧标题「湖州项目全生命周期管理」（`YouSheBiaoTiHei` 30px，窄屏 ≤1200px 为 18px）、**视口居中**一级菜单（每项带 Ant Design 图标：工作台/利用/建管/预警工程/低效用地分析）、右侧 **公共「预警」**（`BellOutlined` + 右上角小红点，有预警时显示、不展示数字）+ **「管理员」**（`ShellUserMenu`：已开启 `server.auth` 时显示 ▾ 下拉 → **退出登录** → 携带当前页面地址跳转 `/__axhub/auth/logout?redirect=…`，重新登录后回到**同一项目子路径**；未开启登录保护时为纯展示文案，无退出项）+ **全局区县下拉**；**预警**与**管理员**悬浮态与一级菜单项一致（半透明白底 `rgba(255,255,255,0.12)`、文案高亮为 `#fff`）（`HzShellRegionProvider` + `hz-shell-region-select`）。角标为当前壳区县下 **前三未预警项目数**（`countCmIndustrialLandAlerts`，与所在 Tab 无关）。点击：**直接跳转** `zhongda`（预警工程画像），不再弹出建管页预警抽屉。
 - **全局区县**：壳层 Context 维护 `regionKey`，切换一级菜单 Tab **不重置**；已挂接子页（工作台、空间利用画像、建设工程画像）的看板与列表随选中区县联动。
 - 子路径与业务页对应，主内容区嵌套对应子原型；**默认子路径**为 `yizhangtu`（工作台）。
 - **已挂接**：`yizhangtu` → 工作台（`../huzhou-workbench`）；`liyong` → 空间利用画像（`../huzhou-spatial-portrait`）；`jianguan` → 建设工程画像（`../huzhou-construction-portrait`）；`zhongda` → 预警工程画像（`../huzhou-alert-portrait`）。

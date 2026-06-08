@@ -49,6 +49,36 @@ function redirect(res: any, location: string) {
   res.end();
 }
 
+function readSafeRedirectFromRequest(req: any): string {
+  try {
+    const requestUrl = String(req.url || '/');
+    const redirectTo = new URL(requestUrl, 'http://localhost').searchParams.get('redirect') || '/';
+    if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
+      return '/';
+    }
+    return redirectTo;
+  } catch {
+    return '/';
+  }
+}
+
+function handleAuthLogout(req: any, res: any, auth: ReturnType<typeof resolveDevAuth>) {
+  clearSessionCookie(res);
+  const redirectTo = readSafeRedirectFromRequest(req);
+  const paths = getDevAuthPaths();
+
+  if (!auth) {
+    redirect(res, redirectTo);
+    return;
+  }
+
+  const loginTarget =
+    redirectTo === '/' || redirectTo === '/index.html'
+      ? paths.loginPath
+      : `${paths.loginPath}?redirect=${encodeURIComponent(redirectTo)}`;
+  redirect(res, loginTarget);
+}
+
 export function devAuthPlugin(): Plugin {
   const paths = getDevAuthPaths();
 
@@ -57,33 +87,27 @@ export function devAuthPlugin(): Plugin {
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
         const auth = resolveDevAuth();
-        if (!auth) {
-          return next();
-        }
-
         const pathname = getRequestPathname(req);
         const method = String(req.method || 'GET').toUpperCase();
 
         if (shouldSkipAuthPath(pathname, method)) {
           if (pathname === paths.authLogoutApi || pathname === paths.logoutShortcut) {
-            clearSessionCookie(res);
-            let redirectTo = '/';
-            try {
-              const requestUrl = String(req.url || '/');
-              redirectTo =
-                new URL(requestUrl, 'http://localhost').searchParams.get('redirect') || '/';
-            } catch {
-              redirectTo = '/';
-            }
-            if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
-              redirectTo = '/';
-            }
-            const loginTarget =
-              redirectTo === '/' || redirectTo === '/index.html'
-                ? paths.loginPath
-                : `${paths.loginPath}?redirect=${encodeURIComponent(redirectTo)}`;
-            redirect(res, loginTarget);
+            handleAuthLogout(req, res, auth);
             return;
+          }
+
+          if (!auth) {
+            if (pathname === paths.loginPath && method === 'GET') {
+              redirect(res, '/');
+              return;
+            }
+            if (pathname === paths.authLoginApi && method === 'POST') {
+              res.statusCode = 503;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ ok: false, message: '登录保护未开启' }));
+              return;
+            }
+            return next();
           }
 
           if (pathname === paths.authLoginApi && method === 'POST') {
@@ -153,16 +177,7 @@ export function devAuthPlugin(): Plugin {
           }
 
           if (pathname === paths.loginPath && method === 'GET') {
-            const requestUrl = String(req.url || '/');
-            let redirectTo = '/';
-            try {
-              redirectTo = new URL(requestUrl, 'http://localhost').searchParams.get('redirect') || '/';
-            } catch {
-              redirectTo = '/';
-            }
-            if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
-              redirectTo = '/';
-            }
+            const redirectTo = readSafeRedirectFromRequest(req);
             const session = getSessionFromRequest(req);
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -174,6 +189,10 @@ export function devAuthPlugin(): Plugin {
             return;
           }
 
+          return next();
+        }
+
+        if (!auth) {
           return next();
         }
 

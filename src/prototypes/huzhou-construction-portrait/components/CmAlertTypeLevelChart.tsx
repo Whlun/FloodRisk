@@ -24,7 +24,7 @@ export type CmAlertTypeLevelChartProps = {
   onSelectLevel: (level: CmPhaseAlertLevel | null) => void;
   /** stacked：区县三图并列；single：全市单图 + 类型切换 */
   variant?: 'stacked' | 'single';
-  /** 全市单图模式下与区县对比图联动的当前类型 */
+  /** 全市单图模式下 Segmented 当前展示类型（与区县对比图独立） */
   activeType?: CmAlertType;
   onActiveTypeChange?: (type: CmAlertType) => void;
 };

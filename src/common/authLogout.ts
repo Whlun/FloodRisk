@@ -1,6 +1,17 @@
 /** 开发服务登录退出地址（与 vite-plugins/utils/devAuth.ts 保持一致） */
 export const AUTH_LOGOUT_PATH = '/__axhub/auth/logout';
 
+declare global {
+  interface Window {
+    __AXHUB_DEV_AUTH_ENABLED__?: boolean;
+  }
+}
+
+/** 是否已开启开发服务登录保护（由服务端在 HTML 中注入） */
+export function isClientDevAuthEnabled(): boolean {
+  return typeof window !== 'undefined' && window.__AXHUB_DEV_AUTH_ENABLED__ === true;
+}
+
 /** 退出后重新登录应回到的页面（保留当前项目地址，避免回到管理台首页） */
 export function buildAuthLogoutUrl(redirectPath?: string): string {
   const path =

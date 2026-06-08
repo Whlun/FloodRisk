@@ -1,9 +1,10 @@
 /**
  * 预警总览 · 左栏看板（结构对齐 CmPhaseDistributionPanel）
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Typography } from 'antd';
 import { AnimatedNumber } from '../../../common/AnimatedNumber';
+import { CM_ALERT_TYPE_CHART_META } from '../cmAlertTypeAccent';
 import { buildCmAlertRegionStats, getDistrictAlertTypeComparison } from '../cmAlertStats';
 import type { CmRegionKey } from '../cmRegionFilter';
 import type { CmAlertType, CmPhaseAlertLevel } from '../types';
@@ -35,6 +36,18 @@ export const CmAlertOverviewPanel: React.FC<CmAlertOverviewPanelProps> = ({
     [regionKey],
   );
   const isCityView = regionKey === 'all';
+  const defaultChartType = CM_ALERT_TYPE_CHART_META[0]!.key;
+  const [levelChartActiveType, setLevelChartActiveType] =
+    useState<CmAlertType>(defaultChartType);
+  const [districtChartActiveType, setDistrictChartActiveType] =
+    useState<CmAlertType>(defaultChartType);
+
+  useEffect(() => {
+    if (selectedAlertType) {
+      setLevelChartActiveType(selectedAlertType);
+      setDistrictChartActiveType(selectedAlertType);
+    }
+  }, [selectedAlertType]);
 
   const filterActive = selectedLevel != null || selectedAlertType != null;
   const filterMeta = filterActive
@@ -110,10 +123,16 @@ export const CmAlertOverviewPanel: React.FC<CmAlertOverviewPanelProps> = ({
                     selectedLevel={selectedLevel}
                     onSelectType={onSelectAlertType}
                     onSelectLevel={onSelectLevel}
+                    activeType={levelChartActiveType}
+                    onActiveTypeChange={setLevelChartActiveType}
                   />
                 </div>
                 <div className="hz-cm-alert-panel__chart-block hz-cm-alert-panel__chart-block--district">
-                  <CmAlertDistrictCompareChart items={districtComparison} />
+                  <CmAlertDistrictCompareChart
+                    items={districtComparison}
+                    activeType={districtChartActiveType}
+                    onActiveTypeChange={setDistrictChartActiveType}
+                  />
                 </div>
               </div>
             ) : (

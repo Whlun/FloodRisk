@@ -16,13 +16,29 @@ import { HZ_CHART } from '../../huzhou-spatial-portrait/components/spatial/spati
 
 export type CmAlertDistrictCompareChartProps = {
   items: CmAlertDistrictTypeItem[];
+  /** Segmented 当前展示类型（与等级构成图独立；类型列表选中时由父级同步） */
+  activeType?: CmAlertType;
+  onActiveTypeChange?: (type: CmAlertType) => void;
 };
 
 export const CmAlertDistrictCompareChart: React.FC<CmAlertDistrictCompareChartProps> = ({
   items,
+  activeType: controlledActiveType,
+  onActiveTypeChange,
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [activeType, setActiveType] = useState<CmAlertType>(CM_ALERT_TYPE_CHART_META[0]!.key);
+  const [internalActiveType, setInternalActiveType] = useState<CmAlertType>(
+    CM_ALERT_TYPE_CHART_META[0]!.key,
+  );
+  const activeType = controlledActiveType ?? internalActiveType;
+
+  const handleTypeChange = (type: CmAlertType) => {
+    if (onActiveTypeChange) {
+      onActiveTypeChange(type);
+    } else {
+      setInternalActiveType(type);
+    }
+  };
 
   const segmentedOptions = useMemo(
     () =>
@@ -70,7 +86,7 @@ export const CmAlertDistrictCompareChart: React.FC<CmAlertDistrictCompareChartPr
           className="hz-cm-alert-type-level-single__tabs"
           options={segmentedOptions}
           value={activeType}
-          onChange={setActiveType}
+          onChange={handleTypeChange}
         />
       </div>
       <div className="hz-cm-alert-district-compare__legend" aria-label="图表图例">

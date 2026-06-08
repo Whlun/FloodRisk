@@ -324,6 +324,15 @@ function readAxhubConfig(): Record<string, any> {
   }
 }
 
+export function isDevAuthEnabled(): boolean {
+  return resolveDevAuth() !== null;
+}
+
+/** 注入到预览/管理台 HTML，供 ShellUserMenu 等判断退出登录是否可用 */
+export function buildDevAuthEnabledFlagScript(): string {
+  return `<script>window.__AXHUB_DEV_AUTH_ENABLED__=${isDevAuthEnabled()};</script>`;
+}
+
 export function resolveDevAuth(): ResolvedDevAuth | null {
   const raw = readAxhubConfig();
   const auth = (raw.server?.auth || {}) as DevAuthConfig;

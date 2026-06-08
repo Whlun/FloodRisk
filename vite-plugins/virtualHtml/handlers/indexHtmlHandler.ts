@@ -8,6 +8,7 @@ import {
   createPreviewHostOptions,
   replacePreviewLoaderScript,
 } from '../previewHost';
+import { buildDevAuthEnabledFlagScript } from '../../utils/devAuth';
 
 type HtmlResponder = (html: string, transformUrl?: string) => Promise<void>;
 
@@ -89,7 +90,10 @@ export async function handleIndexHtml(
         // 新路径格式 /prototypes/ref-antd 会被浏览器当作目录，导致相对路径解析错误
         // 添加 <base href="/prototypes/ref-antd/"> 可以修正这个问题
         const baseHref = `${urlPath}/`;
-        html = html.replace('</head>', `  <base href="${baseHref}">\n  </head>`);
+        html = html.replace(
+          '</head>',
+          `  ${buildDevAuthEnabledFlagScript()}\n  <base href="${baseHref}">\n  </head>`,
+        );
         if (fs.existsSync(hackCssPath)) {
           logVirtualHtmlDebug('注入 hack.css:', hackCssPath);
           html = html.replace(

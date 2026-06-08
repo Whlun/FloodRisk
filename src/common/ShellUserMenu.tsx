@@ -3,11 +3,22 @@ import { Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { CaretDownOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 
-import { navigateToAuthLogout } from './authLogout';
+import { isClientDevAuthEnabled, navigateToAuthLogout } from './authLogout';
 
 export const ShellUserMenu: React.FC<{ className?: string }> = ({
   className = 'ss-one-map-shell__user',
 }) => {
+  const authEnabled = isClientDevAuthEnabled();
+
+  if (!authEnabled) {
+    return (
+      <span className={className} title="演示用户">
+        <UserOutlined style={{ fontSize: 16 }} aria-hidden />
+        管理员
+      </span>
+    );
+  }
+
   const items: MenuProps['items'] = [
     {
       key: 'logout',
