@@ -43,7 +43,6 @@ import {
   sumLevel1Weights,
   sumSiblingWeights,
 } from './weightBalance';
-import { AhpWeightPanel } from './AhpWeightPanel';
 import {
   WEIGHT_SOURCE_COLOR,
   WEIGHT_SOURCE_LABEL,
@@ -367,7 +366,7 @@ export const IndicatorArchitecturePage: React.FC<Props> = ({
         <ul className="dq-arch-legend-list">
           <li>二级指标评估指标分数 Fᵢⱼ 由「风险指标管理」中的赋分规则确定（相等间隔赋分法）。</li>
           <li>
-            权重 ω 默认来自附录 E（层次分析法<strong>参考权重</strong>，定级时直接引用，非运行时自动 AHP 计算）；可在下方「层次分析法权重推导」或手工编辑中调整。
+            权重 ω 默认来自附录 E（层次分析法<strong>参考权重</strong>，定级时直接引用）；可在「指标权重配置」中手工编辑调整。
           </li>
           <li>一级因子评估指标分数 Vᵢ = Σ(ωᵢⱼ × Fᵢⱼ)，同级二级权重之和宜为 1。</li>
           <li>孕灾因子 V₂ 随隐患点类型切换指标子集；致灾、承灾、防灾减灾为通用指标。</li>
@@ -383,18 +382,6 @@ export const IndicatorArchitecturePage: React.FC<Props> = ({
           )}
         </ul>
       </Card>
-
-      <AhpWeightPanel
-        isEditing={isEditing}
-        formationType={formationType}
-        indicators={activeIndicators}
-        defaultIndicators={defaultIndicators}
-        level1Weights={activeLevel1Weights}
-        defaultLevel1Weights={defaultLevel1Weights}
-        onApplyLevel1={setDraftLevel1Weights}
-        onApplyLevel2={weightMap => setDraftIndicators(prev => applyWeightMap(prev, weightMap))}
-        onWeightSourceChange={onWeightSourceChange}
-      />
 
       <Card bordered={false} className="dq-arch-toolbar">
         <div className="dq-arch-toolbar-inner">
