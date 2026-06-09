@@ -111,7 +111,9 @@ export function buildPointDemoIndicatorValues(
   pointType: SurveyPointType,
 ): SurveyPayload['indicatorValues'] {
   const indicatorValues: SurveyPayload['indicatorValues'] = {};
-  for (const ind of getPointSurveyIndicatorsForPoint(indicators, pointType)) {
+  for (const ind of getPointSurveyIndicatorsForPoint(indicators, pointType, {
+    architectureScoped: true,
+  })) {
     const raw = getDefaultSurveyRawValue(ind);
     if (raw !== undefined) indicatorValues[ind.survey.fieldKey] = raw;
   }
@@ -143,7 +145,9 @@ function mapSeedValuesToPointIndicators(
     ...seedPayload.indicatorValues,
   };
 
-  for (const ind of getPointSurveyIndicatorsForPoint(indicators, pointType)) {
+  for (const ind of getPointSurveyIndicatorsForPoint(indicators, pointType, {
+    architectureScoped: true,
+  })) {
     const key = ind.survey.fieldKey;
     const fromSeed =
       seedByCode[ind.code] ??

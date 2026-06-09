@@ -27,6 +27,9 @@ import {
   type SurveyPointType,
 } from './types';
 import { filterRiskChangeLogs } from './riskChangeLogUtils';
+import { ArchitectureVersionTag } from './ArchitectureVersionTag';
+import { PreventionVersionTag } from './PreventionVersionTag';
+import { RiskLevelVersionTag } from './RiskLevelVersionTag';
 import {
   TableColumnManager,
   getDefaultVisibleColumnKeys,
@@ -49,6 +52,8 @@ const COLUMN_CONFIG: TableColumnConfig[] = [
   { key: 'newLevelName', title: '新风险等级', defaultVisible: true },
   { key: 'prevV', title: '原综合分 V', defaultVisible: false },
   { key: 'newV', title: '新综合分 V', defaultVisible: true },
+  { key: 'architectureVersionNo', title: '评价版本', defaultVisible: true },
+  { key: 'riskLevelVersionNo', title: '等级版本', defaultVisible: true },
   { key: 'partial', title: '部分指标', defaultVisible: false },
   { key: 'operator', title: '操作人', defaultVisible: true },
   { key: 'basicInfoSynced', title: '基本信息同步', defaultVisible: false },
@@ -188,6 +193,25 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
       render: (_, r) => r.newV.toFixed(4),
     },
     {
+      key: 'architectureVersionNo',
+      title: '评价版本',
+      width: 96,
+      render: (_, r) =>
+        r.architectureVersionNo ? (
+          <ArchitectureVersionTag versionNo={r.architectureVersionNo} />
+        ) : r.architectureRefAt ? (
+          <Text type="secondary">{r.architectureRefAt}</Text>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      key: 'riskLevelVersionNo',
+      title: '等级版本',
+      width: 96,
+      render: (_, r) => <RiskLevelVersionTag versionNo={r.riskLevelVersionNo} />,
+    },
+    {
       key: 'partial',
       title: '部分指标',
       width: 88,
@@ -305,7 +329,7 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
         </Row>
       </Card>
 
-      <Card bordered={false} title={`变更记录（${filtered.length} 条）`}>
+      <Card bordered={false} style={{ marginTop: 12 }} title={`变更记录（${filtered.length} 条）`}>
         <Table
           rowKey="id"
           size="small"
@@ -319,9 +343,13 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
       <Modal
         title={
           selected ? (
-            <Space>
+            <Space align="center" size="small" wrap>
               <HistoryOutlined />
-              {selected.name} · 定级变更详情
+              <span>
+                {selected.name} · 定级变更详情
+              </span>
+              <ArchitectureVersionTag versionNo={selected.architectureVersionNo} empty={null} />
+              <RiskLevelVersionTag versionNo={selected.riskLevelVersionNo} empty={null} />
             </Space>
           ) : (
             '定级变更详情'
@@ -373,9 +401,26 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
                 V₁={selected.v1.toFixed(4)} · V₂={selected.v2.toFixed(4)} · V₃={selected.v3.toFixed(4)}{' '}
                 · V₄={selected.v4.toFixed(4)}
               </Descriptions.Item>
-              {selected.preventionRefAt ? (
+              {(selected.preventionVersionNo || selected.preventionRefAt) ? (
                 <Descriptions.Item label="防灾减灾引用版本">
-                  {selected.preventionRefAt}
+                  <Space size={4} wrap align="center">
+                    {selected.preventionVersionNo ? (
+                      <PreventionVersionTag versionNo={selected.preventionVersionNo} />
+                    ) : null}
+                    {selected.preventionRefAt ? (
+                      <Text type="secondary">{selected.preventionRefAt}</Text>
+                    ) : null}
+                  </Space>
+                </Descriptions.Item>
+              ) : null}
+              {selected.architectureVersionNo || selected.architectureRefAt ? (
+                <Descriptions.Item label="评价版本">
+                  {selected.architectureVersionNo ?? selected.architectureRefAt}
+                </Descriptions.Item>
+              ) : null}
+              {selected.riskLevelVersionNo ? (
+                <Descriptions.Item label="等级版本">
+                  {selected.riskLevelVersionNo}
                 </Descriptions.Item>
               ) : null}
               {selected.basicInfoSynced ? (
@@ -422,6 +467,18 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
                         <Text type="secondary" style={{ marginLeft: 8 }}>
                           V={h.newV.toFixed(4)}
                         </Text>
+                        {h.architectureVersionNo ? (
+                          <ArchitectureVersionTag
+                            versionNo={h.architectureVersionNo}
+                            style={{ marginLeft: 8 }}
+                          />
+                        ) : null}
+                        {h.riskLevelVersionNo ? (
+                          <RiskLevelVersionTag
+                            versionNo={h.riskLevelVersionNo}
+                            style={{ marginLeft: 8 }}
+                          />
+                        ) : null}
                         {h.surveyLabel ? (
                           <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
                             {h.surveyAt} · {h.surveyLabel}

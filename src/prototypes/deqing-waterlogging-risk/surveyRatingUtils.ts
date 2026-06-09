@@ -1,10 +1,27 @@
 import type {
+  IndicatorArchitectureRecord,
   IndicatorRiskLevelRow,
   Level1Weights,
   RegionalPreventionConfig,
+  RegionalPreventionRecord,
+  RiskChangeLogEntry,
   RiskIndicatorRow,
+  RiskLevelVersionRecord,
   WaterloggingPointRow,
 } from './types';
+import { getLatestRiskLogForSurvey } from './riskChangeLogUtils';
+import {
+  getRatingLevel1Weights,
+  mergeIndicatorsForArchitectureRecord,
+  resolveSurveyArchitectureRecord,
+} from './indicatorArchitectureUtils';
+import { getLevelsFromRecord } from './riskLevelVersionUtils';
+import {
+  getActiveRegionalPreventionRecord,
+  getRegionalPreventionForLockedRating,
+  getRegionalPreventionForRating,
+  getRegionalPreventionRecordForLockedRating,
+} from './regionalPreventionUtils';
 import {
   calcSurveyCoverage,
   getPointSurveyIndicatorsForScoring,
@@ -16,6 +33,8 @@ import { ratePointFromSelections } from './scoreCalculatorPartial';
 import { seedAssessmentItemsFromSurvey } from './assessmentSeed';
 import { mapScoreToLevel } from './scoreCalculator';
 import { validateIndicatorConfig } from './indicatorConfigReadiness';
+
+const ARCH_SCOPE = { architectureScoped: true } as const;
 
 export interface SurveyRatingPreview {
   ok: boolean;
@@ -35,11 +54,249 @@ export interface SurveyRatingPreview {
   ratedRow: WaterloggingPointRow | null;
 }
 
+export type SurveyRatingMode = 'initial' | 'update';
+
 export interface SurveyRatingContext {
+  /** 定级计分用指标（架构 merge 后） */
   indicators: RiskIndicatorRow[];
+  /** 指标定义层（用于解析普查绑定架构） */
+  baseIndicators?: RiskIndicatorRow[];
+  architectureRecords?: IndicatorArchitectureRecord[];
   indicatorLevels: IndicatorRiskLevelRow[];
   level1Weights: Level1Weights;
   regionalPrevention: RegionalPreventionConfig | null;
+  /** 本次计分采用的指标架构版本 */
+  activeArchitectureRecord?: IndicatorArchitectureRecord | null;
+  /** 本次计分采用的风险等级版本 */
+  activeRiskLevelRecord?: RiskLevelVersionRecord | null;
+  /** 防灾减灾记录配置时间 */
+  preventionRefAt?: string;
+  /** 防灾减灾版本编号 */
+  preventionVersionNo?: string;
+  /** 本次计分实际采用的 V₄ 数据引用记录（与右侧「防灾减灾引用」展示一致） */
+  activePreventionRecord?: RegionalPreventionRecord | null;
+  /** 首次定级用当前定级引用；更新定级锁定上次定级方案 */
+  mode?: SurveyRatingMode;
+}
+
+export interface BuildRatingContextInput {
+  pt: WaterloggingPointRow;
+  baseIndicators: RiskIndicatorRow[];
+  architectureRecords: IndicatorArchitectureRecord[];
+  riskLevelRecords: RiskLevelVersionRecord[];
+  regionalPreventionRecords: RegionalPreventionRecord[];
+  riskChangeLogs?: RiskChangeLogEntry[];
+  /** 当前定级引用（仅首次定级使用） */
+  currentArchitectureRecord: IndicatorArchitectureRecord | null;
+  currentRiskLevelRecord: RiskLevelVersionRecord | null;
+}
+
+function resolveLockedPreventionRefAt(
+  pt: WaterloggingPointRow,
+  riskChangeLogs: RiskChangeLogEntry[],
+): string | undefined {
+  return (
+    pt.ratingResult?.preventionRefAt ??
+    getLatestRiskLogForSurvey(pt.id, riskChangeLogs)?.preventionRefAt
+  );
+}
+
+function resolveLockedPreventionVersionNo(
+  pt: WaterloggingPointRow,
+  riskChangeLogs: RiskChangeLogEntry[],
+): string | undefined {
+  return (
+    pt.ratingResult?.preventionVersionNo ??
+    getLatestRiskLogForSurvey(pt.id, riskChangeLogs)?.preventionVersionNo
+  );
+}
+
+function resolveLockedArchitectureForUpdate(
+  pt: WaterloggingPointRow,
+  architectureRecords: IndicatorArchitectureRecord[],
+  regionalPreventionRecords: RegionalPreventionRecord[],
+  riskChangeLogs: RiskChangeLogEntry[],
+): IndicatorArchitectureRecord | null {
+  const rr = pt.ratingResult;
+  if (!rr) return null;
+
+  const byId = resolveArchitectureRecordById(architectureRecords, rr.architectureRefId);
+  if (byId) return byId;
+
+  if (rr.architectureVersionNo) {
+    const byVersion = architectureRecords.find(r => r.versionNo === rr.architectureVersionNo);
+    if (byVersion) return byVersion;
+  }
+
+  if (pt.surveyArchitectureRefId) {
+    const bySurvey = resolveArchitectureRecordById(architectureRecords, pt.surveyArchitectureRefId);
+    if (bySurvey) return bySurvey;
+  }
+
+  const preventionRefAt = resolveLockedPreventionRefAt(pt, riskChangeLogs);
+  const preventionVersionNo = resolveLockedPreventionVersionNo(pt, riskChangeLogs);
+  if (preventionVersionNo) {
+    const prevRec = regionalPreventionRecords.find(r => r.versionNo === preventionVersionNo);
+    if (prevRec?.architectureRefId) {
+      return resolveArchitectureRecordById(architectureRecords, prevRec.architectureRefId);
+    }
+  }
+  if (preventionRefAt) {
+    const prevRec = regionalPreventionRecords.find(r => r.configAt === preventionRefAt);
+    if (prevRec?.architectureRefId) {
+      return resolveArchitectureRecordById(architectureRecords, prevRec.architectureRefId);
+    }
+  }
+
+  const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
+  if (log?.architectureVersionNo) {
+    return architectureRecords.find(r => r.versionNo === log.architectureVersionNo) ?? null;
+  }
+
+  return null;
+}
+
+function resolveLockedRiskLevelForUpdate(
+  pt: WaterloggingPointRow,
+  riskLevelRecords: RiskLevelVersionRecord[],
+  riskChangeLogs: RiskChangeLogEntry[],
+): RiskLevelVersionRecord | null {
+  const rr = pt.ratingResult;
+  if (!rr) return null;
+
+  const byStored = resolveRiskLevelRecordForRating(
+    riskLevelRecords,
+    rr.riskLevelRefId,
+    rr.riskLevelVersionNo,
+  );
+  if (byStored) return byStored;
+
+  const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
+  if (log?.riskLevelVersionNo) {
+    return resolveRiskLevelRecordForRating(riskLevelRecords, undefined, log.riskLevelVersionNo);
+  }
+
+  const completed = riskLevelRecords.filter(r => r.config.status === 'completed');
+  if (completed.length === 1) return completed[0];
+
+  return null;
+}
+
+function resolveArchitectureRecordById(
+  records: IndicatorArchitectureRecord[],
+  id: string | undefined,
+): IndicatorArchitectureRecord | null {
+  if (!id) return null;
+  return records.find(r => r.id === id) ?? null;
+}
+
+function resolveRiskLevelRecordForRating(
+  records: RiskLevelVersionRecord[],
+  refId: string | undefined,
+  versionNo: string | undefined,
+): RiskLevelVersionRecord | null {
+  if (refId) {
+    const byId = records.find(r => r.id === refId);
+    if (byId) return byId;
+  }
+  if (versionNo) {
+    return records.find(r => r.versionNo === versionNo) ?? null;
+  }
+  return null;
+}
+
+/** 按首次定级 / 更新定级构建计分上下文（更新定级锁定上次定级采用的评价与等级版本） */
+export function buildRatingContextForPoint(input: BuildRatingContextInput): SurveyRatingContext {
+  const {
+    pt,
+    baseIndicators,
+    architectureRecords,
+    riskLevelRecords,
+    regionalPreventionRecords,
+    riskChangeLogs = [],
+    currentArchitectureRecord,
+    currentRiskLevelRecord,
+  } = input;
+
+  const isUpdate = pt.ratingStatus === 'completed' && Boolean(pt.ratingResult);
+
+  if (isUpdate && pt.ratingResult) {
+    const archRecord = resolveLockedArchitectureForUpdate(
+      pt,
+      architectureRecords,
+      regionalPreventionRecords,
+      riskChangeLogs,
+    );
+    const levelRecord = resolveLockedRiskLevelForUpdate(pt, riskLevelRecords, riskChangeLogs);
+    const lockedPreventionRefAt = resolveLockedPreventionRefAt(pt, riskChangeLogs);
+    const lockedPreventionVersionNo = resolveLockedPreventionVersionNo(pt, riskChangeLogs);
+    const preventionRecord = getRegionalPreventionRecordForLockedRating(
+      regionalPreventionRecords,
+      archRecord,
+      lockedPreventionRefAt,
+      lockedPreventionVersionNo,
+    );
+
+    return {
+      indicators: mergeIndicatorsForArchitectureRecord(baseIndicators, archRecord),
+      baseIndicators,
+      architectureRecords,
+      indicatorLevels: getLevelsFromRecord(levelRecord),
+      level1Weights: getRatingLevel1Weights(archRecord),
+      regionalPrevention: getRegionalPreventionForLockedRating(
+        regionalPreventionRecords,
+        archRecord,
+        lockedPreventionRefAt,
+        lockedPreventionVersionNo,
+      ),
+      activeArchitectureRecord: archRecord,
+      activeRiskLevelRecord: levelRecord,
+      preventionRefAt: lockedPreventionRefAt ?? preventionRecord?.configAt,
+      preventionVersionNo: lockedPreventionVersionNo ?? preventionRecord?.versionNo,
+      activePreventionRecord: preventionRecord,
+      mode: 'update',
+    };
+  }
+
+  const preventionRecord = getActiveRegionalPreventionRecord(
+    regionalPreventionRecords,
+    currentArchitectureRecord,
+  );
+
+  return {
+    indicators: mergeIndicatorsForArchitectureRecord(baseIndicators, currentArchitectureRecord),
+    baseIndicators,
+    architectureRecords,
+    indicatorLevels: getLevelsFromRecord(currentRiskLevelRecord),
+    level1Weights: getRatingLevel1Weights(currentArchitectureRecord),
+    regionalPrevention: getRegionalPreventionForRating(
+      regionalPreventionRecords,
+      currentArchitectureRecord,
+    ),
+    activeArchitectureRecord: currentArchitectureRecord,
+    activeRiskLevelRecord: currentRiskLevelRecord,
+    preventionRefAt: preventionRecord?.configAt,
+    preventionVersionNo: preventionRecord?.versionNo,
+    activePreventionRecord: preventionRecord,
+    mode: 'initial',
+  };
+}
+
+/** 解析本条普查记录绑定架构下的填报指标 */
+export function resolveSurveyIndicatorsForPoint(
+  pt: Pick<WaterloggingPointRow, 'surveyArchitectureRefId'>,
+  ctx: SurveyRatingContext,
+): RiskIndicatorRow[] {
+  const { baseIndicators, architectureRecords, indicators, activeArchitectureRecord } = ctx;
+  if (!baseIndicators?.length || !architectureRecords?.length) {
+    return indicators;
+  }
+  const arch = resolveSurveyArchitectureRecord(
+    architectureRecords,
+    pt.surveyArchitectureRefId,
+    activeArchitectureRecord ?? null,
+  );
+  return mergeIndicatorsForArchitectureRecord(baseIndicators, arch);
 }
 
 /** 定级前试算预览（不落库） */
@@ -47,7 +304,9 @@ export function computeSurveyRatingPreview(
   pt: WaterloggingPointRow,
   ctx: SurveyRatingContext,
 ): SurveyRatingPreview {
-  const { indicators, indicatorLevels, level1Weights, regionalPrevention } = ctx;
+  const { indicators, indicatorLevels, level1Weights, regionalPrevention, activeArchitectureRecord, activeRiskLevelRecord } =
+    ctx;
+  const surveyIndicators = resolveSurveyIndicatorsForPoint(pt, ctx);
   const pointInd = getPointSurveyIndicatorsForScoring(indicators, pt.pointType);
   const regionalInd = getRegionalPreventionIndicators(indicators);
   const totalCount = pointInd.length + regionalInd.length;
@@ -78,8 +337,20 @@ export function computeSurveyRatingPreview(
   if (pt.surveyStatus !== 'completed') {
     return { ...empty, errors: ['普查尚未完成，请先补全指标普查并保存'] };
   }
-  const coverageCheck = calcSurveyCoverage(indicators, pt.pointType, pt.surveyPayload.indicatorValues);
-  if (!isPointSurveyComplete(indicators, pt.pointType, pt.surveyPayload.indicatorValues)) {
+  const coverageCheck = calcSurveyCoverage(
+    surveyIndicators,
+    pt.pointType,
+    pt.surveyPayload.indicatorValues,
+    ARCH_SCOPE,
+  );
+  if (
+    !isPointSurveyComplete(
+      surveyIndicators,
+      pt.pointType,
+      pt.surveyPayload.indicatorValues,
+      ARCH_SCOPE,
+    )
+  ) {
     return {
       ...empty,
       errors: [
@@ -87,10 +358,70 @@ export function computeSurveyRatingPreview(
       ],
     };
   }
+  const mode: SurveyRatingMode =
+    ctx.mode ?? (pt.ratingStatus === 'completed' && pt.ratingResult ? 'update' : 'initial');
+
+  if (mode === 'update') {
+    const archLabel =
+      activeArchitectureRecord?.versionNo ?? pt.ratingResult?.architectureVersionNo ?? '—';
+    const levelLabel =
+      activeRiskLevelRecord?.versionNo ?? pt.ratingResult?.riskLevelVersionNo ?? '—';
+    if (!activeArchitectureRecord || activeArchitectureRecord.config.status !== 'completed') {
+      return {
+        ...empty,
+        errors: [
+          `无法解析上次定级锁定的评价版本（${archLabel}）；请确认「防灾减灾指标信息」中该版本下仍有 V₄ 数据引用，或重新首次定级以写入版本信息`,
+        ],
+      };
+    }
+    if (!activeRiskLevelRecord || activeRiskLevelRecord.config.status !== 'completed') {
+      return {
+        ...empty,
+        errors: [`上次定级采用的等级版本（${levelLabel}）不存在或未完成配置，无法更新定级`],
+      };
+    }
+  } else {
+    if (
+      !activeArchitectureRecord ||
+      !activeArchitectureRecord.activeForRating ||
+      activeArchitectureRecord.config.status !== 'completed'
+    ) {
+      return {
+        ...empty,
+        errors: ['请先在「指标评价管理」中完成一条记录并设为定级引用（权重合计须为 1.000）'],
+      };
+    }
+    if (
+      !activeRiskLevelRecord ||
+      !activeRiskLevelRecord.activeForRating ||
+      activeRiskLevelRecord.config.status !== 'completed'
+    ) {
+      return {
+        ...empty,
+        errors: ['请先在「风险等级管理」中完成一条记录并设为定级引用（等级区间须校验通过）'],
+      };
+    }
+  }
+
   if (!regionalPrevention || regionalPrevention.assessmentStatus !== 'completed') {
+    const versionHint = activeArchitectureRecord?.versionNo
+      ? mode === 'update'
+        ? `上次定级锁定的评价版本 ${activeArchitectureRecord.versionNo} 下`
+        : `当前定级引用架构 ${activeArchitectureRecord.versionNo} 下`
+      : mode === 'update'
+        ? '上次定级锁定的评价版本下'
+        : '当前定级引用架构下';
+    const preventionHint =
+      mode === 'update' && ctx.preventionVersionNo
+        ? `（须存在防灾减灾版本 ${ctx.preventionVersionNo}，或该版本下的 V₄ 数据引用）`
+        : mode === 'update' && ctx.preventionRefAt
+          ? `（须存在配置时间为 ${ctx.preventionRefAt} 的 V₄ 引用，或该版本下的 V₄ 数据引用）`
+          : '';
     return {
       ...empty,
-      errors: ['请先在「防灾减灾指标信息」中完成一条记录并设为数据引用'],
+      errors: [
+        `请先在「防灾减灾指标信息」中完成一条记录并设为 V₄ 数据引用（${versionHint}${preventionHint}）`,
+      ],
     };
   }
 
@@ -103,21 +434,27 @@ export function computeSurveyRatingPreview(
   const matchedCount = Object.keys(selections).length;
   if (errors.length) {
     const fillComplete = isPointSurveyComplete(
-      indicators,
+      surveyIndicators,
       pt.pointType,
       pt.surveyPayload.indicatorValues,
+      ARCH_SCOPE,
     );
     const scoringInd = getPointSurveyIndicatorsForScoring(indicators, pt.pointType);
     const extra: string[] = [];
     if (fillComplete && scoringInd.length === 0) {
-      extra.push('请先在「指标架构图」中启用参与定级的指标并配置同级权重（合计 1.000）');
+      extra.push('请先在「指标评价管理」中启用参与定级的指标并配置同级权重（合计 1.000）');
     } else if (fillComplete && matchedCount === 0) {
-      extra.push('普查数据已填齐，但尚无已启用指标可匹配赋分档，请检查指标架构图启用状态与赋分规则配置');
+      extra.push('普查数据已填齐，但尚无已启用指标可匹配赋分档，请检查评价版本启用状态与赋分规则配置');
     }
     return { ...empty, errors: [...extra, ...errors], matchedCount };
   }
 
-  const coverage = calcSurveyCoverage(indicators, pt.pointType, pt.surveyPayload.indicatorValues);
+  const coverage = calcSurveyCoverage(
+    surveyIndicators,
+    pt.pointType,
+    pt.surveyPayload.indicatorValues,
+    ARCH_SCOPE,
+  );
   const result = ratePointFromSelections(
     indicators,
     pt.pointType,
@@ -167,8 +504,29 @@ export function buildRatedSurveyRecord(
   pt: WaterloggingPointRow,
   ctx: SurveyRatingContext,
 ): WaterloggingPointRow | null {
-  const { indicators, indicatorLevels, level1Weights, regionalPrevention } = ctx;
-  if (!canRatePoint(pt.pointType, pt.surveyStatus, pt.surveyPayload, regionalPrevention, indicators)) {
+  const {
+    indicators,
+    indicatorLevels,
+    level1Weights,
+    regionalPrevention,
+    activeArchitectureRecord,
+    activeRiskLevelRecord,
+    preventionRefAt,
+    preventionVersionNo,
+    activePreventionRecord,
+  } = ctx;
+  if (!regionalPrevention) return null;
+  const surveyIndicators = resolveSurveyIndicatorsForPoint(pt, ctx);
+  if (
+    !canRatePoint(
+      pt.pointType,
+      pt.surveyStatus,
+      pt.surveyPayload,
+      regionalPrevention,
+      indicators,
+      surveyIndicators,
+    )
+  ) {
     return null;
   }
   const { selections, errors } = mergeRatingRuleSelections(
@@ -178,7 +536,12 @@ export function buildRatedSurveyRecord(
     indicators,
   );
   if (errors.length) return null;
-  const coverage = calcSurveyCoverage(indicators, pt.pointType, pt.surveyPayload.indicatorValues);
+  const coverage = calcSurveyCoverage(
+    surveyIndicators,
+    pt.pointType,
+    pt.surveyPayload.indicatorValues,
+    ARCH_SCOPE,
+  );
   const result = ratePointFromSelections(
     indicators,
     pt.pointType,
@@ -211,6 +574,14 @@ export function buildRatedSurveyRecord(
       coverage,
       ratedAt,
       partial: result.partial,
+      architectureRefId: activeArchitectureRecord?.id,
+      architectureRefAt: activeArchitectureRecord?.configAt,
+      architectureVersionNo: activeArchitectureRecord?.versionNo,
+      preventionRefAt: preventionRefAt ?? undefined,
+      preventionVersionNo: activePreventionRecord?.versionNo ?? preventionVersionNo ?? undefined,
+      riskLevelRefId: activeRiskLevelRecord?.id,
+      riskLevelRefAt: activeRiskLevelRecord?.configAt,
+      riskLevelVersionNo: activeRiskLevelRecord?.versionNo,
     },
   };
 }

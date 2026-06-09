@@ -156,7 +156,7 @@ export function validateIndicatorEnableReadiness(
   const group = getSiblingGroup(allIndicators, ind.level1, formationType);
   const siblingSum = sumSiblingWeights(group);
   if (ind.enabled && group.some(i => i.enabled) && !isSiblingWeightSumValid(siblingSum)) {
-    pushUnique(base.warnings, '同级启用指标权重合计须为 1.000，请前往指标架构图调整');
+    pushUnique(base.warnings, '同级启用指标权重合计须为 1.000，请前往指标评价管理调整');
     if (base.status === 'ready') base.status = 'incomplete';
   }
 

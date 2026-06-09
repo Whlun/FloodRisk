@@ -45,6 +45,7 @@ async function loadServePlugins(): Promise<Plugin[]> {
     { specDocApiPlugin },
     { subPagesApiPlugin },
     { deqingWaterloggingWorkspaceApiPlugin },
+    { surveyTablePdfApiPlugin },
     { cmProjectExportRecordsApiPlugin },
     { templatesApiPlugin },
     { themesApiPlugin },
@@ -77,6 +78,7 @@ async function loadServePlugins(): Promise<Plugin[]> {
     import('./vite-plugins/specDocApiPlugin'),
     import('./vite-plugins/subPagesApiPlugin'),
     import('./vite-plugins/deqingWaterloggingWorkspaceApiPlugin'),
+    import('./vite-plugins/surveyTablePdfApiPlugin'),
     import('./vite-plugins/cmProjectExportRecordsApiPlugin'),
     import('./vite-plugins/templatesApiPlugin'),
     import('./vite-plugins/themesApiPlugin'),
@@ -109,6 +111,7 @@ async function loadServePlugins(): Promise<Plugin[]> {
     specDocApiPlugin(),
     subPagesApiPlugin(),
     deqingWaterloggingWorkspaceApiPlugin(),
+    surveyTablePdfApiPlugin(),
     cmProjectExportRecordsApiPlugin(),
     unsetReferenceApiPlugin(),
     themesApiPlugin(),
@@ -138,17 +141,24 @@ if (fs.existsSync(configPath)) {
 const stableRemoteDev =
   process.env.AXHUB_STABLE_REMOTE_DEV === '1' || axhubConfig?.server?.stableRemoteDev === true;
 
+const entryKey = process.env.ENTRY_KEY;
+const hasSingleEntry = typeof entryKey === 'string' && entryKey.length > 0;
+
+// 有 ENTRY_KEY 时，只扫描这一个项目，大幅提升启动速度！
+let scanGroups: EntryGroup[] = ['components', 'prototypes', 'themes'];
+if (hasSingleEntry) {
+  if (entryKey.startsWith('prototypes/')) {
+    scanGroups = ['components']; // 只扫描 components，prototypes 只需要那一个
+  }
+}
+
 writeEntriesManifestAtomic(
   projectRoot,
-  scanProjectEntries(projectRoot, ['components', 'prototypes', 'themes']),
+  scanProjectEntries(projectRoot, scanGroups),
 );
 const entries = readEntriesManifest(projectRoot);
-
-const entryKey = process.env.ENTRY_KEY;
 const jsEntries = entries.js as Record<string, string>;
 const htmlEntries = entries.html as Record<string, string>;
-
-const hasSingleEntry = typeof entryKey === 'string' && entryKey.length > 0;
 
 /** 多入口构建时跳过磁盘上不存在的 HTML，避免 Rollup 报错导致整站无法构建 */
 function filterExistingHtmlInputs(root: string, inputs: Record<string, string>): Record<string, string> {

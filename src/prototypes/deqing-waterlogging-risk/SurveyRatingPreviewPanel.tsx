@@ -1,8 +1,17 @@
 import React from 'react';
-import { Alert, Descriptions, Tag, Typography } from 'antd';
-import type { Level1Weights, RiskIndicatorRow } from './types';
-import type { SurveyRatingPreview } from './surveyRatingUtils';
+import { Alert, Descriptions, Space, Tag, Typography } from 'antd';
+import type {
+  IndicatorArchitectureRecord,
+  Level1Weights,
+  RegionalPreventionRecord,
+  RiskIndicatorRow,
+  RiskLevelVersionRecord,
+} from './types';
+import type { SurveyRatingMode, SurveyRatingPreview } from './surveyRatingUtils';
 import { RatingScoreArchitectureDiagram } from './RatingScoreArchitectureDiagram';
+import { ArchitectureVersionTag } from './ArchitectureVersionTag';
+import { PreventionRecordRefDisplay } from './PreventionRecordRefDisplay';
+import { RiskLevelVersionTag } from './RiskLevelVersionTag';
 import { formatLevel1Formula } from './weightBalance';
 
 const { Text, Title } = Typography;
@@ -12,6 +21,14 @@ interface Props {
   level1Weights: Level1Weights;
   indicators: RiskIndicatorRow[];
   pointLabel?: string;
+  ratingMode?: SurveyRatingMode;
+  activeArchitectureRecord?: IndicatorArchitectureRecord | null;
+  activePreventionRecord?: RegionalPreventionRecord | null;
+  activeRiskLevelRecord?: RiskLevelVersionRecord | null;
+  /** 页顶当前定级引用评价版本（与锁定方案对比展示） */
+  currentRatingArchitectureRecord?: IndicatorArchitectureRecord | null;
+  /** 页顶当前定级引用等级版本（与锁定方案对比展示） */
+  currentRiskLevelRecord?: RiskLevelVersionRecord | null;
 }
 
 /** 定级确认：左架构图 + 右评分摘要 */
@@ -20,6 +37,12 @@ export const SurveyRatingPreviewPanel: React.FC<Props> = ({
   level1Weights,
   indicators,
   pointLabel,
+  ratingMode = 'initial',
+  activeArchitectureRecord = null,
+  activePreventionRecord = null,
+  activeRiskLevelRecord = null,
+  currentRatingArchitectureRecord = null,
+  currentRiskLevelRecord = null,
 }) => {
   if (!preview.ok) {
     return (
@@ -65,9 +88,36 @@ export const SurveyRatingPreviewPanel: React.FC<Props> = ({
     ratingResult &&
     Object.keys(ratingResult.selectedRuleIds).length > 0;
 
+  const lockedArchNo = activeArchitectureRecord?.versionNo;
+  const lockedLevelNo = activeRiskLevelRecord?.versionNo;
+  const currentArchNo = currentRatingArchitectureRecord?.versionNo;
+  const currentLevelNo = currentRiskLevelRecord?.versionNo;
+  const currentRefDiffersFromLocked =
+    ratingMode === 'update' &&
+    ((lockedArchNo && currentArchNo && lockedArchNo !== currentArchNo) ||
+      (lockedLevelNo && currentLevelNo && lockedLevelNo !== currentLevelNo));
+
   return (
     <div className="dq-rating-confirm-layout">
       <div className="dq-rating-confirm-left">
+        {ratingMode === 'update' ? (
+          <Alert
+            type="info"
+            showIcon
+            className="dq-rating-confirm-left-alert"
+            message="沿用上次定级锁定方案"
+            description="更新定级按上次定级锁定的评价版本与等级版本计分，不随页顶当前定级引用变更。"
+          />
+        ) : null}
+        {currentRefDiffersFromLocked ? (
+          <Alert
+            type="info"
+            showIcon
+            className="dq-rating-confirm-left-alert"
+            message="页顶定级引用已变更"
+            description={`页顶当前定级引用为评价 ${currentArchNo ?? '—'} / 等级 ${currentLevelNo ?? '—'}，本次仍按锁定方案评价 ${lockedArchNo ?? '—'} / 等级 ${lockedLevelNo ?? '—'} 计分。`}
+          />
+        ) : null}
         <Title level={5} className="dq-rating-confirm-left-title">
           指标评分结构
         </Title>
@@ -113,11 +163,29 @@ export const SurveyRatingPreviewPanel: React.FC<Props> = ({
             综合分 V = {result.v.toFixed(4)}
             {result.partial ? '（部分指标参与）' : ''}
           </Text>
+          <Space size={6} wrap className="dq-score-preview-result-ref-tags">
+            <ArchitectureVersionTag
+              versionNo={activeArchitectureRecord?.versionNo}
+              style={{ margin: 0 }}
+            />
+            <RiskLevelVersionTag
+              versionNo={activeRiskLevelRecord?.versionNo}
+              empty={<Tag style={{ margin: 0 }}>暂无等级定级引用</Tag>}
+              style={{ margin: 0 }}
+            />
+          </Space>
           <Text type="secondary" className="dq-rating-confirm-formula">
             {formatLevel1Formula(level1Weights)}
           </Text>
         </div>
         <Descriptions column={1} size="small" bordered className="dq-rating-confirm-summary">
+          <Descriptions.Item label="防灾减灾引用">
+            {activePreventionRecord ? (
+              <PreventionRecordRefDisplay record={activePreventionRecord} />
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="致灾因子 V₁">
             {result.v1.toFixed(4)}
             <Text type="secondary">（ω {level1Weights.HAZARD.toFixed(3)}）</Text>

@@ -6,6 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-server.mjs start",
+    "dev:huzhou": "ENTRY_KEY=prototypes/湖州市空间全画像 node scripts/dev-server.mjs start",
+    "dev:deqing": "ENTRY_KEY=prototypes/deqing-waterlogging-risk node scripts/dev-server.mjs start",
+    "dev:deqing-index": "ENTRY_KEY=prototypes/deqing-waterlogging-risk-index node scripts/dev-server.mjs start",
+    "dev:zonghe": "ENTRY_KEY=prototypes/zonghe-taishi node scripts/dev-server.mjs start",
     "start": "node scripts/dev-server.mjs start",
     "restart": "node scripts/dev-server.mjs restart",
     "stop": "node scripts/dev-server.mjs stop",
@@ -16,7 +20,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "check-ready": "node scripts/check-app-ready.mjs",
-    "check:deqing-indicators": "node scripts/check-deqing-indicator-hardcode.mjs && vitest --run tests/deqing-auxiliary-indicator-flow.test.ts tests/deqing-indicator-readiness-matrix.test.ts tests/deqing-indicator-persistence.test.ts tests/deqing-indicator-code-generator.test.ts tests/deqing-scoring-rule-mode.invariant.test.ts tests/deqing-composite-aggregate-score-rules.test.ts tests/deqing-composite-point-type-applicability.test.ts tests/deqing-create-wizard-value-type.test.ts tests/deqing-numeric-match-label.test.ts tests/deqing-point-survey-visibility.test.ts tests/deqing-auxiliary-numeric-branch.test.ts tests/deqing-numeric-scoring-single-path.test.ts tests/deqing-seed-ratings-smoke.test.ts tests/deqing-condition-field-label.test.ts tests/deqing-wizard-auxiliary-condition-display.test.ts tests/deqing-conditional-match-values-exclusive.test.ts tests/deqing-conditional-scoring-flow.test.ts",
+    "check:deqing-indicators": "node scripts/check-deqing-indicator-hardcode.mjs && vitest --run tests/deqing-auxiliary-indicator-flow.test.ts tests/deqing-indicator-readiness-matrix.test.ts tests/deqing-indicator-persistence.test.ts tests/deqing-indicator-code-generator.test.ts tests/deqing-scoring-rule-mode.invariant.test.ts tests/deqing-composite-aggregate-score-rules.test.ts tests/deqing-composite-point-type-applicability.test.ts tests/deqing-create-wizard-value-type.test.ts tests/deqing-numeric-match-label.test.ts tests/deqing-point-survey-visibility.test.ts tests/deqing-auxiliary-numeric-branch.test.ts tests/deqing-numeric-scoring-single-path.test.ts tests/deqing-seed-ratings-smoke.test.ts tests/deqing-condition-field-label.test.ts tests/deqing-wizard-auxiliary-condition-display.test.ts tests/deqing-conditional-match-values-exclusive.test.ts tests/deqing-conditional-scoring-flow.test.ts tests/deqing-survey-rating-architecture.test.ts tests/deqing-architecture-version.test.ts",
     "check:deqing-scoring-mode": "vitest --run tests/deqing-scoring-rule-mode.invariant.test.ts tests/deqing-composite-aggregate-score-rules.test.ts tests/deqing-composite-point-type-applicability.test.ts",
     "sync:skills": "node scripts/sync-third-party-skills.mjs"
   },
@@ -33,6 +37,7 @@
     "html-to-image": "^1.11.13",
     "maplibre-gl": "^5.23.0",
     "postcss": "^8.4.47",
+    "playwright": "^1.52.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwindcss": "^3.4.14",

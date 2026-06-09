@@ -395,6 +395,22 @@ export interface RatingResult {
   coverage: { filled: number; applicable: number; percent: number };
   ratedAt: string;
   partial: boolean;
+  /** 定级采用的架构版本 id */
+  architectureRefId?: string;
+  /** 定级采用的架构版本配置时间 */
+  architectureRefAt?: string;
+  /** 定级采用的架构版本编号 */
+  architectureVersionNo?: string;
+  /** 定级采用的防灾减灾引用配置时间 */
+  preventionRefAt?: string;
+  /** 定级采用的防灾减灾版本编号 */
+  preventionVersionNo?: string;
+  /** 定级采用的风险等级版本 id */
+  riskLevelRefId?: string;
+  /** 定级采用的风险等级版本配置时间 */
+  riskLevelRefAt?: string;
+  /** 定级采用的风险等级版本编号 */
+  riskLevelVersionNo?: string;
 }
 
 /** 风险等级变更类型（由定级更新产生） */
@@ -437,8 +453,104 @@ export interface RiskChangeLogEntry {
   /** 是否同步推送了内涝基本信息 */
   basicInfoSynced?: boolean;
   preventionRefAt?: string;
+  /** 定级引用的防灾减灾版本编号 */
+  preventionVersionNo?: string;
+  /** 定级引用的指标架构版本配置时间 */
+  architectureRefAt?: string;
+  /** 定级引用的指标架构版本编号 */
+  architectureVersionNo?: string;
+  /** 定级引用的风险等级版本编号 */
+  riskLevelVersionNo?: string;
   operator?: string;
   remark?: string;
+}
+
+/** 单条指标在架构版本中的启用与权重快照 */
+export interface IndicatorArchitectureState {
+  weight: number;
+  enabled: boolean;
+}
+
+/** 指标架构版本配置体 */
+export interface IndicatorArchitectureConfig {
+  level1Weights: Level1Weights;
+  /** 按 indicatorId 快照；未出现的指标视为停用 */
+  indicatorStates: Record<string, IndicatorArchitectureState>;
+  updatedAt?: string;
+  updatedBy?: string;
+  /** draft：权重合计未达标；completed：可设为定级引用 */
+  status: 'draft' | 'completed';
+}
+
+/** 按版本编号维护的指标架构（权重与启用状态）记录 */
+export interface IndicatorArchitectureRecord {
+  id: string;
+  /** 版本编号（列表主键，如 V001） */
+  versionNo: string;
+  /** 配置时间 */
+  configAt: string;
+  /** 批次说明（可选） */
+  label?: string;
+  /** 全县定级引用（仅一条为 true） */
+  activeForRating: boolean;
+  config: IndicatorArchitectureConfig;
+}
+
+export function emptyIndicatorArchitectureConfig(): IndicatorArchitectureConfig {
+  return {
+    level1Weights: cloneLevel1Weights(),
+    indicatorStates: {},
+    status: 'draft',
+  };
+}
+
+export function emptyIndicatorArchitectureRecord(): IndicatorArchitectureRecord {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  return {
+    id: `arch-${Date.now()}`,
+    versionNo: '',
+    configAt: now,
+    label: '',
+    activeForRating: false,
+    config: emptyIndicatorArchitectureConfig(),
+  };
+}
+
+/** 风险等级版本配置体（V→等级映射快照） */
+export interface RiskLevelVersionConfig {
+  levels: IndicatorRiskLevelRow[];
+  updatedAt?: string;
+  updatedBy?: string;
+  /** draft：区间校验未通过；completed：可设为定级引用 */
+  status: 'draft' | 'completed';
+}
+
+/** 按版本编号维护的风险等级映射记录 */
+export interface RiskLevelVersionRecord {
+  id: string;
+  /** 版本编号（如 L001） */
+  versionNo: string;
+  configAt: string;
+  label?: string;
+  /** 全县定级引用（仅一条为 true） */
+  activeForRating: boolean;
+  config: RiskLevelVersionConfig;
+}
+
+export function emptyRiskLevelVersionConfig(): RiskLevelVersionConfig {
+  return { levels: [], status: 'draft' };
+}
+
+export function emptyRiskLevelVersionRecord(): RiskLevelVersionRecord {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  return {
+    id: `rlvl-${Date.now()}`,
+    versionNo: '',
+    configAt: now,
+    label: '',
+    activeForRating: false,
+    config: emptyRiskLevelVersionConfig(),
+  };
 }
 
 /** 原有系统易涝点主数据（风险普查从此选择，不手工录入基础信息） */
@@ -478,6 +590,12 @@ export interface WaterloggingPointRow {
   label?: string;
   /** 易涝点定级引用的普查快照（同易涝点仅一条为 true） */
   activeForRating: boolean;
+  /** 本份普查采用的指标架构版本 id */
+  surveyArchitectureRefId?: string;
+  /** 本份普查采用的指标架构版本配置时间 */
+  surveyArchitectureRefAt?: string;
+  /** 本份普查采用的指标架构版本编号 */
+  surveyArchitectureVersionNo?: string;
 }
 
 /** 全县防灾减灾救灾因子统一配置（不参与单点普查） */
@@ -492,18 +610,26 @@ export interface RegionalPreventionConfig {
 /** 按时间维度维护的全县防灾减灾配置记录 */
 export interface RegionalPreventionRecord {
   id: string;
+  /** 防灾减灾版本编号（如 P001） */
+  versionNo: string;
   /** 配置时间（列表主键，如 2026-05-19 09:00:00） */
   configAt: string;
   /** 批次说明（可选） */
   label?: string;
   /** 全县 V₄ 数据引用版本（全县仅一条为 true） */
   activeForRating: boolean;
+  /** 保存时采用的指标架构版本 id */
+  architectureRefId?: string;
+  /** 保存时采用的指标架构版本配置时间 */
+  architectureRefAt?: string;
+  /** 保存时采用的指标架构版本编号 */
+  architectureVersionNo?: string;
   config: RegionalPreventionConfig;
 }
 
 export type MenuKey =
   | 'risk-indicators'
-  | 'indicator-architecture'
+  | 'indicator-architecture-versions'
   | 'risk-levels'
   | 'prevention-config'
   | 'point-survey'
@@ -521,6 +647,7 @@ export function emptyRegionalPreventionRecord(): RegionalPreventionRecord {
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   return {
     id: `rp-${Date.now()}`,
+    versionNo: '',
     configAt: now,
     label: '',
     activeForRating: false,

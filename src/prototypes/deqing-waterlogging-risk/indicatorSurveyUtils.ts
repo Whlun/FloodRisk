@@ -136,7 +136,7 @@ export function enrichIndicatorSurvey(
   };
 }
 
-/** 是否纳入单点普查填报（与架构图启用无关） */
+/** 是否纳入单点普查填报（指标定义：参与普查/必填；不含架构启用过滤） */
 export function participatesInPointSurvey(ind: RiskIndicatorRow): boolean {
   const s = ind.survey;
   if (!s) return false;
@@ -155,7 +155,7 @@ function filterPointSurveyIndicatorsByPointType(
     });
 }
 
-/** 单点普查填报范围（完整度、必填校验、表单展示；不含 enabled 过滤） */
+/** 单点普查填报范围（指标定义层；不含架构启用过滤） */
 export function getPointSurveyIndicatorsForFill(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
@@ -163,12 +163,20 @@ export function getPointSurveyIndicatorsForFill(
   return filterPointSurveyIndicatorsByPointType(indicators, pointType).filter(participatesInPointSurvey);
 }
 
+/** 架构确定的单点普查范围（参与普查 + 架构已启用） */
+export function getArchitectureScopedSurveyIndicatorsForFill(
+  indicators: RiskIndicatorRow[],
+  pointType: SurveyPointType,
+): RiskIndicatorRow[] {
+  return getPointSurveyIndicatorsForFill(indicators, pointType).filter(i => i.enabled);
+}
+
 /** 参与定级计分的单点指标（填报范围 + 架构图已启用） */
 export function getPointSurveyIndicatorsForScoring(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
 ): RiskIndicatorRow[] {
-  return getPointSurveyIndicatorsForFill(indicators, pointType).filter(i => i.enabled);
+  return getArchitectureScopedSurveyIndicatorsForFill(indicators, pointType);
 }
 
 /**
@@ -178,23 +186,29 @@ export function getPointSurveyIndicatorsForScoring(
 export function getPointSurveyIndicatorsForCoverage(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
+  options?: { architectureScoped?: boolean },
 ): RiskIndicatorRow[] {
-  return getPointSurveyIndicatorsForFill(indicators, pointType);
+  return options?.architectureScoped
+    ? getArchitectureScopedSurveyIndicatorsForFill(indicators, pointType)
+    : getPointSurveyIndicatorsForFill(indicators, pointType);
 }
 
 /** 指标普查 Tab 展示的指标（排除 appendixBFieldKey 绑定项） */
 export function getPointSurveyIndicatorsForPoint(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
+  options?: { architectureScoped?: boolean },
 ): RiskIndicatorRow[] {
-  return getPointSurveyIndicatorsForFill(indicators, pointType).filter(
-    i => !hasAppendixBSurveyBinding(i),
-  );
+  const base = options?.architectureScoped
+    ? getArchitectureScopedSurveyIndicatorsForFill(indicators, pointType)
+    : getPointSurveyIndicatorsForFill(indicators, pointType);
+  return base.filter(i => !hasAppendixBSurveyBinding(i));
 }
 
 /** 未出现在「指标普查」Tab 的常见原因（用于空状态提示） */
 export type PointSurveyVisibilityBlockReason =
   | 'not_collect'
+  | 'not_enabled_in_architecture'
   | 'appendix_b_only'
   | 'region_scope'
   | 'point_type_mismatch';
@@ -214,8 +228,9 @@ function indicatorMatchesPointType(ind: RiskIndicatorRow, pointType: SurveyPoint
 export function getPointSurveyVisibilityDiagnostics(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
+  options?: { architectureScoped?: boolean },
 ): { visible: RiskIndicatorRow[]; blocked: PointSurveyVisibilityDiagnostic[] } {
-  const visible = getPointSurveyIndicatorsForPoint(indicators, pointType);
+  const visible = getPointSurveyIndicatorsForPoint(indicators, pointType, options);
   const visibleIds = new Set(visible.map(i => i.id));
   const blocked: PointSurveyVisibilityDiagnostic[] = [];
 
@@ -235,6 +250,10 @@ export function getPointSurveyVisibilityDiagnostics(
     }
     if (!participatesInPointSurvey(ind)) {
       blocked.push({ indicator: ind, reason: 'not_collect' });
+      continue;
+    }
+    if (options?.architectureScoped && !ind.enabled) {
+      blocked.push({ indicator: ind, reason: 'not_enabled_in_architecture' });
       continue;
     }
     if (hasAppendixBSurveyBinding(ind)) {
@@ -389,9 +408,10 @@ export function validateSurveyRequired(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
   values: IndicatorSurveyValues | undefined | null,
+  options?: { architectureScoped?: boolean },
 ): { ok: boolean; missing: string[] } {
   const missing: string[] = [];
-  for (const ind of getPointSurveyIndicatorsForCoverage(indicators, pointType)) {
+  for (const ind of getPointSurveyIndicatorsForCoverage(indicators, pointType, options)) {
     if (!ind.survey?.surveyRequired) continue;
     if (!isIndicatorSurveyFilled(ind, values, pointType, indicators)) missing.push(ind.name);
   }
@@ -402,8 +422,9 @@ export function calcSurveyCoverage(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
   values: IndicatorSurveyValues | undefined | null,
+  options?: { architectureScoped?: boolean },
 ): { filled: number; applicable: number; percent: number } {
-  const applicable = getPointSurveyIndicatorsForCoverage(indicators, pointType);
+  const applicable = getPointSurveyIndicatorsForCoverage(indicators, pointType, options);
   const applicableCount = countApplicableSurveySlots(applicable);
   const filled = countFilledSurveySlots(applicable, values, pointType, indicators);
   return {
@@ -418,8 +439,9 @@ export function isPointSurveyComplete(
   indicators: RiskIndicatorRow[],
   pointType: SurveyPointType,
   values: IndicatorSurveyValues | undefined | null,
+  options?: { architectureScoped?: boolean },
 ): boolean {
-  const { percent, applicable } = calcSurveyCoverage(indicators, pointType, values);
+  const { percent, applicable } = calcSurveyCoverage(indicators, pointType, values, options);
   return applicable === 0 || percent === 100;
 }
 

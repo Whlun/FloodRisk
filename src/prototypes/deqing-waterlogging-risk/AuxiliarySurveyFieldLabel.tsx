@@ -24,7 +24,7 @@ export const AuxiliarySurveyFieldLabel: React.FC<Props> = ({ owner }) => {
     constraint?.rangeLabel,
     owner.remark,
     `用于「${owner.name}」条件赋分分档判定。`,
-    '不参与风险指标架构图权重汇总。',
+    '不参与架构图权重汇总。',
   ].filter(Boolean) as string[];
 
   return (

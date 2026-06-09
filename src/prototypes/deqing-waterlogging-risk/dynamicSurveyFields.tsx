@@ -15,6 +15,8 @@ const { Text } = Typography;
 
 const BLOCK_REASON_HINT: Record<PointSurveyVisibilityBlockReason, string> = {
   not_collect: '以下指标未参与单点普查（未开启「参与内涝普查定级」且未勾选「普查时必填」）：',
+  not_enabled_in_architecture:
+    '以下指标在本普查采用的考核方案中未启用，不在本次须填报范围（可在「指标评价管理」中启用）：',
   appendix_b_only:
     '以下指标绑定「内涝基本信息」附录 B 字段，请在上方「基本信息」Tab 的类型专用信息中填写，不在本 Tab 重复展示：',
   region_scope:
@@ -29,15 +31,23 @@ interface Props {
   indicators: RiskIndicatorRow[];
   /** 详情只读：指标控件不可编辑 */
   readOnly?: boolean;
+  /** 按考核架构启用状态过滤须填报指标 */
+  architectureScoped?: boolean;
 }
 
 /** 易涝点指标普查（不含全县统一的防灾减灾因子） */
-export const DynamicSurveyFields: React.FC<Props> = ({ pointType, indicators, readOnly }) => {
+export const DynamicSurveyFields: React.FC<Props> = ({
+  pointType,
+  indicators,
+  readOnly,
+  architectureScoped = true,
+}) => {
   const form = Form.useFormInstance();
-  const list = getPointSurveyIndicatorsForPoint(indicators, pointType);
+  const scopeOpts = architectureScoped ? { architectureScoped: true as const } : undefined;
+  const list = getPointSurveyIndicatorsForPoint(indicators, pointType, scopeOpts);
   const { blocked } = useMemo(
-    () => getPointSurveyVisibilityDiagnostics(indicators, pointType),
-    [indicators, pointType],
+    () => getPointSurveyVisibilityDiagnostics(indicators, pointType, scopeOpts),
+    [indicators, pointType, architectureScoped],
   );
 
   const blockedByReason = useMemo(() => {
@@ -60,7 +70,7 @@ export const DynamicSurveyFields: React.FC<Props> = ({ pointType, indicators, re
     <div>
       <Text type="secondary" className="dq-survey-intro">
         致灾、孕灾、承灾类指标按易涝点填报；防灾减灾救灾因子请在「内涝定级 / 防灾减灾指标信息」中全县统一维护。
-        填报与架构图「启用」无关；未启用指标可先填写，定级计分须在指标架构图中启用并配置权重。
+        须填报项由<strong>本普查绑定的考核方案</strong>（评价版本）中已启用且参与普查的指标确定。
       </Text>
       {!list.length && !readOnly ? (
         <Alert
@@ -70,7 +80,15 @@ export const DynamicSurveyFields: React.FC<Props> = ({ pointType, indicators, re
           message="当前没有可在本页填写的指标"
           description={
             <div className="dq-survey-empty-hints">
-              {(['not_collect', 'appendix_b_only', 'point_type_mismatch', 'region_scope'] as const).map(
+              {(
+                [
+                  'not_collect',
+                  'not_enabled_in_architecture',
+                  'appendix_b_only',
+                  'point_type_mismatch',
+                  'region_scope',
+                ] as const
+              ).map(
                 reason => {
                   const rows = blockedByReason.get(reason);
                   if (!rows?.length) return null;

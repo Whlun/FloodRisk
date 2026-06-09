@@ -37,11 +37,7 @@ export function getScoreExplanationTooltipLines(ind: RiskIndicatorRow): string[]
   return parseScoreExplanationLines(resolveScoreExplanation(ind));
 }
 
-/** 附录 B 表格预览：指标填报区说明行（与赋分说明 / 普查 ? 同源） */
+/** 附录 B 表格预览：指标填报区说明行（与赋分说明 / 普查 ? 同源；不含必填标记） */
 export function getSurveyPreviewIndicatorHintLines(ind: RiskIndicatorRow): string[] {
-  const lines = getScoreExplanationTooltipLines(ind);
-  if (ind.survey.surveyRequired) {
-    return ['必填', ...lines];
-  }
-  return lines;
+  return getScoreExplanationTooltipLines(ind);
 }

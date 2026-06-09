@@ -1,8 +1,12 @@
-import type { IndicatorRiskLevelRow, Level1Weights, RiskIndicatorRow } from './types';
+import type {
+  IndicatorArchitectureRecord,
+  IndicatorRiskLevelRow,
+  Level1Weights,
+  RiskIndicatorRow,
+  RiskLevelVersionRecord,
+} from './types';
 import type { RegionalPreventionRecord, RiskChangeLogEntry, WaterloggingPointRow } from './types';
-import type { WeightSource } from './weightSource';
-
-export const DEQING_WORKSPACE_VERSION = 1 as const;
+export const DEQING_WORKSPACE_VERSION = 2 as const;
 
 /** 指标持久化迁移标记（原 localStorage 键，现写入工作区文件） */
 export interface WorkspaceIndicatorMeta {
@@ -21,11 +25,14 @@ export interface DeqingWaterloggingWorkspace {
   version: typeof DEQING_WORKSPACE_VERSION;
   updatedAt: string;
   indicators: RiskIndicatorRow[];
+  /** @deprecated 由 riskLevelRecords 承载；迁移期保留 */
   indicatorLevels: IndicatorRiskLevelRow[];
+  riskLevelRecords: RiskLevelVersionRecord[];
   points: WaterloggingPointRow[];
   regionalPreventionRecords: RegionalPreventionRecord[];
   riskChangeLogs: RiskChangeLogEntry[];
-  level1Weights: Level1Weights;
-  weightSource: WeightSource;
+  architectureRecords: IndicatorArchitectureRecord[];
+  /** @deprecated v2 起由 architectureRecords 承载；迁移期保留 */
+  level1Weights?: Level1Weights;
   indicatorMeta?: WorkspaceIndicatorMeta;
 }

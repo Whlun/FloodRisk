@@ -14,12 +14,22 @@ import { DownOutlined, SafetyOutlined, EnvironmentOutlined } from '@ant-design/i
 import { getActiveRegionalPreventionRecord, getRegionalPreventionForRating } from './regionalPreventionUtils';
 import { waterloggingPointRegistry } from '../../database/deqing-waterlogging-point-registry';
 import type { MenuKey } from './types';
-import { cloneLevel1Weights } from './types';
 import { enrichIndicatorsWithBaseline } from './indicatorSurveyUtils';
+import {
+  configToMergedIndicators,
+  getActiveArchitectureRecord,
+  getArchitectureForRating,
+  getRatingLevel1Weights,
+} from './indicatorArchitectureUtils';
+import {
+  getActiveRiskLevelRecord,
+  getLevelsFromRecord,
+  getRiskLevelForRating,
+} from './riskLevelVersionUtils';
 import { useDeqingWorkspace } from './useDeqingWorkspace';
 import { RiskIndicatorPage } from './riskIndicatorPage';
 import { RiskLevelPage } from './riskLevelPage';
-import { IndicatorArchitecturePage } from './indicatorArchitecturePage';
+import { IndicatorArchitectureVersionsPage } from './indicatorArchitectureVersionsPage';
 import { HazardPointSurveyPage } from './hazardPointSurveyPage';
 import { HazardPointRatingPage } from './hazardPointRatingPage';
 import { PreventionConfigPage } from './preventionConfigPage';
@@ -48,7 +58,7 @@ const SIDEBAR_MENUS: {
     icon: <SafetyOutlined />,
     children: [
       { key: 'risk-indicators', label: '风险指标管理' },
-      { key: 'indicator-architecture', label: '指标架构图' },
+      { key: 'indicator-architecture-versions', label: '指标评价管理' },
       { key: 'risk-levels', label: '风险等级管理' },
     ],
   },
@@ -57,7 +67,9 @@ const SIDEBAR_MENUS: {
 const App: React.FC = () => {
   const [expandedKeys, setExpandedKeys] = useState<string[]>(['point-risk', 'risk-mgmt']);
   const [activeSubMenu, setActiveSubMenu] = useState<MenuKey>('point-survey');
-  const [archStartInEditMode, setArchStartInEditMode] = useState(false);
+  const [openArchVersionsEdit, setOpenArchVersionsEdit] = useState(false);
+  const [openArchVersionsDetailId, setOpenArchVersionsDetailId] = useState<string | null>(null);
+  const [openRiskLevelDetailId, setOpenRiskLevelDetailId] = useState<string | null>(null);
 
   const {
     ready,
@@ -65,36 +77,89 @@ const App: React.FC = () => {
     state,
     setIndicators,
     setIndicatorLevels,
+    setRiskLevelRecords,
     setPoints,
     setRegionalPreventionRecords,
     setRiskChangeLogs,
-    setLevel1Weights,
-    setWeightSource,
+    setArchitectureRecords,
   } = useDeqingWorkspace();
 
   const indicators = state?.indicators ?? [];
   const indicatorLevels = state?.indicatorLevels ?? [];
+  const riskLevelRecords = state?.riskLevelRecords ?? [];
   const points = state?.points ?? [];
   const regionalPreventionRecords = state?.regionalPreventionRecords ?? [];
   const riskChangeLogs = state?.riskChangeLogs ?? [];
-  const level1Weights = state?.level1Weights ?? cloneLevel1Weights();
-  const weightSource = state?.weightSource ?? 'appendix_e';
+  const architectureRecords = state?.architectureRecords ?? [];
+
+  const activeArchitectureRecord = useMemo(
+    () => getActiveArchitectureRecord(architectureRecords),
+    [architectureRecords],
+  );
+  const ratingArchitectureRecord = useMemo(
+    () => getArchitectureForRating(architectureRecords),
+    [architectureRecords],
+  );
+
+  const activeRiskLevelRecord = useMemo(
+    () => getActiveRiskLevelRecord(riskLevelRecords),
+    [riskLevelRecords],
+  );
+  const ratingRiskLevelRecord = useMemo(
+    () => getRiskLevelForRating(riskLevelRecords),
+    [riskLevelRecords],
+  );
+  const ratingRiskLevels = useMemo(
+    () => getLevelsFromRecord(ratingRiskLevelRecord),
+    [ratingRiskLevelRecord],
+  );
+  const effectiveIndicatorLevels = useMemo(
+    () => (ratingRiskLevels.length > 0 ? ratingRiskLevels : indicatorLevels),
+    [ratingRiskLevels, indicatorLevels],
+  );
+
+  const ratingLevel1Weights = useMemo(
+    () => getRatingLevel1Weights(ratingArchitectureRecord),
+    [ratingArchitectureRecord],
+  );
+
+  const ratingIndicators = useMemo(() => {
+    if (!ratingArchitectureRecord) {
+      return indicators.map(i => ({ ...i, enabled: false }));
+    }
+    return configToMergedIndicators(indicators, ratingArchitectureRecord.config);
+  }, [indicators, ratingArchitectureRecord]);
 
   const regionalPreventionForRating = useMemo(
-    () => getRegionalPreventionForRating(regionalPreventionRecords),
-    [regionalPreventionRecords],
+    () => getRegionalPreventionForRating(regionalPreventionRecords, ratingArchitectureRecord),
+    [regionalPreventionRecords, ratingArchitectureRecord],
   );
   const activePreventionRecord = useMemo(
-    () => getActiveRegionalPreventionRecord(regionalPreventionRecords),
-    [regionalPreventionRecords],
+    () => getActiveRegionalPreventionRecord(regionalPreventionRecords, ratingArchitectureRecord),
+    [regionalPreventionRecords, ratingArchitectureRecord],
   );
 
   const enrichedIndicators = useMemo(
     () => enrichIndicatorsWithBaseline(indicators, []),
     [indicators],
   );
+  const enrichedRatingIndicators = useMemo(
+    () => enrichIndicatorsWithBaseline(ratingIndicators, []),
+    [ratingIndicators],
+  );
   const defaultIndicators = useMemo(() => [] as typeof indicators, []);
-  const defaultLevel1Weights = useMemo(() => cloneLevel1Weights(), []);
+
+  const viewArchitectureDetail = (recordId: string) => {
+    setOpenArchVersionsDetailId(recordId);
+    setExpandedKeys(prev => (prev.includes('risk-mgmt') ? prev : [...prev, 'risk-mgmt']));
+    setActiveSubMenu('indicator-architecture-versions');
+  };
+
+  const viewRiskLevelDetail = (recordId: string) => {
+    setOpenRiskLevelDetailId(recordId);
+    setExpandedKeys(prev => (prev.includes('risk-mgmt') ? prev : [...prev, 'risk-mgmt']));
+    setActiveSubMenu('risk-levels');
+  };
 
   const toggleExpand = (key: string) => {
     setExpandedKeys(prev => (prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]));
@@ -115,25 +180,40 @@ const App: React.FC = () => {
           <HazardPointSurveyPage
             points={points}
             onChange={setPoints}
-            indicators={enrichedIndicators}
+            baseIndicators={enrichedIndicators}
+            architectureRecords={architectureRecords}
+            ratingArchitectureRecord={ratingArchitectureRecord}
+            ratingIndicators={enrichedRatingIndicators}
             pointRegistry={waterloggingPointRegistry}
-            indicatorLevels={indicatorLevels}
-            level1Weights={level1Weights}
+            indicatorLevels={effectiveIndicatorLevels}
+            ratingLevel1Weights={ratingLevel1Weights}
             regionalPrevention={regionalPreventionForRating}
             regionalPreventionRecords={regionalPreventionRecords}
+            activeArchitectureRecord={activeArchitectureRecord}
+            activeRiskLevelRecord={activeRiskLevelRecord}
+            riskLevelRecords={riskLevelRecords}
+            riskChangeLogs={riskChangeLogs}
             onAppendRiskChangeLog={entry => setRiskChangeLogs(prev => [entry, ...prev])}
+            onViewArchitectureDetail={record => viewArchitectureDetail(record.id)}
+            onViewRiskLevelDetail={record => viewRiskLevelDetail(record.id)}
           />
         );
       case 'point-rating':
         return (
-          <HazardPointRatingPage riskChangeLogs={riskChangeLogs} indicatorLevels={indicatorLevels} />
+          <HazardPointRatingPage
+            riskChangeLogs={riskChangeLogs}
+            indicatorLevels={effectiveIndicatorLevels}
+          />
         );
       case 'prevention-config':
         return (
           <PreventionConfigPage
             records={regionalPreventionRecords}
             onChange={setRegionalPreventionRecords}
-            indicators={enrichedIndicators}
+            baseIndicators={enrichedIndicators}
+            architectureRecords={architectureRecords}
+            ratingArchitectureRecord={ratingArchitectureRecord}
+            onViewArchitectureDetail={record => viewArchitectureDetail(record.id)}
           />
         );
       case 'risk-indicators':
@@ -142,34 +222,38 @@ const App: React.FC = () => {
             indicators={enrichedIndicators}
             defaultIndicators={defaultIndicators}
             onChange={setIndicators}
-            indicatorLevels={indicatorLevels}
-            level1Weights={level1Weights}
-            regionalPrevention={regionalPreventionForRating}
-            activePreventionRecord={activePreventionRecord}
             onOpenArchitecture={options => {
-              setArchStartInEditMode(Boolean(options?.editMode));
-              setActiveSubMenu('indicator-architecture');
+              setActiveSubMenu('indicator-architecture-versions');
+              if (options?.editMode) {
+                setOpenArchVersionsEdit(true);
+              }
             }}
           />
         );
-      case 'indicator-architecture':
+      case 'indicator-architecture-versions':
         return (
-          <IndicatorArchitecturePage
-            indicators={enrichedIndicators}
+          <IndicatorArchitectureVersionsPage
+            records={architectureRecords}
+            onChange={setArchitectureRecords}
+            baseIndicators={enrichedIndicators}
             defaultIndicators={defaultIndicators}
-            onChange={setIndicators}
-            level1Weights={level1Weights}
-            defaultLevel1Weights={defaultLevel1Weights}
-            onLevel1WeightsChange={setLevel1Weights}
-            startInEditMode={archStartInEditMode}
-            onEditModeEntered={() => setArchStartInEditMode(false)}
-            weightSource={weightSource}
-            onWeightSourceChange={setWeightSource}
+            indicatorLevels={effectiveIndicatorLevels}
+            activeRiskLevelRecord={ratingRiskLevelRecord}
+            regionalPreventionRecords={regionalPreventionRecords}
+            openEditOnMount={openArchVersionsEdit}
+            onEditMountHandled={() => setOpenArchVersionsEdit(false)}
+            openDetailRecordIdOnMount={openArchVersionsDetailId}
+            onDetailMountHandled={() => setOpenArchVersionsDetailId(null)}
           />
         );
       case 'risk-levels':
         return (
-          <RiskLevelPage indicatorLevels={indicatorLevels} onIndicatorLevelsChange={setIndicatorLevels} />
+          <RiskLevelPage
+            records={riskLevelRecords}
+            onChange={setRiskLevelRecords}
+            openDetailRecordIdOnMount={openRiskLevelDetailId}
+            onDetailMountHandled={() => setOpenRiskLevelDetailId(null)}
+          />
         );
       default:
         return null;

@@ -1,0 +1,187 @@
+/* 普查信息采集表 · 打印/PDF 专用样式（后端 Playwright 与前端预览共用） */
+.dq-survey-preview-doc {
+  background: #fff;
+  color: #000;
+  font-family: 'SimSun', 'Songti SC', 'Microsoft YaHei', serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 24px 28px 20px;
+  box-sizing: border-box;
+}
+
+.dq-survey-preview-doc + .dq-survey-preview-doc {
+  break-before: page;
+  page-break-before: always;
+}
+
+.dq-survey-preview-doc-head {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.dq-survey-preview-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.dq-survey-preview-subtitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #333;
+}
+
+.dq-survey-preview-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+}
+
+.dq-survey-preview-type-head {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dq-survey-preview-meta-line {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.dq-survey-preview-section {
+  margin-bottom: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.dq-survey-preview-section + .dq-survey-preview-section {
+  margin-top: 20px;
+}
+
+.dq-survey-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.dq-survey-preview-table th,
+.dq-survey-preview-table td {
+  border: 1px solid #000;
+  padding: 8px 10px;
+  vertical-align: top;
+  word-break: break-word;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.dq-survey-preview-section-row th {
+  background: #fafafa;
+  font-weight: 600;
+  text-align: left;
+  font-size: 14px;
+}
+
+.dq-survey-preview-label {
+  width: 42%;
+}
+
+.dq-survey-preview-no {
+  margin-right: 6px;
+}
+
+.dq-survey-preview-blank {
+  display: inline-block;
+  min-width: 4em;
+  border-bottom: 1px solid #000;
+  height: 1.2em;
+  vertical-align: bottom;
+}
+
+.dq-survey-preview-unit {
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.dq-survey-preview-checks span + span {
+  margin-left: 16px;
+}
+
+.dq-survey-preview-yesno-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.dq-survey-preview-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dq-survey-preview-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.dq-survey-preview-enum-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dq-survey-preview-enum-item {
+  line-height: 1.45;
+}
+
+.dq-survey-preview-label-main {
+  font-weight: 500;
+}
+
+.dq-survey-preview-label-hints {
+  margin-top: 6px;
+}
+
+.dq-survey-preview-label-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #555;
+  line-height: 1.45;
+}
+
+.dq-survey-preview-label-hint + .dq-survey-preview-label-hint {
+  margin-top: 4px;
+}
+
+.dq-survey-preview-note-row td {
+  background: #fafafa;
+  font-size: 13px;
+  color: #444;
+}
+
+.dq-survey-preview-footer {
+  margin-top: 0;
+}
+
+.dq-survey-preview-footer-table .dq-survey-preview-label {
+  width: auto;
+  white-space: nowrap;
+}
+
+@media print {
+  .dq-survey-preview-doc {
+    padding: 12mm 15mm;
+  }
+
+  .dq-survey-preview-table th,
+  .dq-survey-preview-table td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -8,6 +8,16 @@ import type {
 import { resolveSurveyAt } from './waterloggingSurveyUtils';
 import { getLevelSortRank } from './riskLevelUtils';
 
+/** 取某条普查记录最近一条风险变更日志（用于补全/解析锁定定级方案） */
+export function getLatestRiskLogForSurvey(
+  surveyRecordId: string,
+  logs: RiskChangeLogEntry[],
+): RiskChangeLogEntry | undefined {
+  return [...logs]
+    .filter(l => l.surveyRecordId === surveyRecordId)
+    .sort((a, b) => b.changeAt.localeCompare(a.changeAt))[0];
+}
+
 export function inferRiskChangeType(
   prev: RatingResult | null | undefined,
   next: RatingResult,
@@ -26,6 +36,10 @@ export interface CreateRiskChangeLogOptions {
   operator?: string;
   basicInfoSynced?: boolean;
   preventionRefAt?: string;
+  preventionVersionNo?: string;
+  architectureRefAt?: string;
+  architectureVersionNo?: string;
+  riskLevelVersionNo?: string;
   remark?: string;
   /** 当前等级配置，用于按 sort 推断升高/降低 */
   indicatorLevels?: IndicatorRiskLevelRow[];
@@ -66,7 +80,11 @@ export function createRiskChangeLogEntry(
     v4: result.v4,
     partial: result.partial,
     basicInfoSynced: options.basicInfoSynced,
-    preventionRefAt: options.preventionRefAt,
+    preventionRefAt: result.preventionRefAt ?? options.preventionRefAt,
+    preventionVersionNo: result.preventionVersionNo ?? options.preventionVersionNo,
+    architectureRefAt: result.architectureRefAt ?? options.architectureRefAt,
+    architectureVersionNo: result.architectureVersionNo ?? options.architectureVersionNo,
+    riskLevelVersionNo: result.riskLevelVersionNo ?? options.riskLevelVersionNo,
     operator: options.operator ?? point.collector ?? '系统',
     remark: options.remark,
   };

@@ -498,6 +498,21 @@ export function credentialsMatch(
   return safeEqual(u, auth.username) && safeEqual(p, auth.password);
 }
 
+const DEV_SOURCE_AUTH_SKIP_PREFIXES = ['/prototypes/', '/components/', '/themes/', '/common/'] as const;
+
+/** 是否为 Vite 在开发态提供的源码/静态资源（带扩展名），而非预览页路由 */
+export function isDevSourceAssetPath(pathname: string): boolean {
+  const bare = String(pathname || '').split('?')[0];
+  if (!bare || bare === '/') {
+    return false;
+  }
+  const lastSegment = bare.split('/').filter(Boolean).pop() || '';
+  if (!/\.[a-z0-9]+$/i.test(lastSegment)) {
+    return false;
+  }
+  return DEV_SOURCE_AUTH_SKIP_PREFIXES.some((prefix) => bare.startsWith(prefix));
+}
+
 export function shouldSkipAuthPath(pathname: string, method: string): boolean {
   if (pathname === LOGIN_PAGE_PATH || pathname === '/health' || pathname === '/health.html') {
     return true;
@@ -515,8 +530,10 @@ export function shouldSkipAuthPath(pathname: string, method: string): boolean {
       pathname.startsWith('/@id/') ||
       pathname.startsWith('/@fs/') ||
       pathname.startsWith('/@axhub/') ||
+      pathname === '/@react-refresh' ||
       pathname === '/auto-debug-client.js' ||
-      pathname.startsWith('/assets/')
+      pathname.startsWith('/assets/') ||
+      isDevSourceAssetPath(pathname)
     ) {
       return true;
     }

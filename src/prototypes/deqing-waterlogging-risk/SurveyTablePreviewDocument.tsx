@@ -44,7 +44,6 @@ function renderLabelCell(row: PreviewTableRow) {
         ) : (
           row.label
         )}
-        {row.required ? <span className="dq-survey-preview-req">*</span> : null}
       </div>
       {row.indicatorHintLines?.length ? (
         <IndicatorHintLines lines={row.indicatorHintLines} />
@@ -122,17 +121,13 @@ interface Props {
 
 /** 附录 B 样式纸质表格（只读预览） */
 export const SurveyTablePreviewDocument: React.FC<Props> = ({ model, generatedAt }) => {
-  const sectionRoman = ['一', '二', '三', '四'];
-
   return (
     <article className="dq-survey-preview-doc" data-point-type={model.pointType}>
       <header className="dq-survey-preview-doc-head">
-        <h1 className="dq-survey-preview-title">附录 B 内涝隐患点普查信息采集表</h1>
+        <h1 className="dq-survey-preview-title">内涝隐患点普查信息采集表</h1>
         <p className="dq-survey-preview-subtitle">（资料性附录）</p>
         <div className="dq-survey-preview-head-row">
-          <span className="dq-survey-preview-type-head">
-            （{sectionRoman[0]}）{model.typeLabel}
-          </span>
+          <span className="dq-survey-preview-type-head">{model.typeLabel}</span>
           {generatedAt ? (
             <span className="dq-survey-preview-meta-line">
               预览生成：{generatedAt} · 纳入指标 {model.indicatorCount} 项
@@ -141,13 +136,13 @@ export const SurveyTablePreviewDocument: React.FC<Props> = ({ model, generatedAt
         </div>
       </header>
 
-      {model.sections.map((section, si) => (
-        <section key={section.title} className="dq-survey-preview-section">
+      {model.sections.map(section => (
+        <section key={`${section.sectionNo}-${section.title}`} className="dq-survey-preview-section">
           <table className="dq-survey-preview-table" cellPadding={0} cellSpacing={0}>
             <tbody>
               <tr className="dq-survey-preview-section-row">
                 <th colSpan={2}>
-                  （{sectionRoman[si] ?? String(si + 1)}）{section.title}
+                  {section.sectionNo} {section.title}
                 </th>
               </tr>
               {section.rows.map((row, ri) => {

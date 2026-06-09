@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { initialIndicatorRiskLevels } from '../../database/deqing-waterlogging-risk-indicators';
 import { savePersistedIndicators } from './indicatorPersistence';
 import { savePersistedRiskLevels } from './riskLevelPersistence';
+import { getLevelsFromRecord } from './riskLevelVersionUtils';
 import {
   buildWorkspaceBundleFromPersistence,
   ensureServerPersistenceActive,
@@ -10,18 +11,19 @@ import {
   type DeqingWorkspaceState,
 } from './workspaceService';
 import {
-  savePersistedLevel1Weights,
+  savePersistedArchitectureRecords,
   savePersistedPoints,
   savePersistedRegionalPrevention,
   savePersistedRiskChangeLogs,
+  savePersistedRiskLevelRecords,
 } from './workspacePersistence';
-import { saveWeightSource, type WeightSource } from './weightSource';
 import type {
+  IndicatorArchitectureRecord,
   IndicatorRiskLevelRow,
-  Level1Weights,
   RegionalPreventionRecord,
   RiskChangeLogEntry,
   RiskIndicatorRow,
+  RiskLevelVersionRecord,
   WaterloggingPointRow,
 } from './types';
 
@@ -33,11 +35,11 @@ export function useDeqingWorkspace(): {
   state: DeqingWorkspaceState | null;
   setIndicators: (next: React.SetStateAction<RiskIndicatorRow[]>) => void;
   setIndicatorLevels: (next: React.SetStateAction<IndicatorRiskLevelRow[]>) => void;
+  setRiskLevelRecords: (next: React.SetStateAction<RiskLevelVersionRecord[]>) => void;
   setPoints: (next: React.SetStateAction<WaterloggingPointRow[]>) => void;
   setRegionalPreventionRecords: (next: React.SetStateAction<RegionalPreventionRecord[]>) => void;
   setRiskChangeLogs: (next: React.SetStateAction<RiskChangeLogEntry[]>) => void;
-  setLevel1Weights: (weights: Level1Weights) => void;
-  setWeightSource: (source: WeightSource) => void;
+  setArchitectureRecords: (next: React.SetStateAction<IndicatorArchitectureRecord[]>) => void;
 } {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -88,11 +90,11 @@ export function useDeqingWorkspace(): {
         const fallback: DeqingWorkspaceState = {
           indicators: [],
           indicatorLevels: initialIndicatorRiskLevels.map(row => ({ ...row, builtin: true })),
+          riskLevelRecords: [],
           points: [],
           regionalPreventionRecords: [],
           riskChangeLogs: [],
-          level1Weights: { HAZARD: 0.258, FORMATION: 0.511, BEARING: 0.08, PREVENTION: 0.151 },
-          weightSource: 'appendix_e',
+          architectureRecords: [],
         };
         stateRef.current = fallback;
         setState(fallback);
@@ -180,20 +182,45 @@ export function useDeqingWorkspace(): {
     [scheduleServerSave],
   );
 
-  const setLevel1Weights = useCallback(
-    (weights: Level1Weights) => {
-      savePersistedLevel1Weights(weights);
-      patchState({ level1Weights: weights });
+  const setRiskLevelRecords = useCallback(
+    (next: React.SetStateAction<RiskLevelVersionRecord[]>) => {
+      setState(prev => {
+        if (!prev) return prev;
+        const resolved =
+          typeof next === 'function' ? next(prev.riskLevelRecords) : next;
+        savePersistedRiskLevelRecords(resolved);
+        const active = resolved.find(r => r.activeForRating) ?? resolved[0];
+        const indicatorLevels = getLevelsFromRecord(active ?? null);
+        if (indicatorLevels.length > 0) {
+          savePersistedRiskLevels(indicatorLevels);
+        }
+        const merged = {
+          ...prev,
+          riskLevelRecords: resolved,
+          indicatorLevels: indicatorLevels.length > 0 ? indicatorLevels : prev.indicatorLevels,
+        };
+        stateRef.current = merged;
+        return merged;
+      });
+      scheduleServerSave();
     },
-    [patchState],
+    [scheduleServerSave],
   );
 
-  const setWeightSource = useCallback(
-    (source: WeightSource) => {
-      saveWeightSource(source);
-      patchState({ weightSource: source });
+  const setArchitectureRecords = useCallback(
+    (next: React.SetStateAction<IndicatorArchitectureRecord[]>) => {
+      setState(prev => {
+        if (!prev) return prev;
+        const resolved =
+          typeof next === 'function' ? next(prev.architectureRecords) : next;
+        savePersistedArchitectureRecords(resolved);
+        const merged = { ...prev, architectureRecords: resolved };
+        stateRef.current = merged;
+        return merged;
+      });
+      scheduleServerSave();
     },
-    [patchState],
+    [scheduleServerSave],
   );
 
   return {
@@ -202,10 +229,10 @@ export function useDeqingWorkspace(): {
     state,
     setIndicators,
     setIndicatorLevels,
+    setRiskLevelRecords,
     setPoints,
     setRegionalPreventionRecords,
     setRiskChangeLogs,
-    setLevel1Weights,
-    setWeightSource,
+    setArchitectureRecords,
   };
 }

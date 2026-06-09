@@ -6235,6 +6235,17 @@
 .facility-detail-modal-content {
   height: calc(100vh - 210px);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 无 Tab 顶栏的单页详情，或未包在 Tabs 内的详情（如排水管点） */
+.facility-detail-modal-content > .facility-detail-tabs.detail-tabs-single-pane,
+.facility-detail-modal-content > :not(.facility-detail-tabs) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .facility-detail-modal-content .facility-detail-tabs {

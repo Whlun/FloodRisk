@@ -8,14 +8,19 @@ import {
   type IndicatorRiskLevelRow,
   type Level1Factor,
   type Level1Weights,
+  type IndicatorArchitectureRecord,
   type RegionalPreventionConfig,
   type RegionalPreventionRecord,
   type RiskIndicatorRow,
+  type RiskLevelVersionRecord,
   type SurveyPayload,
 } from './types';
 import { calcTotalScore, mapScoreToLevel } from './scoreCalculator';
 import { derivePreviewRuleSelections } from './deriveRuleSelectionsForRating';
 import { formatMatchedScoreHint } from './scoreRuleDisplay';
+import { ArchitectureVersionTag } from './ArchitectureVersionTag';
+import { PreventionRecordRefDisplay } from './PreventionRecordRefDisplay';
+import { RiskLevelVersionTag } from './RiskLevelVersionTag';
 import {
   buildScorePreviewDemoPayload,
   buildScorePreviewInitialPayload,
@@ -54,6 +59,10 @@ interface Props {
   regionalPrevention: RegionalPreventionConfig | null;
   /** 定级引用记录（展示批次说明） */
   activePreventionRecord: RegionalPreventionRecord | null;
+  /** 试算采用的指标架构版本（权重与启用状态） */
+  activeArchitectureRecord?: IndicatorArchitectureRecord | null;
+  /** 定级引用的风险等级版本（V→等级名称映射） */
+  activeRiskLevelRecord?: RiskLevelVersionRecord | null;
 }
 
 function needsAreaImportanceField(list: RiskIndicatorRow[]): boolean {
@@ -70,6 +79,8 @@ export const ScorePreviewPage: React.FC<Props> = ({
   level1Weights,
   regionalPrevention,
   activePreventionRecord,
+  activeArchitectureRecord,
+  activeRiskLevelRecord,
 }) => {
   const [hazardType, setHazardType] = React.useState<HazardPointType>('SUNKEN');
   const [form] = Form.useForm<{ surveyPayload: SurveyPayload }>();
@@ -78,7 +89,8 @@ export const ScorePreviewPage: React.FC<Props> = ({
   const payload = surveyPayload ?? { appendixB: {}, indicatorValues: {} };
 
   const pointIndicators = useMemo(
-    () => getPointSurveyIndicatorsForPoint(indicators, hazardType),
+    () =>
+      getPointSurveyIndicatorsForPoint(indicators, hazardType, { architectureScoped: true }),
     [indicators, hazardType],
   );
   const regionalIndicators = useMemo(
@@ -171,12 +183,6 @@ export const ScorePreviewPage: React.FC<Props> = ({
   const renderIndicatorFields = (list: RiskIndicatorRow[]) =>
     renderPointSurveyFieldGrid(list, indicators, false, form);
 
-  const preventionRefLabel = activePreventionRecord
-    ? `${activePreventionRecord.label || activePreventionRecord.configAt}`
-    : regionalPrevention
-      ? '最近已完成配置'
-      : null;
-
   return (
     <div className="dq-risk-page dq-score-preview-page">
       <div className="dq-score-preview-toolbar">
@@ -185,7 +191,7 @@ export const ScorePreviewPage: React.FC<Props> = ({
           showIcon
           style={{ marginBottom: 12 }}
           message="配置验收工具"
-          description="按各指标「普查填报方式」录入原始值试算 V。全县防灾减灾因子默认引用「防灾减灾指标信息」定级版本，可修改且仅影响本次试算，不写入台账。"
+          description="按各指标「普查填报方式」录入原始值试算 V。综合分与 V₁–V₄ 按所选评价版本的启用指标与权重计算；风险等级名称按定级引用的等级版本（L00x）映射。防灾减灾因子默认引用该评价版本下的 V₄ 数据引用，可修改且仅影响本次试算，不写入台账。"
         />
         <Card bordered={false} style={{ marginBottom: 16 }}>
           <Row gutter={16} align="middle" wrap>
@@ -263,27 +269,24 @@ export const ScorePreviewPage: React.FC<Props> = ({
                 <SurveyFormSection
                   title={LEVEL1_FACTOR_LABEL.PREVENTION}
                   titleExtra={
-                    preventionRefLabel ? (
-                      <Tag color="blue" style={{ fontWeight: 400, margin: 0 }}>
-                        引用：{preventionRefLabel}
-                      </Tag>
-                    ) : (
-                      <Tag style={{ fontWeight: 400, margin: 0 }}>暂无数据引用配置</Tag>
-                    )
+                    <PreventionRecordRefDisplay
+                      record={activePreventionRecord}
+                      empty={<Tag style={{ fontWeight: 400, margin: 0 }}>暂无 V₄ 数据引用</Tag>}
+                    />
                   }
                   headActions={
                     <Button onClick={restoreRegionalFromConfig} disabled={!regionalPrevention}>
                       恢复防灾减灾指标信息引用
                     </Button>
                   }
-                  hint="默认取自「防灾减灾指标信息」数据引用版本，可直接修改以模拟不同全县 V₄，不影响正式台账。"
+                  hint="默认取自当前定级引用架构下的「防灾减灾指标信息」V₄ 数据引用，可直接修改以模拟不同全县 V₄，不影响正式台账。"
                 >
                   {!regionalPrevention ? (
                     <Alert
                       type="warning"
                       showIcon
                       style={{ marginBottom: 8 }}
-                      message="请先在防灾减灾指标信息中完成并设为数据引用"
+                      message="请先在防灾减灾指标信息中，于当前定级引用架构下完成并设为 V₄ 数据引用"
                     />
                   ) : null}
                   {renderIndicatorFields(regionalIndicators)}
@@ -327,12 +330,28 @@ export const ScorePreviewPage: React.FC<Props> = ({
                     <Text type="secondary" className="dq-score-preview-result-v">
                       综合分 V = {result.v.toFixed(4)}
                     </Text>
+                    <Space size={6} wrap className="dq-score-preview-result-ref-tags">
+                      <ArchitectureVersionTag
+                        versionNo={activeArchitectureRecord?.versionNo}
+                        style={{ margin: 0 }}
+                      />
+                      <RiskLevelVersionTag
+                        versionNo={activeRiskLevelRecord?.versionNo}
+                        empty={<Tag style={{ margin: 0 }}>暂无等级定级引用</Tag>}
+                        style={{ margin: 0 }}
+                      />
+                    </Space>
                   </>
                 ) : (
                   <Text type="secondary">暂无匹配等级（请完善指标填报）</Text>
                 )}
               </div>
-              <Descriptions column={1} size="small" bordered>
+              <Descriptions
+                column={1}
+                size="small"
+                bordered
+                className="dq-score-preview-result-summary dq-rating-confirm-summary"
+              >
                 <Descriptions.Item label="致灾因子 V₁">
                   {result.v1.toFixed(4)}（一级权重 {level1Weights.HAZARD.toFixed(3)}）
                 </Descriptions.Item>

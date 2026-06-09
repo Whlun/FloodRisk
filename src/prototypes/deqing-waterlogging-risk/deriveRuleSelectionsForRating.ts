@@ -173,9 +173,18 @@ export function canRatePoint(
   surveyPayload: SurveyPayload,
   regional: RegionalPreventionConfig | null | undefined,
   indicators: RiskIndicatorRow[],
+  /** 本条普查绑定架构 merge 后的指标；缺省与 indicators 相同 */
+  surveyIndicators?: RiskIndicatorRow[],
 ): boolean {
+  const coverage = surveyIndicators ?? indicators;
   if (surveyStatus !== 'completed') return false;
-  if (!isPointSurveyComplete(indicators, pointType, surveyPayload.indicatorValues)) return false;
+  if (
+    !isPointSurveyComplete(coverage, pointType, surveyPayload.indicatorValues, {
+      architectureScoped: true,
+    })
+  ) {
+    return false;
+  }
   if (!regional || regional.assessmentStatus !== 'completed') return false;
   const { selections, errors } = mergeRatingRuleSelections(pointType, surveyPayload, regional, indicators);
   return Object.keys(selections).length > 0 && errors.length === 0;

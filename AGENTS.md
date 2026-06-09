@@ -1,7 +1,7 @@
 ## 📌 项目信息
 
 - 项目名称：产品原型
-- 项目简介：Axhub Make（AI 辅助生成原型工具）
+- 默认主题：`src/themes/antd-new`
 
 # Agents 工作流程说明
 

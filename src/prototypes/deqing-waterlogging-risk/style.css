@@ -204,6 +204,50 @@
   padding-bottom: 24px;
 }
 
+.dq-arch-ref-banner {
+  margin-bottom: 12px;
+}
+
+.dq-indicator-arch-embedded .dq-arch-toolbar {
+  margin-bottom: 8px;
+}
+
+.dq-arch-versions-page .filter-card .ant-card-body {
+  padding: 16px;
+}
+
+.dq-arch-version-modal.ant-modal {
+  max-width: 100vw;
+  margin: 0;
+  top: 0;
+  padding-bottom: 0;
+}
+
+.dq-arch-version-modal .ant-modal-wrap {
+  overflow: hidden;
+}
+
+.dq-arch-version-modal .ant-modal-content {
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+}
+
+.dq-arch-version-modal .ant-modal-header,
+.dq-arch-version-modal .ant-modal-footer {
+  flex-shrink: 0;
+}
+
+.dq-arch-version-modal .ant-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 12px;
+}
+
 .dq-arch-toolbar {
   margin-bottom: 16px;
 }
@@ -504,8 +548,37 @@
   margin-top: 6px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 11px;
   color: #888;
+}
+
+/* 只读详情：二级指标名称与状态单行展示 */
+.dq-indicator-arch-readonly .dq-arch-level2-card {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 7px 12px;
+}
+
+.dq-indicator-arch-readonly .dq-arch-level2-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.dq-indicator-arch-readonly .dq-arch-level2-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dq-indicator-arch-readonly .dq-arch-level2-meta {
+  flex: 0 0 auto;
+  margin-top: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  gap: 8px;
 }
 
 .dq-arch-weight {
@@ -554,6 +627,11 @@
   overflow: hidden;
   border-right: 1px solid #f0f0f0;
   padding-right: 16px;
+}
+
+.dq-rating-confirm-left-alert {
+  flex-shrink: 0;
+  margin-bottom: 12px;
 }
 
 .dq-rating-confirm-left-title {
@@ -610,12 +688,8 @@
   width: 108px;
 }
 
-.dq-rating-confirm-footer-hint {
-  display: block;
-  margin-top: 12px;
-  font-size: 12px;
-  line-height: 1.5;
-  flex-shrink: 0;
+.dq-rating-confirm-modal .ant-modal-title .ant-space {
+  flex-wrap: wrap;
 }
 
 .dq-arch-rating-embed {
@@ -1465,12 +1539,17 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   padding: 20px 16px 18px;
   text-align: center;
   background: linear-gradient(180deg, #f5f9ff 0%, #fafafa 100%);
   border: 1px solid #e6f0ff;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+
+.dq-score-preview-result-summary {
+  margin-bottom: 0 !important;
 }
 
 .dq-score-preview-result-hero-label {
@@ -1490,6 +1569,11 @@
 .dq-score-preview-result-v {
   font-size: 13px;
   line-height: 1.4;
+}
+
+.dq-score-preview-result-ref-tags {
+  justify-content: center;
+  margin-top: 2px;
 }
 
 @media (max-width: 991px) {
@@ -2060,6 +2144,10 @@
 
 .dq-survey-preview-section {
   margin-bottom: 0;
+}
+
+.dq-survey-preview-section + .dq-survey-preview-section {
+  margin-top: 20px;
 }
 
 .dq-survey-preview-table {

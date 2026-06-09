@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Button,
+  Alert,
   Card,
   Col,
   DatePicker,
@@ -33,6 +34,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import {
   LEVEL1_FACTOR_LABEL,
   emptyRegionalPreventionRecord,
+  type IndicatorArchitectureRecord,
   type RegionalPreventionRecord,
   type RiskIndicatorRow,
 } from './types';
@@ -51,10 +53,28 @@ import {
 import { renderSurveyFieldGrid } from './surveyFieldLayout';
 import { SurveyFormSection } from './SurveyFormSection';
 import {
+  hasCompletedPreventionRefForArchitecture,
   setActiveRegionalPreventionRecord,
   sortRegionalPreventionRecords,
   summarizeRegionalPreventionRecord,
+  validatePreventionArchitectureMatch,
 } from './regionalPreventionUtils';
+import {
+  mergeIndicatorsForArchitectureRecord,
+  resolveSurveyArchitectureRecord,
+} from './indicatorArchitectureUtils';
+import {
+  ArchitectureVersionSelect,
+  resolveSelectedArchitectureRecord,
+} from './ArchitectureVersionSelect';
+import { ArchitectureVersionRefTag } from './ArchitectureVersionRefTag';
+import { ArchitectureVersionTag } from './ArchitectureVersionTag';
+import { ArchitectureVersionRefAlert } from './ArchitectureVersionRefAlert';
+import { PreventionVersionTag } from './PreventionVersionTag';
+import {
+  ensurePreventionVersionNos,
+  nextPreventionVersionNo,
+} from './preventionVersionUtils';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -62,7 +82,12 @@ const { RangePicker } = DatePicker;
 interface Props {
   records: RegionalPreventionRecord[];
   onChange: (records: RegionalPreventionRecord[]) => void;
-  indicators: RiskIndicatorRow[];
+  /** 指标定义层 */
+  baseIndicators: RiskIndicatorRow[];
+  architectureRecords: IndicatorArchitectureRecord[];
+  /** 定级引用的指标架构（下拉默认值） */
+  ratingArchitectureRecord?: IndicatorArchitectureRecord | null;
+  onViewArchitectureDetail?: (record: IndicatorArchitectureRecord) => void;
 }
 
 function recordToFormValues(record: RegionalPreventionRecord | null) {
@@ -84,7 +109,15 @@ function recordToFormValues(record: RegionalPreventionRecord | null) {
 }
 
 /** 全县防灾减灾：列表 + 弹窗（对齐风险普查交互） */
-export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indicators }) => {
+export const PreventionConfigPage: React.FC<Props> = ({
+  records,
+  onChange,
+  baseIndicators,
+  architectureRecords,
+  ratingArchitectureRecord = null,
+  onViewArchitectureDetail,
+}) => {
+  const [selectedArchitectureId, setSelectedArchitectureId] = useState('');
   const [configDateRange, setConfigDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [labelKeyword, setLabelKeyword] = useState('');
   const [reporterKeyword, setReporterKeyword] = useState('');
@@ -94,7 +127,37 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
   const [editing, setEditing] = useState<RegionalPreventionRecord | null>(null);
   const [form] = Form.useForm();
 
-  const regionalIndicators = useMemo(() => getRegionalPreventionIndicators(indicators), [indicators]);
+  const resolveRecordArchitecture = (record: RegionalPreventionRecord | null) =>
+    resolveSurveyArchitectureRecord(
+      architectureRecords,
+      record?.architectureRefId,
+      ratingArchitectureRecord,
+    );
+
+  const formArchitectureRecord = useMemo(() => {
+    if (editing) return resolveRecordArchitecture(editing);
+    return resolveSelectedArchitectureRecord(
+      architectureRecords,
+      selectedArchitectureId,
+      ratingArchitectureRecord,
+    );
+  }, [editing, architectureRecords, selectedArchitectureId, ratingArchitectureRecord]);
+
+  const formIndicators = useMemo(
+    () => mergeIndicatorsForArchitectureRecord(baseIndicators, formArchitectureRecord),
+    [baseIndicators, formArchitectureRecord],
+  );
+
+  const indicatorsForRecord = useCallback(
+    (record: RegionalPreventionRecord) =>
+      mergeIndicatorsForArchitectureRecord(baseIndicators, resolveRecordArchitecture(record)),
+    [baseIndicators, architectureRecords, ratingArchitectureRecord],
+  );
+
+  const regionalIndicators = useMemo(
+    () => getRegionalPreventionIndicators(formIndicators),
+    [formIndicators],
+  );
   const sorted = useMemo(() => sortRegionalPreventionRecords(records), [records]);
 
   const indicatorValuesWatch = Form.useWatch('indicatorValues', form) as
@@ -110,9 +173,9 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
     }
     const mapped = regionalIndicators.filter(ind => selections[ind.id]).length;
     const v4 =
-      mapped > 0 ? calcTotalScorePartial(indicators, 'SUNKEN', selections).v4 : null;
+      mapped > 0 ? calcTotalScorePartial(formIndicators, 'SUNKEN', selections).v4 : null;
     return { mapped, v4, complete: mapped >= regionalIndicators.length && regionalIndicators.length > 0 };
-  }, [indicatorValuesWatch, regionalIndicators, indicators]);
+  }, [indicatorValuesWatch, regionalIndicators, formIndicators]);
 
   const detailV4 = useMemo(() => {
     if (!detailOnly || !editing) return null;
@@ -125,8 +188,9 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       if (item.ruleId) selections[id] = item.ruleId;
     }
     if (!regionalIndicators.some(ind => selections[ind.id])) return null;
-    return calcTotalScorePartial(indicators, 'SUNKEN', selections).v4;
-  }, [detailOnly, editing, regionalIndicators, indicators]);
+    const rowIndicators = indicatorsForRecord(editing);
+    return calcTotalScorePartial(rowIndicators, 'SUNKEN', selections).v4;
+  }, [detailOnly, editing, regionalIndicators, indicatorsForRecord]);
 
   const filtered = useMemo(() => {
     const from = configDateRange?.[0]?.startOf('day').format('YYYY-MM-DD HH:mm:ss');
@@ -143,19 +207,21 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       }
       if (from && r.configAt < from) return false;
       if (to && r.configAt > to) return false;
+      if (selectedArchitectureId && r.architectureRefId !== selectedArchitectureId) return false;
       return true;
     });
-  }, [sorted, configDateRange, labelKeyword, reporterKeyword, statusFilter]);
+  }, [sorted, configDateRange, labelKeyword, reporterKeyword, statusFilter, selectedArchitectureId]);
 
   const resetFilters = () => {
     setConfigDateRange(null);
     setLabelKeyword('');
     setReporterKeyword('');
     setStatusFilter('');
+    setSelectedArchitectureId('');
   };
 
   const patchRecords = (next: RegionalPreventionRecord[]) => {
-    onChange(sortRegionalPreventionRecords(next));
+    onChange(sortRegionalPreventionRecords(ensurePreventionVersionNos(next)));
   };
 
   const openCreate = () => {
@@ -188,24 +254,49 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
   const handleSetActive = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const target = records.find(r => r.id === id);
-    if (target?.config.assessmentStatus !== 'completed') {
-      message.warning('请先保存并确保配置完整后再设为数据引用');
+    if (!target) return;
+    if (target.config.assessmentStatus !== 'completed') {
+      message.warning('请先保存并确保配置完整后再设为 V₄ 数据引用');
+      return;
+    }
+    const archCheck = validatePreventionArchitectureMatch(target, ratingArchitectureRecord);
+    if (!archCheck.ok) {
+      message.warning(archCheck.message);
       return;
     }
     patchRecords(setActiveRegionalPreventionRecord(records, id));
-    message.success('已设为数据引用（全县 V₄ 计算版本）');
+    message.success('已设为 V₄ 数据引用（全县防灾减灾计分版本）');
+  };
+
+  const canSetPreventionRef = (row: RegionalPreventionRecord) => {
+    if (row.config.assessmentStatus !== 'completed') return false;
+    return validatePreventionArchitectureMatch(row, ratingArchitectureRecord).ok;
+  };
+
+  const preventionRefDisabledReason = (row: RegionalPreventionRecord) => {
+    if (row.config.assessmentStatus !== 'completed') {
+      return '须先完成配置并保存';
+    }
+    return validatePreventionArchitectureMatch(row, ratingArchitectureRecord).message;
   };
 
   const handleDelete = (id: string) => {
+    const deleted = records.find(r => r.id === id);
     const next = records.filter(r => r.id !== id);
     if (!next.length) {
       patchRecords([]);
       return;
     }
     let patched = next;
-    if (!next.some(r => r.activeForRating)) {
+    if (
+      deleted?.activeForRating &&
+      deleted.architectureRefId &&
+      !next.some(r => r.activeForRating && r.architectureRefId === deleted.architectureRefId)
+    ) {
       const latest = sortRegionalPreventionRecords(next).find(
-        r => r.config.assessmentStatus === 'completed',
+        r =>
+          r.config.assessmentStatus === 'completed' &&
+          r.architectureRefId === deleted.architectureRefId,
       );
       if (latest) patched = setActiveRegionalPreventionRecord(next, latest.id);
     }
@@ -222,11 +313,22 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       regionalIndicators.length > 0 &&
       regionalIndicators.every(ind => items[ind.id]?.ruleId);
 
+    const bindArch = editing
+      ? resolveRecordArchitecture(editing)
+      : resolveSelectedArchitectureRecord(
+          architectureRecords,
+          selectedArchitectureId,
+          ratingArchitectureRecord,
+        );
+
     const nextRecord: RegionalPreventionRecord = editing
       ? {
           ...editing,
           configAt,
           label: values.label?.trim() || undefined,
+          architectureRefId: editing.architectureRefId ?? bindArch?.id,
+          architectureRefAt: editing.architectureRefAt ?? bindArch?.configAt,
+          architectureVersionNo: editing.architectureVersionNo ?? bindArch?.versionNo,
           config: {
             ...editing.config,
             indicatorValues,
@@ -243,9 +345,15 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       : {
           ...emptyRegionalPreventionRecord(),
           id: `rp-${Date.now()}`,
+          versionNo: nextPreventionVersionNo(records),
           configAt,
           label: values.label?.trim() || undefined,
-          activeForRating: records.length === 0,
+          activeForRating: bindArch?.id
+            ? !records.some(r => r.activeForRating && r.architectureRefId === bindArch.id)
+            : records.length === 0,
+          architectureRefId: bindArch?.id,
+          architectureRefAt: bindArch?.configAt,
+          architectureVersionNo: bindArch?.versionNo,
           config: {
             ...emptyRegionalPreventionRecord().config,
             indicatorValues,
@@ -271,7 +379,7 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
     } else {
       message.success(
         `已保存（V₄≈${liveDerived.v4 != null ? liveDerived.v4.toFixed(4) : '—'}）${
-          nextRecord.activeForRating ? '，当前为数据引用版本' : ''
+          nextRecord.activeForRating ? '，当前为 V₄ 数据引用' : ''
         }`,
       );
       setModalOpen(false);
@@ -279,6 +387,12 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
   };
 
   const columns: ColumnsType<RegionalPreventionRecord> = [
+    {
+      title: '防灾减灾版本',
+      dataIndex: 'versionNo',
+      width: 130,
+      render: (v: string) => <PreventionVersionTag versionNo={v || undefined} />,
+    },
     {
       title: '配置时间',
       dataIndex: 'configAt',
@@ -295,10 +409,20 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       ),
     },
     {
+      title: '绑定评价版本',
+      width: 110,
+      render: (_, row) =>
+        row.architectureVersionNo ? (
+          <ArchitectureVersionTag versionNo={row.architectureVersionNo} />
+        ) : (
+          '—'
+        ),
+    },
+    {
       title: '数据完整度',
       width: 120,
       render: (_, row) => {
-        const s = summarizeRegionalPreventionRecord(indicators, row);
+        const s = summarizeRegionalPreventionRecord(indicatorsForRecord(row), row);
         return <Progress percent={s.percent} size="small" />;
       },
     },
@@ -306,7 +430,7 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
       title: 'V₄',
       width: 88,
       render: (_, row) => {
-        const v4 = summarizeRegionalPreventionRecord(indicators, row).v4;
+        const v4 = summarizeRegionalPreventionRecord(indicatorsForRecord(row), row).v4;
         return v4 != null ? v4.toFixed(4) : '—';
       },
     },
@@ -322,19 +446,19 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
     {
       title: (
         <span>
-          数据引用
-          <Tooltip title="易涝点定级计算 V₄ 以该条全县防灾减灾指标为准">
+          V₄ 数据引用
+          <Tooltip title="定级计分 V₄ 以当前定级引用架构下、标记为 V₄ 数据引用的全县防灾减灾记录为准">
             <QuestionCircleOutlined
               style={{ marginLeft: 4, color: 'rgba(0,0,0,0.45)', fontSize: 13, cursor: 'help' }}
             />
           </Tooltip>
         </span>
       ),
-      width: 108,
+      width: 120,
       render: (_, row) =>
         row.activeForRating ? (
           <Tag color="blue" icon={<StarFilled />}>
-            当前引用
+            V₄ 数据引用
           </Tag>
         ) : (
           '—'
@@ -372,15 +496,23 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
             编辑
           </Button>
           {!row.activeForRating && row.config.assessmentStatus === 'completed' ? (
-            <Button
-              type="link"
-              size="small"
-              icon={<StarOutlined />}
-              className="action-btn"
-              onClick={e => handleSetActive(row.id, e)}
-            >
-              引用
-            </Button>
+            canSetPreventionRef(row) ? (
+              <Button
+                type="link"
+                size="small"
+                icon={<StarOutlined />}
+                className="action-btn"
+                onClick={e => handleSetActive(row.id, e)}
+              >
+                引用
+              </Button>
+            ) : (
+              <Tooltip title={preventionRefDisabledReason(row)}>
+                <Button type="link" size="small" icon={<StarOutlined />} className="action-btn" disabled>
+                  引用
+                </Button>
+              </Tooltip>
+            )
           ) : null}
           <Popconfirm title="确定删除该条配置？" onConfirm={() => handleDelete(row.id)}>
             <Button type="link" size="small" danger className="action-btn">
@@ -392,16 +524,52 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
     },
   ];
 
-  const modalTitle = detailOnly
+  const modalTitleText = detailOnly
     ? '防灾减灾指标信息详情'
     : editing
       ? '编辑防灾减灾指标信息'
       : '新增防灾减灾指标信息';
 
+  const modalTitle = (
+    <Space align="center" size="small" wrap>
+      <span>{modalTitleText}</span>
+      {editing?.versionNo ? (
+        <PreventionVersionTag versionNo={editing.versionNo} />
+      ) : null}
+      <ArchitectureVersionRefTag record={formArchitectureRecord} />
+      {!editing ? <Text type="secondary">新建将绑定上述评价版本</Text> : null}
+    </Space>
+  );
+
   return (
     <div className="dq-risk-page dq-prevention-timeline-page">
+      {ratingArchitectureRecord &&
+      !hasCompletedPreventionRefForArchitecture(records, ratingArchitectureRecord) ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`当前定级引用架构 ${ratingArchitectureRecord.versionNo} 下尚无 V₄ 数据引用`}
+          description="请在本架构下新建并完成防灾减灾指标信息填报，再「设为 V₄ 数据引用」，否则无法进行内涝定级。"
+        />
+      ) : null}
+
+      <ArchitectureVersionRefAlert
+        record={ratingArchitectureRecord}
+        onViewDetail={onViewArchitectureDetail}
+      />
+
       <Card bordered={false} className="filter-card">
         <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} md={6}>
+            <ArchitectureVersionSelect
+              records={architectureRecords}
+              activeRecord={ratingArchitectureRecord}
+              value={selectedArchitectureId}
+              onChange={setSelectedArchitectureId}
+              allowAll
+            />
+          </Col>
           <Col xs={24} sm={12} md={7}>
             <RangePicker
               style={{ width: '100%' }}
@@ -462,7 +630,7 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
-          scroll={{ x: 960 }}
+          scroll={{ x: 1040 }}
         />
       </Card>
 
@@ -489,7 +657,7 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
         >
           {editing ? (
             <Space style={{ marginBottom: 12 }} wrap align="center">
-              {editing.activeForRating ? <Tag color="blue">数据引用版本</Tag> : null}
+              {editing.activeForRating ? <Tag color="blue">V₄ 数据引用</Tag> : null}
               <Tag color={editing.config.assessmentStatus === 'completed' ? 'success' : 'default'}>
                 {editing.config.assessmentStatus === 'completed' ? '已完成' : '草稿'}
               </Tag>
@@ -567,7 +735,7 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
                 <SurveyValueInput
                   ind={ind}
                   formVariant="prevention"
-                  allIndicators={indicators}
+                  allIndicators={formIndicators}
                   valueNamePath={['indicatorValues', ind.survey.fieldKey]}
                   disabled={detailOnly}
                 />
@@ -577,9 +745,17 @@ export const PreventionConfigPage: React.FC<Props> = ({ records, onChange, indic
 
           {!detailOnly && editing && !editing.activeForRating && editing.config.assessmentStatus === 'completed' ? (
             <div style={{ marginTop: 8 }}>
-              <Button icon={<StarOutlined />} onClick={() => handleSetActive(editing.id)}>
-                设为数据引用
-              </Button>
+              {canSetPreventionRef(editing) ? (
+                <Button icon={<StarOutlined />} onClick={() => handleSetActive(editing.id)}>
+                  设为 V₄ 数据引用
+                </Button>
+              ) : (
+                <Tooltip title={preventionRefDisabledReason(editing)}>
+                  <Button icon={<StarOutlined />} disabled>
+                    设为 V₄ 数据引用
+                  </Button>
+                </Tooltip>
+              )}
             </div>
           ) : null}
         </Form>

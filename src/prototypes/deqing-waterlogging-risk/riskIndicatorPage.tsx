@@ -6,13 +6,11 @@ import {
   Form,
   type FormInstance,
   Input,
-  InputNumber,
   Modal,
   Popconfirm,
   Row,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
   Typography,
@@ -26,9 +24,6 @@ import {
   SearchOutlined,
   EditOutlined,
   EyeOutlined,
-  CalculatorOutlined,
-  ApartmentOutlined,
-  TableOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -43,16 +38,10 @@ import {
   HAZARD_POINT_TYPE_LABEL,
   LEVEL1_FACTOR_LABEL,
   type HazardPointType,
-  type IndicatorRiskLevelRow,
   type Level1Factor,
-  type Level1Weights,
-  type RegionalPreventionConfig,
-  type RegionalPreventionRecord,
   type RiskIndicatorRow,
   type ScoreRule,
 } from './types';
-import { ScorePreviewPage } from './scorePreviewPage';
-import { validateSiblingWeights } from './scoreCalculator';
 import {
   checkIndicatorDeletable,
   createInitSnapshot,
@@ -66,7 +55,6 @@ import { formLabelWithHelp, INDICATOR_CODE_HELP_EDIT } from './FormLabelHelpTip'
 import { IndicatorDefaultComparePanel } from './IndicatorDefaultComparePanel';
 import { IndicatorTypeTree, INDICATOR_TREE_ALL_KEY } from './IndicatorTypeTree';
 import { matchesIndicatorTreeKey } from './indicatorTypeTreeData';
-import { getSiblingGroup, isSiblingWeightSumValid, sumSiblingWeights } from './weightBalance';
 import {
   VALUE_TYPE_LABEL,
   DEFAULT_BR_AREA_IMPORTANCE_SCORE_RULES,
@@ -107,11 +95,9 @@ import {
   resolveDefaultTemplateForValueType,
   resolveTemplateForRow,
 } from './indicatorConfigTemplates';
-import { SurveyTablePreviewModal } from './SurveyTablePreviewModal';
 import {
   CONFIG_STATUS_COLOR,
   CONFIG_STATUS_LABEL,
-  summarizeReadinessForList,
   validateIndicatorConfig,
 } from './indicatorConfigReadiness';
 import {
@@ -264,11 +250,7 @@ interface Props {
   indicators: RiskIndicatorRow[];
   defaultIndicators: RiskIndicatorRow[];
   onChange: (rows: RiskIndicatorRow[]) => void;
-  indicatorLevels: IndicatorRiskLevelRow[];
-  level1Weights: Level1Weights;
-  regionalPrevention: RegionalPreventionConfig | null;
-  activePreventionRecord: RegionalPreventionRecord | null;
-  /** editMode：为 true 时进入架构图编辑模式（调权重/启用）；默认只读浏览 */
+  /** 跳转指标评价管理；editMode 为 true 时进入架构版本编辑 */
   onOpenArchitecture?: (options?: { editMode?: boolean }) => void;
 }
 
@@ -276,17 +258,10 @@ export const RiskIndicatorPage: React.FC<Props> = ({
   indicators,
   defaultIndicators,
   onChange,
-  indicatorLevels,
-  level1Weights,
-  regionalPrevention,
-  activePreventionRecord,
   onOpenArchitecture,
 }) => {
   const [keyword, setKeyword] = useState('');
   const [treeSelectedKey, setTreeSelectedKey] = useState(INDICATOR_TREE_ALL_KEY);
-  const [enabledFilter, setEnabledFilter] = useState<'all' | 'yes' | 'no'>('all');
-  const [tablePreviewOpen, setTablePreviewOpen] = useState(false);
-  const [scorePreviewOpen, setScorePreviewOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [createWizardOpen, setCreateWizardOpen] = useState(false);
   const [postSaveGuideOpen, setPostSaveGuideOpen] = useState(false);
@@ -463,31 +438,13 @@ export const RiskIndicatorPage: React.FC<Props> = ({
   const filtered = useMemo(() => {
     return indicators.filter(row => {
       if (!matchesIndicatorTreeKey(row, treeSelectedKey)) return false;
-      if (enabledFilter === 'yes' && !row.enabled) return false;
-      if (enabledFilter === 'no' && row.enabled) return false;
       if (keyword.trim()) {
         const k = keyword.trim().toLowerCase();
         if (!row.name.toLowerCase().includes(k) && !row.code.toLowerCase().includes(k)) return false;
       }
       return true;
     });
-  }, [indicators, keyword, treeSelectedKey, enabledFilter]);
-
-  const treeGroupWeightHint = useMemo(() => {
-    if (treeSelectedKey === INDICATOR_TREE_ALL_KEY) return null;
-    let level1: Level1Factor;
-    let formationType: HazardPointType | undefined;
-    if (treeSelectedKey.includes(':')) {
-      const [l1, pt] = treeSelectedKey.split(':') as [Level1Factor, HazardPointType];
-      level1 = l1;
-      formationType = pt;
-    } else {
-      level1 = treeSelectedKey as Level1Factor;
-    }
-    const group = getSiblingGroup(indicators, level1, formationType);
-    const sum = sumSiblingWeights(group);
-    return { sum, valid: isSiblingWeightSumValid(sum), count: group.length };
-  }, [indicators, treeSelectedKey]);
+  }, [indicators, keyword, treeSelectedKey]);
 
   const openCreate = () => {
     setEditing(null);
@@ -652,12 +609,11 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       name: merged.name,
       level1: merged.level1,
       applicableTypes: normalizeApplicableTypes(merged.level1, merged.applicableTypes),
-      weight: editing?.weight ?? merged.weight ?? 0.1,
+      weight: editing?.weight ?? 0,
       valueType: merged.valueType,
       unit: merged.valueType === 'numeric' ? merged.unit : undefined,
       remark,
       scoreExplanation,
-      // 启用/停用仅在指标架构图中调整；新建指标默认停用
       enabled: editing?.enabled ?? false,
       scoreRules: finalScoreRules,
       scoringRuleMode: modePatch.scoringRuleMode,
@@ -670,14 +626,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     const next = editing
       ? indicators.map(i => (i.id === editing.id ? row : i))
       : [...indicators, row];
-
-    const hazardForCheck = isFormationLevel1(row.level1)
-      ? formationTypeFromApplicable(row.applicableTypes)
-      : undefined;
-    const { valid, sum } = validateSiblingWeights(next, row.level1, hazardForCheck);
-    if (!valid) {
-      message.warning(`同级指标权重合计为 ${sum.toFixed(3)}，建议调整为 1.000`);
-    }
 
     onChange(next);
     const wasCreate = !editing;
@@ -731,11 +679,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
         </Button>
       </Tooltip>
     );
-  };
-
-  const goConfigureInArchitecture = () => {
-    message.info('请在指标架构图中切换启用/停用并调整同级权重后保存');
-    onOpenArchitecture?.({ editMode: true });
   };
 
   const scoringRuleModeTagColor: Record<ScoringRuleMode, string> = {
@@ -1045,12 +988,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       },
     },
     {
-      title: '权重',
-      dataIndex: 'weight',
-      width: 80,
-      render: (w: number) => w.toFixed(3),
-    },
-    {
       title: '值类型',
       dataIndex: 'valueType',
       width: 88,
@@ -1078,7 +1015,11 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       title: '配置状态',
       width: 88,
       render: (_, row) => {
-        const { status, tooltip } = summarizeReadinessForList(row, indicators);
+        const { status, blockers, warnings } = validateIndicatorConfig(row, indicators);
+        const tooltip =
+          [...blockers, ...warnings].length > 0
+            ? [...blockers, ...warnings].join('；')
+            : '赋分规则与普查配置完整';
         return (
           <Tooltip title={tooltip}>
             <Tag bordered={false} color={CONFIG_STATUS_COLOR[status]} style={{ margin: 0 }}>
@@ -1105,21 +1046,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       },
     },
     {
-      title: '启用状态',
-      dataIndex: 'enabled',
-      width: 88,
-      render: (enabled: boolean) =>
-        enabled ? (
-          <Tag bordered={false} color="success" style={{ margin: 0 }}>
-            启用
-          </Tag>
-        ) : (
-          <Tag bordered={false} color="warning" style={{ margin: 0 }}>
-            停用
-          </Tag>
-        ),
-    },
-    {
       title: '更新时间',
       dataIndex: 'updatedAt',
       width: 168,
@@ -1132,7 +1058,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     {
       title: '操作',
       key: 'op',
-      width: 168,
+      width: 120,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} wrap={false} align="center">
@@ -1142,18 +1068,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
           <Button type="link" size="small" icon={<EditOutlined />} className="action-btn" onClick={() => openEdit(row)}>
             编辑
           </Button>
-          <Tooltip
-            title={`请在指标架构图中${row.enabled ? '停用' : '启用'}该指标，并调整同级权重后保存`}
-          >
-            <Button
-              type="link"
-              size="small"
-              className={`action-btn ${row.enabled ? 'dq-action-disable' : 'dq-action-enable'}`}
-              onClick={goConfigureInArchitecture}
-            >
-              {row.enabled ? '停用' : '启用'}
-            </Button>
-          </Tooltip>
         </Space>
       ),
     },
@@ -1172,21 +1086,16 @@ export const RiskIndicatorPage: React.FC<Props> = ({
 
         <div className="dq-indicator-main">
           <Card className="filter-card" bordered={false}>
-            {treeGroupWeightHint && (
+            {onOpenArchitecture && (
               <div style={{ marginBottom: 12 }}>
-                <Text type="secondary">当前筛选组二级权重合计：</Text>
-                <Tag color={treeGroupWeightHint.valid ? 'success' : 'warning'}>
-                  {treeGroupWeightHint.sum.toFixed(3)} / 1.000（{treeGroupWeightHint.count} 项）
-                </Tag>
-                {!treeGroupWeightHint.valid && onOpenArchitecture && (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => onOpenArchitecture({ editMode: true })}
-                  >
-                    前往架构图调整
-                  </Button>
-                )}
+                <Text type="secondary">权重与启用状态请在指标评价管理中按版本配置。</Text>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => onOpenArchitecture({ editMode: true })}
+                >
+                  前往指标评价管理
+                </Button>
               </div>
             )}
             <Row gutter={[12, 12]} align="middle">
@@ -1199,18 +1108,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                   onPressEnter={() => undefined}
                 />
               </Col>
-              <Col xs={24} sm={12} md={5}>
-                <Select
-                  style={{ width: '100%' }}
-                  value={enabledFilter}
-                  onChange={setEnabledFilter}
-                  options={[
-                    { value: 'all', label: '全部状态' },
-                    { value: 'yes', label: '启用' },
-                    { value: 'no', label: '停用' },
-                  ]}
-                />
-              </Col>
               <Col flex="auto" style={{ textAlign: 'right' }}>
                 <Space wrap>
                   <Button type="primary" icon={<SearchOutlined />} className="search-btn">
@@ -1220,24 +1117,12 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     onClick={() => {
                       setKeyword('');
                       setTreeSelectedKey(INDICATOR_TREE_ALL_KEY);
-                      setEnabledFilter('all');
                     }}
                   >
                     重置
                   </Button>
                   <Button type="primary" icon={<PlusOutlined />} className="add-btn" onClick={openCreate}>
                     新增
-                  </Button>
-                  {onOpenArchitecture && (
-                    <Button icon={<ApartmentOutlined />} onClick={() => onOpenArchitecture()}>
-                      指标架构图
-                    </Button>
-                  )}
-                  <Button icon={<TableOutlined />} onClick={() => setTablePreviewOpen(true)}>
-                    表格预览
-                  </Button>
-                  <Button icon={<CalculatorOutlined />} onClick={() => setScorePreviewOpen(true)}>
-                    内涝等级试算
                   </Button>
                 </Space>
               </Col>
@@ -1249,7 +1134,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
               rowKey="id"
               size="small"
               className="dq-indicator-table"
-              scroll={{ x: 1524 }}
+              scroll={{ x: 1280 }}
               columns={columns}
               dataSource={filtered}
               pagination={{ pageSize: 10, showSizeChanger: true, showTotal: t => `共 ${t} 条` }}
@@ -1274,7 +1159,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                 {editing && getBaseline(editing) ? (
                   <Popconfirm
                     title="恢复初始化默认"
-                    description="将本指标表单恢复为初始化默认值（含赋分规则、适用类型、启用状态、权重等），需点击保存后写入系统。"
+                    description="将本指标表单恢复为初始化默认值（含赋分规则、适用类型、普查配置等），需点击保存后写入系统。"
                     onConfirm={resetModalForm}
                     okText="重置"
                     cancelText="取消"
@@ -1445,51 +1330,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                         </Col>
                       </Row>
                     ) : null}
-                    <Row gutter={16}>
-                      {!(level1Watch && isFormationLevel1(level1Watch)) && valueTypeWatch === 'numeric' ? (
-                        <Col span={12}>
-                          <Form.Item name="unit" label="单位" extra="选填；填写后用于普查展示与分档描述">
-                            <Input placeholder="如 %、年、次/年" />
-                          </Form.Item>
-                        </Col>
-                      ) : level1Watch && isFormationLevel1(level1Watch) ? null : (
-                        <Form.Item name="unit" hidden>
-                          <Input />
-                        </Form.Item>
-                      )}
-                      <Col span={12}>
-                        <Form.Item label="权重">
-                          {editing ? (
-                            <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                              <InputNumber
-                                value={editing.weight}
-                                disabled
-                                precision={3}
-                                style={{ width: '100%' }}
-                              />
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                同级权重请在指标架构图中分别调整（合计须为 1.000，未达标列底标红）
-                              </Text>
-                              {onOpenArchitecture && !detailOnly && (
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  style={{ padding: 0, height: 'auto' }}
-                                  onClick={() => {
-                                    closeModal();
-                                    onOpenArchitecture({ editMode: true });
-                                  }}
-                                >
-                                  前往指标架构图
-                                </Button>
-                              )}
-                            </Space>
-                          ) : (
-                            <Text type="secondary">新建后请在指标架构图中配置同级权重</Text>
-                          )}
-                        </Form.Item>
-                      </Col>
-                    </Row>
                     {!level1Watch || !isFormationLevel1(level1Watch) ? (
                       <Form.Item name="applicableTypes" hidden>
                         <Select mode="multiple" options={[{ value: 'GLOBAL', label: 'GLOBAL' }]} />
@@ -1499,35 +1339,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     <IndicatorSurveyFieldKeyFields disabled={detailOnly} />
                     <Form.Item name="remark" label="说明">
                       <TextArea rows={2} />
-                    </Form.Item>
-                    <Form.Item label="启用">
-                      {editing ? (
-                        <Space direction="vertical" size={4}>
-                          <Tag color={editing.enabled ? 'success' : 'warning'}>
-                            {editing.enabled ? '启用' : '停用'}
-                          </Tag>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            启用/停用在指标架构图中调整；用户新增指标须先配置同级 ω 后再启用
-                          </Text>
-                          {onOpenArchitecture && !detailOnly && (
-                            <Button
-                              type="link"
-                              size="small"
-                              style={{ padding: 0, height: 'auto' }}
-                              onClick={() => {
-                                closeModal();
-                                onOpenArchitecture({ editMode: true });
-                              }}
-                            >
-                              前往指标架构图
-                            </Button>
-                          )}
-                        </Space>
-                      ) : (
-                        <Text type="secondary">
-                          新建后默认停用，请在指标架构图中配置同级权重并启用
-                        </Text>
-                      )}
                     </Form.Item>
                   </>
                 ),
@@ -1614,55 +1425,16 @@ export const RiskIndicatorPage: React.FC<Props> = ({
               onOpenArchitecture?.({ editMode: true });
             }}
           >
-            前往架构图启用并配权重
+            前往指标评价管理
           </Button>,
         ]}
       >
         <Text>
-          新建指标默认<strong>停用</strong>（停用仅表示暂不参与 V 计分，不阻塞普查填报）。请在指标架构图中配置同级权重（启用指标合计须为
+          新建指标默认<strong>停用</strong>（停用仅表示暂不参与 V 计分，不阻塞普查填报）。请在指标评价管理中配置同级权重（启用指标合计须为
           1.000）并启用后，方可参与内涝等级试算与定级。
         </Text>
       </Modal>
 
-      <SurveyTablePreviewModal
-        open={tablePreviewOpen}
-        onClose={() => setTablePreviewOpen(false)}
-        indicators={indicators}
-      />
-
-      <Modal
-        title="内涝等级试算"
-        className="dq-score-preview-modal"
-        open={scorePreviewOpen}
-        onCancel={() => setScorePreviewOpen(false)}
-        width={1400}
-        footer={null}
-        destroyOnClose
-        styles={{
-          container: {
-            maxHeight: 'calc(100vh - 80px)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          },
-          body: {
-            padding: '16px 20px',
-            flex: '1 1 auto',
-            minHeight: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          },
-        }}
-      >
-        <ScorePreviewPage
-          indicators={indicators}
-          indicatorLevels={indicatorLevels}
-          level1Weights={level1Weights}
-          regionalPrevention={regionalPrevention}
-          activePreventionRecord={activePreventionRecord}
-        />
-      </Modal>
     </div>
   );
 };

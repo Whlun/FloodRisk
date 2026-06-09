@@ -129,12 +129,10 @@ export function isIndicatorModified(current: RiskIndicatorRow, baseline: RiskInd
   if (current.name !== baseline.name) return true;
   if (current.level1 !== baseline.level1) return true;
   if (!typesEqual(current.applicableTypes, baseline.applicableTypes)) return true;
-  if (Math.abs(current.weight - baseline.weight) > 0.0001) return true;
   if (current.valueType !== baseline.valueType) return true;
   if ((current.unit ?? '') !== (baseline.unit ?? '')) return true;
   if ((current.remark ?? '') !== (baseline.remark ?? '')) return true;
   if ((current.scoreExplanation ?? '') !== (baseline.scoreExplanation ?? '')) return true;
-  if (current.enabled !== baseline.enabled) return true;
   if (!rulesEqual(current.scoreRules, baseline.scoreRules)) return true;
   const cs = current.survey;
   const bs = baseline.survey;
@@ -171,7 +169,7 @@ export function checkIndicatorDeletable(
   defaults: RiskIndicatorRow[],
 ): IndicatorDeleteCheck {
   if (isBuiltinIndicator(row, defaults)) {
-    return { allowed: false, reason: '内置指标不可删除，请先在指标架构图中停用' };
+    return { allowed: false, reason: '内置指标不可删除，请先在指标评价管理中停用' };
   }
   if (row.enabled) {
     return { allowed: false, reason: '请先停用该指标后再删除' };
@@ -211,13 +209,6 @@ export function buildIndicatorFieldDiffs(
       changed: !typesEqual(current.applicableTypes, baseline.applicableTypes),
     },
     {
-      field: 'weight',
-      label: '权重',
-      def: baseline.weight.toFixed(3),
-      cur: current.weight.toFixed(3),
-      changed: Math.abs(current.weight - baseline.weight) > 0.0001,
-    },
-    {
       field: 'valueType',
       label: '值类型',
       def: baseline.valueType,
@@ -244,13 +235,6 @@ export function buildIndicatorFieldDiffs(
       def: baseline.scoreExplanation || '—',
       cur: current.scoreExplanation || '—',
       changed: (current.scoreExplanation ?? '') !== (baseline.scoreExplanation ?? ''),
-    },
-    {
-      field: 'enabled',
-      label: '启用状态',
-      def: baseline.enabled ? '启用' : '停用',
-      cur: current.enabled ? '启用' : '停用',
-      changed: current.enabled !== baseline.enabled,
     },
     {
       field: 'scoreRules',

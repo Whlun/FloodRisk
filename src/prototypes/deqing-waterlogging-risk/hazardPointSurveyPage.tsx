@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -38,10 +38,12 @@ import {
   emptyAssessmentPayload,
   emptySurveyPayload,
   type IndicatorRiskLevelRow,
+  type IndicatorArchitectureRecord,
   type Level1Weights,
   type RegionalPreventionConfig,
   type RegionalPreventionRecord,
   type RiskIndicatorRow,
+  type RiskLevelVersionRecord,
   type SurveyPointType,
   type RiskChangeLogEntry,
   type WaterloggingPointRegistryRow,
@@ -50,7 +52,9 @@ import {
 import { createRiskChangeLogEntry } from './riskChangeLogUtils';
 import { getActiveRegionalPreventionRecord } from './regionalPreventionUtils';
 import {
+  buildRatingContextForPoint,
   computeSurveyRatingPreview,
+  type SurveyRatingContext,
   type SurveyRatingPreview,
 } from './surveyRatingUtils';
 import { SurveyRatingPreviewPanel } from './SurveyRatingPreviewPanel';
@@ -63,6 +67,7 @@ import {
 } from './appendixBSync';
 import {
   calcSurveyCoverage,
+  getArchitectureScopedSurveyIndicatorsForFill,
   getPointSurveyIndicatorsForFill,
   getPointSurveyIndicatorsForPoint,
   isPointSurveyComplete,
@@ -85,6 +90,19 @@ import {
   setActiveSurveyRecord,
   sortSurveyRecords,
 } from './waterloggingSurveyUtils';
+import {
+  mergeIndicatorsForArchitectureRecord,
+  resolveSurveyArchitectureRecord,
+} from './indicatorArchitectureUtils';
+import {
+  ArchitectureVersionSelect,
+  resolveSelectedArchitectureRecord,
+} from './ArchitectureVersionSelect';
+import { ArchitectureVersionRefTag } from './ArchitectureVersionRefTag';
+import { ArchitectureVersionTag } from './ArchitectureVersionTag';
+import { RiskLevelVersionTag } from './RiskLevelVersionTag';
+import { ArchitectureVersionRefAlert } from './ArchitectureVersionRefAlert';
+import { RiskLevelVersionRefAlert } from './RiskLevelVersionRefAlert';
 import { SurveyTablePreviewModal } from './SurveyTablePreviewModal';
 import { SurveyPdfAttachmentField } from './SurveyPdfAttachmentField';
 
@@ -116,14 +134,27 @@ function pointToFormValues(row: WaterloggingPointRow, indicators: RiskIndicatorR
 interface Props {
   points: WaterloggingPointRow[];
   onChange: (rows: WaterloggingPointRow[]) => void;
-  indicators: RiskIndicatorRow[];
+  /** 指标定义层 */
+  baseIndicators: RiskIndicatorRow[];
+  architectureRecords: IndicatorArchitectureRecord[];
+  /** 当前定级引用架构（新增普查绑定此方案） */
+  ratingArchitectureRecord: IndicatorArchitectureRecord | null;
+  /** 定级计分用指标（merge 当前定级引用架构） */
+  ratingIndicators: RiskIndicatorRow[];
   pointRegistry: WaterloggingPointRegistryRow[];
   indicatorLevels: IndicatorRiskLevelRow[];
-  level1Weights: Level1Weights;
+  /** 定级用一级权重（来自定级引用架构） */
+  ratingLevel1Weights: Level1Weights;
   regionalPrevention: RegionalPreventionConfig | null;
   regionalPreventionRecords?: RegionalPreventionRecord[];
+  activeArchitectureRecord?: IndicatorArchitectureRecord | null;
+  activeRiskLevelRecord?: RiskLevelVersionRecord | null;
+  riskLevelRecords?: RiskLevelVersionRecord[];
+  riskChangeLogs?: RiskChangeLogEntry[];
   /** 定级确认后追加风险变更日志 */
   onAppendRiskChangeLog?: (entry: RiskChangeLogEntry) => void;
+  onViewArchitectureDetail?: (record: IndicatorArchitectureRecord) => void;
+  onViewRiskLevelDetail?: (record: RiskLevelVersionRecord) => void;
 }
 
 function applyRegistryToForm(
@@ -145,24 +176,67 @@ function applyRegistryToForm(
 export const HazardPointSurveyPage: React.FC<Props> = ({
   points,
   onChange,
-  indicators,
+  baseIndicators,
+  architectureRecords,
+  ratingArchitectureRecord,
+  ratingIndicators,
   pointRegistry,
   indicatorLevels,
-  level1Weights,
+  ratingLevel1Weights,
   regionalPrevention,
   regionalPreventionRecords = [],
+  activeArchitectureRecord = null,
+  activeRiskLevelRecord = null,
+  riskLevelRecords = [],
+  riskChangeLogs = [],
   onAppendRiskChangeLog,
+  onViewArchitectureDetail,
+  onViewRiskLevelDetail,
 }) => {
-  const activePreventionRecord = useMemo(
-    () => getActiveRegionalPreventionRecord(regionalPreventionRecords),
-    [regionalPreventionRecords],
+  const surveyArchScope = { architectureScoped: true } as const;
+
+  const resolveSurveyIndicators = useCallback(
+    (row: Pick<WaterloggingPointRow, 'surveyArchitectureRefId'> | null) => {
+      const arch = resolveSurveyArchitectureRecord(
+        architectureRecords,
+        row?.surveyArchitectureRefId,
+        ratingArchitectureRecord,
+      );
+      return mergeIndicatorsForArchitectureRecord(baseIndicators, arch);
+    },
+    [architectureRecords, baseIndicators, ratingArchitectureRecord],
   );
 
-  const ratingCtx = useMemo(
-    () => ({ indicators, indicatorLevels, level1Weights, regionalPrevention }),
-    [indicators, indicatorLevels, level1Weights, regionalPrevention],
+  const activePreventionRecord = useMemo(
+    () => getActiveRegionalPreventionRecord(regionalPreventionRecords, ratingArchitectureRecord),
+    [regionalPreventionRecords, ratingArchitectureRecord],
   );
+
+  const buildRatingCtx = useCallback(
+    (row: WaterloggingPointRow): SurveyRatingContext =>
+      buildRatingContextForPoint({
+        pt: row,
+        baseIndicators,
+        architectureRecords,
+        riskLevelRecords,
+        regionalPreventionRecords,
+        riskChangeLogs,
+        currentArchitectureRecord: activeArchitectureRecord,
+        currentRiskLevelRecord: activeRiskLevelRecord,
+      }),
+    [
+      baseIndicators,
+      architectureRecords,
+      riskLevelRecords,
+      regionalPreventionRecords,
+      riskChangeLogs,
+      activeArchitectureRecord,
+      activeRiskLevelRecord,
+    ],
+  );
+
   const [registryFilter, setRegistryFilter] = useState('');
+  const [selectedArchitectureId, setSelectedArchitectureId] = useState('');
   const [surveyDateRange, setSurveyDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [typeFilter, setTypeFilter] = useState<SurveyPointType | ''>('');
   const [statusFilter, setStatusFilter] = useState<'' | 'completed' | 'draft'>('');
@@ -175,7 +249,39 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const [ratingPendingPoints, setRatingPendingPoints] = useState<WaterloggingPointRow[] | null>(null);
   /** 打开定级确认时是否已是「数据引用」版本（用于确认后推送内涝基本信息） */
   const [ratingWasDataRef, setRatingWasDataRef] = useState(false);
+  const [ratingCtxForModal, setRatingCtxForModal] = useState<SurveyRatingContext | null>(null);
   const [form] = Form.useForm();
+
+  const modalSurveyIndicators = useMemo(
+    () => resolveSurveyIndicators(editing),
+    [editing, resolveSurveyIndicators],
+  );
+
+  const tablePreviewArchitectureRecord = useMemo(
+    () =>
+      resolveSelectedArchitectureRecord(
+        architectureRecords,
+        selectedArchitectureId,
+        ratingArchitectureRecord,
+      ),
+    [architectureRecords, selectedArchitectureId, ratingArchitectureRecord],
+  );
+
+  const tablePreviewIndicators = useMemo(
+    () => mergeIndicatorsForArchitectureRecord(baseIndicators, tablePreviewArchitectureRecord),
+    [baseIndicators, tablePreviewArchitectureRecord],
+  );
+
+  const modalArchitectureRecord = useMemo(() => {
+    if (editing) {
+      return resolveSurveyArchitectureRecord(
+        architectureRecords,
+        editing.surveyArchitectureRefId,
+        ratingArchitectureRecord,
+      );
+    }
+    return tablePreviewArchitectureRecord;
+  }, [editing, architectureRecords, ratingArchitectureRecord, tablePreviewArchitectureRecord]);
 
   const sorted = useMemo(() => sortSurveyRecords(points), [points]);
 
@@ -208,9 +314,12 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       const at = resolveSurveyAt(p);
       if (from && at < from) return false;
       if (to && at > to) return false;
+      if (selectedArchitectureId && p.surveyArchitectureRefId !== selectedArchitectureId) {
+        return false;
+      }
       return true;
     });
-  }, [sorted, registryFilter, surveyDateRange, typeFilter, statusFilter]);
+  }, [sorted, registryFilter, surveyDateRange, typeFilter, statusFilter, selectedArchitectureId]);
 
   const registryOptionsForCreate = useMemo(() => {
     return pointRegistry.map(r => {
@@ -224,6 +333,15 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   }, [pointRegistry, surveyCountByRegistry]);
 
   const openCreate = () => {
+    const selectedArch = resolveSelectedArchitectureRecord(
+      architectureRecords,
+      selectedArchitectureId,
+      ratingArchitectureRecord,
+    );
+    if (!selectedArch || selectedArch.config.status !== 'completed') {
+      message.warning('请先在下拉中选择一条已完成的评价版本，再新增普查');
+      return;
+    }
     setEditing(null);
     setDetailOnly(false);
     form.resetFields();
@@ -241,7 +359,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   };
 
   const patchPoints = (next: WaterloggingPointRow[]) => {
-    onChange(normalizeSurveyActiveRefs(next, indicators));
+    onChange(normalizeSurveyActiveRefs(next, baseIndicators));
   };
 
   const handleSetActive = (row: WaterloggingPointRow) => {
@@ -259,10 +377,10 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     const synced = syncAppendixBToIndicatorValues(
       target.surveyPayload,
       target.pointType,
-      indicators,
+      resolveSurveyIndicators(target),
     );
     patchPoints(
-      pushBasicInfoToSiblingSurveys(withActive, { ...target, surveyPayload: synced }, indicators),
+      pushBasicInfoToSiblingSurveys(withActive, { ...target, surveyPayload: synced }, resolveSurveyIndicators(target)),
     );
     message.success(
       replaced
@@ -281,7 +399,9 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     setRatingWasDataRef(row.activeForRating);
     const withActive = setActiveSurveyRecord(list, row.id);
     const target = withActive.find(p => p.id === row.id) ?? row;
-    const preview = computeSurveyRatingPreview({ ...target, activeForRating: true }, ratingCtx);
+    const ctx = buildRatingCtx(target);
+    const preview = computeSurveyRatingPreview({ ...target, activeForRating: true }, ctx);
+    setRatingCtxForModal(ctx);
     setRatingPendingPoints(withActive);
     setRatingPreview(preview);
     setRatingModalOpen(true);
@@ -297,7 +417,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     const syncedPayload = syncAppendixBToIndicatorValues(
       ratingPreview.ratedRow.surveyPayload,
       ratingPreview.ratedRow.pointType,
-      indicators,
+      resolveSurveyIndicators(ratingPreview.ratedRow),
     );
     const finalRow = {
       ...ratingPreview.ratedRow,
@@ -308,14 +428,19 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     merged = setActiveSurveyRecord(merged, finalRow.id);
     const shouldPushBasicInfo = ratingWasDataRef;
     if (shouldPushBasicInfo) {
-      merged = pushBasicInfoToSiblingSurveys(merged, finalRow, indicators);
+      merged = pushBasicInfoToSiblingSurveys(merged, finalRow, resolveSurveyIndicators(finalRow));
     }
+    const ctx = ratingCtxForModal;
     const logEntry = createRiskChangeLogEntry(finalRow, {
       prev: prevRating,
       basicInfoSynced: shouldPushBasicInfo,
-      preventionRefAt: activePreventionRecord?.configAt,
+      preventionRefAt: ctx?.preventionRefAt ?? ctx?.activePreventionRecord?.configAt,
+      preventionVersionNo:
+        ctx?.preventionVersionNo ?? ctx?.activePreventionRecord?.versionNo,
+      architectureRefAt: ctx?.activeArchitectureRecord?.configAt,
+      riskLevelVersionNo: ctx?.activeRiskLevelRecord?.versionNo,
       operator: finalRow.collector,
-      indicatorLevels,
+      indicatorLevels: ctx?.indicatorLevels ?? indicatorLevels,
     });
     if (logEntry && onAppendRiskChangeLog) {
       onAppendRiskChangeLog(logEntry);
@@ -325,6 +450,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     setRatingPreview(null);
     setRatingPendingPoints(null);
     setRatingWasDataRef(false);
+    setRatingCtxForModal(null);
     message.success(
       `已确认定级：${finalRow.ratingResult!.levelName}（V=${finalRow.ratingResult!.v.toFixed(4)}${
         finalRow.ratingResult!.partial ? '，部分指标参与' : ''
@@ -339,14 +465,14 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const openDetail = (row: WaterloggingPointRow) => {
     setEditing(row);
     setDetailOnly(true);
-    form.setFieldsValue(pointToFormValues(row, indicators));
+    form.setFieldsValue(pointToFormValues(row, resolveSurveyIndicators(row)));
     setModalOpen(true);
   };
 
   const openEdit = (row: WaterloggingPointRow) => {
     setEditing(row);
     setDetailOnly(false);
-    form.setFieldsValue(pointToFormValues(row, indicators));
+    form.setFieldsValue(pointToFormValues(row, resolveSurveyIndicators(row)));
     setModalOpen(true);
   };
 
@@ -385,13 +511,13 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     const payload = syncAppendixBToIndicatorValues(
       values.surveyPayload ?? emptySurveyPayload(),
       pointType,
-      indicators,
+      modalSurveyIndicators,
     );
-    const pointIndicators = getPointSurveyIndicatorsForPoint(indicators, pointType);
-    const coverageIndicators = getPointSurveyIndicatorsForFill(indicators, pointType);
+    const pointIndicators = getPointSurveyIndicatorsForPoint(modalSurveyIndicators, pointType, surveyArchScope);
+    const coverageIndicators = getArchitectureScopedSurveyIndicatorsForFill(modalSurveyIndicators, pointType);
     const indicatorValues = payload.indicatorValues ?? {};
     const numericErrors = collectNumericRangeErrors(coverageIndicators, indicatorValues);
-    for (const field of listAppendixBConditionFieldsForPointType(pointType, indicators)) {
+    for (const field of listAppendixBConditionFieldsForPointType(pointType, modalSurveyIndicators)) {
       if (field.kind !== 'numeric') continue;
       const raw = payload.appendixB?.[field.key as keyof typeof payload.appendixB];
       const err = getNumericRangeError(field.key, raw as number | undefined);
@@ -408,16 +534,39 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       return;
     }
     const indicatorValuesForSave = payload.indicatorValues ?? {};
-    const { ok, missing } = validateSurveyRequired(indicators, pointType, indicatorValuesForSave);
-    const coverage = calcSurveyCoverage(indicators, pointType, indicatorValuesForSave);
+    const { ok, missing } = validateSurveyRequired(
+      modalSurveyIndicators,
+      pointType,
+      indicatorValuesForSave,
+      surveyArchScope,
+    );
+    const coverage = calcSurveyCoverage(
+      modalSurveyIndicators,
+      pointType,
+      indicatorValuesForSave,
+      surveyArchScope,
+    );
     const surveyComplete =
-      ok && isPointSurveyComplete(indicators, pointType, indicatorValuesForSave);
+      ok &&
+      isPointSurveyComplete(modalSurveyIndicators, pointType, indicatorValuesForSave, surveyArchScope);
 
     const surveyAt = (values.surveyAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
     const syncedPayload = {
       ...payload,
       appendixB: { ...payload.appendixB, collectedAt: surveyAt },
     };
+
+    const pinnedArch = editing?.surveyArchitectureRefId
+      ? resolveSurveyArchitectureRecord(
+          architectureRecords,
+          editing.surveyArchitectureRefId,
+          ratingArchitectureRecord,
+        )
+      : resolveSelectedArchitectureRecord(
+          architectureRecords,
+          selectedArchitectureId,
+          ratingArchitectureRecord,
+        );
 
     const row: WaterloggingPointRow = {
       id: editing?.id ?? `pt-${Date.now()}`,
@@ -440,6 +589,9 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       surveyAt,
       label: (values.label as string | undefined)?.trim() || undefined,
       activeForRating: editing?.activeForRating ?? false,
+      surveyArchitectureRefId: pinnedArch?.id ?? editing?.surveyArchitectureRefId,
+      surveyArchitectureRefAt: pinnedArch?.configAt ?? editing?.surveyArchitectureRefAt,
+      surveyArchitectureVersionNo: pinnedArch?.versionNo ?? editing?.surveyArchitectureVersionNo,
     };
 
     const baseList = applySurveyToPoints(points, row);
@@ -502,6 +654,24 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       render: (t: SurveyPointType) => HAZARD_POINT_TYPE_LABEL[t],
     },
     {
+      title: '评价版本',
+      width: 96,
+      render: (_, r) => {
+        const versionNo =
+          r.surveyArchitectureVersionNo ??
+          architectureRecords.find(a => a.id === r.surveyArchitectureRefId)?.versionNo;
+        return <ArchitectureVersionTag versionNo={versionNo} />;
+      },
+    },
+    {
+      title: '等级版本',
+      width: 96,
+      render: (_, r) => {
+        const versionNo = r.ratingResult?.riskLevelVersionNo;
+        return <RiskLevelVersionTag versionNo={versionNo} />;
+      },
+    },
+    {
       title: '状态',
       width: 88,
       render: (_, r) => (
@@ -514,7 +684,13 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       title: '数据完整度',
       width: 120,
       render: (_, r) => {
-        const c = calcSurveyCoverage(indicators, r.pointType, r.surveyPayload?.indicatorValues);
+        const rowIndicators = resolveSurveyIndicators(r);
+        const c = calcSurveyCoverage(
+          rowIndicators,
+          r.pointType,
+          r.surveyPayload?.indicatorValues,
+          surveyArchScope,
+        );
         return <Progress percent={c.percent} size="small" />;
       },
     },
@@ -544,22 +720,41 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       width: 120,
       render: (_, r) =>
         r.ratingStatus === 'completed' && r.ratingResult ? (
-          <Space direction="vertical" size={0}>
-            <Tag color={r.ratingResult.color}>{r.ratingResult.levelName}</Tag>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              V={r.ratingResult.v.toFixed(4)}
-            </Text>
-          </Space>
+          <Tooltip
+            title={
+              [
+                r.ratingResult.architectureVersionNo
+                  ? `评分方案：${r.ratingResult.architectureVersionNo}`
+                  : r.ratingResult.architectureRefAt
+                    ? `评分方案：${r.ratingResult.architectureRefAt}`
+                    : null,
+                r.ratingResult.riskLevelVersionNo
+                  ? `等级方案：${r.ratingResult.riskLevelVersionNo}`
+                  : r.ratingResult.riskLevelRefAt
+                    ? `等级方案：${r.ratingResult.riskLevelRefAt}`
+                    : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined
+            }
+          >
+            <Space direction="vertical" size={0}>
+              <Tag color={r.ratingResult.color}>{r.ratingResult.levelName}</Tag>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                V={r.ratingResult.v.toFixed(4)}
+              </Text>
+            </Space>
+          </Tooltip>
         ) : (
           <Tag>未定级</Tag>
         ),
     },
     {
       title: '操作',
-      width: 200,
+      width: 220,
       fixed: 'right',
       render: (_, row) => (
-        <Space size={4} wrap>
+        <Space size={4} wrap={false}>
           <Button
             type="link"
             size="small"
@@ -579,10 +774,43 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
             编辑
           </Button>
           {row.surveyStatus === 'completed' &&
-          isPointSurveyComplete(indicators, row.pointType, row.surveyPayload?.indicatorValues) ? (
-            <Button type="link" size="small" className="action-btn" onClick={() => handleRate(row)}>
-              {row.ratingStatus === 'completed' ? '更新定级' : '定级'}
-            </Button>
+          isPointSurveyComplete(
+            resolveSurveyIndicators(row),
+            row.pointType,
+            row.surveyPayload?.indicatorValues,
+            surveyArchScope,
+          ) ? (
+            <Tooltip
+              title={
+                row.ratingStatus === 'completed'
+                  ? [
+                      '沿用上次定级锁定的评价版本与等级版本重新计分（考核 KPI 不追溯换标），不随页顶当前定级引用变更；仅根据最新普查数据重算结果。',
+                      row.ratingResult?.architectureVersionNo
+                        ? `锁定评价版本：${row.ratingResult.architectureVersionNo}`
+                        : null,
+                      row.ratingResult?.riskLevelVersionNo
+                        ? `锁定等级版本：${row.ratingResult.riskLevelVersionNo}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                  : [
+                      '按页顶当前定级引用的评价版本与等级版本，根据已完成的普查数据计算风险等级。',
+                      ratingArchitectureRecord?.versionNo
+                        ? `评价版本：${ratingArchitectureRecord.versionNo}`
+                        : null,
+                      activeRiskLevelRecord?.versionNo
+                        ? `等级版本：${activeRiskLevelRecord.versionNo}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+              }
+            >
+              <Button type="link" size="small" className="action-btn" onClick={() => handleRate(row)}>
+                {row.ratingStatus === 'completed' ? '更新定级' : '定级'}
+              </Button>
+            </Tooltip>
           ) : null}
           {!row.activeForRating && row.surveyStatus === 'completed' ? (
             <Tooltip
@@ -633,12 +861,54 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           showIcon
           style={{ marginBottom: 12 }}
           message="全县防灾减灾指标信息未完成"
-          description="请先在「防灾减灾指标信息」中完成一条记录并「设为数据引用」，否则普查保存后无法自动定级。"
+          description={
+            ratingArchitectureRecord
+              ? `请先在「防灾减灾指标信息」中，于当前定级引用架构 ${ratingArchitectureRecord.versionNo} 下完成填报并「设为 V₄ 数据引用」，否则普查保存后无法自动定级。`
+              : '请先在「防灾减灾指标信息」中完成一条记录并「设为 V₄ 数据引用」，否则普查保存后无法自动定级。'
+          }
         />
       )}
+      {!ratingArchitectureRecord ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="尚未配置定级引用考核方案"
+          description="请先在「指标评价管理」中完成权重配置并设为定级引用；新增普查须先确定采用哪套评价版本，评价版本决定须填报哪些指标。"
+        />
+      ) : null}
+
+      {!activeRiskLevelRecord || activeRiskLevelRecord.config.status !== 'completed' ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="尚未配置定级引用等级方案"
+          description="请先在「风险等级管理」中完成等级区间配置并设为定级引用，否则无法完成定级。"
+        />
+      ) : null}
+
+      <ArchitectureVersionRefAlert
+        record={ratingArchitectureRecord}
+        onViewDetail={onViewArchitectureDetail}
+      />
+
+      <RiskLevelVersionRefAlert
+        record={activeRiskLevelRecord}
+        onViewDetail={onViewRiskLevelDetail}
+      />
 
       <Card bordered={false} className="filter-card">
         <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} md={6}>
+            <ArchitectureVersionSelect
+              records={architectureRecords}
+              activeRecord={ratingArchitectureRecord}
+              value={selectedArchitectureId}
+              onChange={setSelectedArchitectureId}
+              allowAll
+            />
+          </Col>
           <Col xs={24} sm={8} md={6}>
             <Select
               placeholder="选择易涝点"
@@ -695,6 +965,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
               <Button
                 onClick={() => {
                   setRegistryFilter('');
+                  setSelectedArchitectureId('');
                   setSurveyDateRange(null);
                   setTypeFilter('');
                   setStatusFilter('');
@@ -705,7 +976,11 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
               <Button type="primary" icon={<PlusOutlined />} className="add-btn" onClick={openCreate}>
                 新增普查
               </Button>
-              <Button icon={<TableOutlined />} onClick={() => setTablePreviewOpen(true)}>
+              <Button
+                icon={<TableOutlined />}
+                disabled={!tablePreviewArchitectureRecord}
+                onClick={() => setTablePreviewOpen(true)}
+              >
                 表格下载
               </Button>
             </Space>
@@ -720,12 +995,19 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1200 }}
         />
       </Card>
 
       <Modal
-        title={detailOnly ? '内涝普查定级详情' : editing ? '编辑内涝普查定级' : '新增内涝普查定级'}
+        title={
+          <Space align="center" size="small">
+            <span>
+              {detailOnly ? '内涝普查定级详情' : editing ? '编辑内涝普查定级' : '新增内涝普查定级'}
+            </span>
+            <ArchitectureVersionRefTag record={modalArchitectureRecord} />
+          </Space>
+        }
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         width={900}
@@ -850,7 +1132,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
                     <AppendixBSurveyFields
                       form={form}
                       pointType={registryIdWatch && pointTypeWatch ? pointTypeWatch : undefined}
-                      indicators={indicators}
+                      indicators={modalSurveyIndicators}
                     />
                   </>
                 ),
@@ -863,7 +1145,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
                   pointTypeWatch ? (
                     <DynamicSurveyFields
                       pointType={pointTypeWatch}
-                      indicators={indicators}
+                      indicators={modalSurveyIndicators}
                       readOnly={detailOnly}
                     />
                   ) : (
@@ -918,7 +1200,19 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       </Modal>
 
       <Modal
-        title="定级确认"
+        title={
+          <Space size={8} align="center" wrap>
+            <span>{ratingCtxForModal?.mode === 'update' ? '更新定级确认' : '定级确认'}</span>
+            <ArchitectureVersionTag
+              versionNo={ratingCtxForModal?.activeArchitectureRecord?.versionNo}
+              style={{ margin: 0 }}
+            />
+            <RiskLevelVersionTag
+              versionNo={ratingCtxForModal?.activeRiskLevelRecord?.versionNo}
+              style={{ margin: 0 }}
+            />
+          </Space>
+        }
         className="dq-rating-confirm-modal"
         open={ratingModalOpen}
         width={1400}
@@ -929,6 +1223,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           setRatingPreview(null);
           setRatingPendingPoints(null);
           setRatingWasDataRef(false);
+          setRatingCtxForModal(null);
         }}
         footer={
           <Space>
@@ -938,22 +1233,29 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
                 setRatingPreview(null);
                 setRatingPendingPoints(null);
                 setRatingWasDataRef(false);
+                setRatingCtxForModal(null);
               }}
             >
               取消
             </Button>
             <Button type="primary" disabled={!ratingPreview?.ok} onClick={handleConfirmRating}>
-              确认定级
+              {ratingCtxForModal?.mode === 'update' ? '确认更新' : '确认定级'}
             </Button>
           </Space>
         }
         destroyOnClose
       >
-        {ratingPreview ? (
+        {ratingPreview && ratingCtxForModal ? (
           <SurveyRatingPreviewPanel
             preview={ratingPreview}
-            level1Weights={level1Weights}
-            indicators={indicators}
+            level1Weights={ratingCtxForModal.level1Weights}
+            indicators={ratingCtxForModal.indicators}
+            ratingMode={ratingCtxForModal.mode}
+            activeArchitectureRecord={ratingCtxForModal.activeArchitectureRecord}
+            activePreventionRecord={ratingCtxForModal.activePreventionRecord}
+            activeRiskLevelRecord={ratingCtxForModal.activeRiskLevelRecord}
+            currentRatingArchitectureRecord={ratingArchitectureRecord}
+            currentRiskLevelRecord={activeRiskLevelRecord}
             pointLabel={
               ratingPreview.ratedRow
                 ? `${ratingPreview.ratedRow.name}（${ratingPreview.ratedRow.pointCode}）· ${resolveSurveyAt(ratingPreview.ratedRow)}`
@@ -961,18 +1263,14 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
             }
           />
         ) : null}
-        <Text type="secondary" className="dq-rating-confirm-footer-hint">
-          确认后将写入本条定级结果，并设为该易涝点的「数据引用」版本。
-          {ratingWasDataRef
-            ? ' 当前已是数据引用，确认后将把本份普查的附录 B（内涝基本信息）同步推送到同易涝点的其他普查记录。'
-            : ' 首次定级后将作为数据引用来源。'}
-        </Text>
       </Modal>
 
       <SurveyTablePreviewModal
+        key={tablePreviewArchitectureRecord?.id ?? 'none'}
         open={tablePreviewOpen}
         onClose={() => setTablePreviewOpen(false)}
-        indicators={indicators}
+        indicators={tablePreviewIndicators}
+        architectureRecord={tablePreviewArchitectureRecord}
       />
     </div>
   );

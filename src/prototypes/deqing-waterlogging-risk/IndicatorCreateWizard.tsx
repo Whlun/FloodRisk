@@ -471,13 +471,13 @@ export const IndicatorCreateWizard: React.FC<Props> = ({
               const suggested = suggestWeightForNewIndicator(draft, indicators);
               return (
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                  建议在指标架构图中为本指标设置权重约 <strong>{suggested.toFixed(3)}</strong>（与当前同级启用指标均分，合计须为
+                  建议在指标评价管理中为本指标设置权重约 <strong>{suggested.toFixed(3)}</strong>（与当前同级启用指标均分，合计须为
                   1.000）。
                 </Text>
               );
             })()}
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              保存后指标默认<strong>停用</strong>，请在指标架构图中配置同级权重 ω 并启用，方可参与试算与定级。
+              保存后指标默认<strong>停用</strong>，请在指标评价管理中配置同级权重 ω 并启用，方可参与试算与定级。
             </Text>
           </>
         ) : null}

@@ -21,8 +21,16 @@
 
 开发预览地址形态：`/prototypes/韶山高新区水环境综合整治一张图/{子路径}`。仅访问壳根路径时，会 `replace` 为默认子路径 `zonghe`。
 
+示例：
+
+- `/prototypes/韶山高新区水环境综合整治一张图/zonghe` — 综合态势（默认）
+- `/prototypes/韶山高新区水环境综合整治一张图/sheshi` — 设施管理
+
+与湖州壳一致，目录内提供 `index.html`（Vite 物理入口，供构建与直连 `index.html` 场景）；子路径预览仍走虚拟 HTML + Preview Host。
+
 ## 技术说明
 
 - **`ShellAlarmRailBridgeProvider`** 包住壳内主体（见 **`index.tsx`**），仅供 **`ShellInner`** 铃铛与 **`zonghe-taishi`** 注册回调配对。
 - 子业务页 **`import` 静态挂载**（**不使用** `React.lazy`）：Axhub **单入口 IIFE** 构建不支持分包动态 `import`，否则会触发 Rollup「`output.format: iife` 不支持代码分割」。代价为首屏 bundle 较大。
 - **依赖子原型 `index.tsx` 不再自挂载 `createRoot`**，由统一预览壳挂载，避免在壳中二次抢占根节点。
+- **域名访问登录保护**：未登录访问子路径（如 `zonghe`）时整页跳转 `/login`；开发态源码模块（`index.tsx` 等）在登录中间件中放行，避免 Preview Host 动态 `import` 被重定向为 HTML 导致白屏（与湖州壳 `jianguan` 行为一致）。

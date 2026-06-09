@@ -32,6 +32,7 @@ const values2026 = {
 
 function buildRecord(
   id: string,
+  versionNo: string,
   configAt: string,
   label: string,
   activeForRating: boolean,
@@ -40,6 +41,7 @@ function buildRecord(
 ): RegionalPreventionRecord {
   return {
     id,
+    versionNo,
     configAt,
     label,
     activeForRating,
@@ -67,6 +69,7 @@ function buildRecord(
 export const initialRegionalPreventionRecords: RegionalPreventionRecord[] = [
   buildRecord(
     'rp-2025',
+    'P001',
     '2025-12-01 10:00:00',
     '2025 年度普查',
     false,
@@ -75,6 +78,7 @@ export const initialRegionalPreventionRecords: RegionalPreventionRecord[] = [
   ),
   buildRecord(
     'rp-2026',
+    'P002',
     '2026-05-19 09:00:00',
     '2026 年上半年更新',
     true,

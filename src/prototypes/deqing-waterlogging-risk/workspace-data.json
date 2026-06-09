@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "updatedAt": "2026-06-04T05:30:19.053Z",
+  "version": 2,
+  "updatedAt": "2026-06-09T06:41:35.754Z",
   "indicators": [
     {
       "id": "ind-1780536994067",
@@ -1938,6 +1938,58 @@
       "builtin": true
     }
   ],
+  "riskLevelRecords": [
+    {
+      "id": "rlvl-migrate-demo",
+      "versionNo": "L001",
+      "configAt": "2026-06-09 01:35:32",
+      "label": "导则预置三档（表 5.6.1）",
+      "activeForRating": true,
+      "config": {
+        "levels": [
+          {
+            "id": "lvl-low",
+            "levelCode": "LOW",
+            "levelName": "低风险",
+            "color": "#52c41a",
+            "scoreMin": 0,
+            "scoreMax": 0.3,
+            "sort": 1,
+            "description": "内涝风险评估分数 V<0.3",
+            "enabled": true,
+            "builtin": true
+          },
+          {
+            "id": "lvl-med",
+            "levelCode": "MEDIUM",
+            "levelName": "中风险",
+            "color": "#fa8c16",
+            "scoreMin": 0.3,
+            "scoreMax": 0.6,
+            "sort": 2,
+            "description": "0.3≤V<0.6",
+            "enabled": true,
+            "builtin": true
+          },
+          {
+            "id": "lvl-high",
+            "levelCode": "HIGH",
+            "levelName": "高风险",
+            "color": "#f5222d",
+            "scoreMin": 0.6,
+            "scoreMax": 1.01,
+            "sort": 3,
+            "description": "V≥0.6",
+            "enabled": true,
+            "builtin": true
+          }
+        ],
+        "updatedAt": "2026-06-09 01:35:32",
+        "updatedBy": "系统迁移",
+        "status": "completed"
+      }
+    }
+  ],
   "points": [
     {
       "id": "pt-001",
@@ -2389,6 +2441,88 @@
   ],
   "regionalPreventionRecords": [
     {
+      "id": "rp-1780975384548",
+      "configAt": "2026-06-09 11:22:48",
+      "activeForRating": true,
+      "config": {
+        "indicatorValues": {
+          "PR_U001": "已编制完善三级应急预案，并形成针对易 涝积水点的单点应急预案",
+          "PR_U002": "暂无内涝预警相关设施",
+          "PR_U003": "内涝信息发布存在延迟",
+          "PR_U004": "应急物资储备充足",
+          "HZ_U006": 40,
+          "HZ_U007": 100,
+          "HZ_U008": 90
+        },
+        "assessmentStatus": "completed",
+        "assessmentPayload": {
+          "items": {
+            "ind-1780540231675": {
+              "ruleId": "new-e0"
+            },
+            "ind-1780540322863": {
+              "ruleId": "rule-1780540322863-2"
+            },
+            "ind-1780540383394": {
+              "ruleId": "new-e1"
+            },
+            "ind-1780540415202": {
+              "ruleId": "new-e0"
+            },
+            "ind-1780540500932": {
+              "ruleId": "new-n1"
+            },
+            "ind-1780540578912": {
+              "ruleId": "new-b0"
+            },
+            "ind-1780540599612": {
+              "ruleId": "new-b0"
+            }
+          },
+          "hasAssessmentSheet": false,
+          "hasSitePhotos": false,
+          "hasElevationMap": false,
+          "assessedAt": "2026-06-09 11:22:48"
+        },
+        "updatedAt": "2026-06-09 11:22:48",
+        "updatedBy": ""
+      },
+      "architectureRefId": "arch-1780969116424",
+      "architectureRefAt": "2026-06-09 09:38:12",
+      "architectureVersionNo": "V002"
+    },
+    {
+      "id": "rp-1780973871533",
+      "configAt": "2026-06-09 10:57:33",
+      "activeForRating": false,
+      "config": {
+        "indicatorValues": {
+          "HZ_U006": 47,
+          "HZ_U007": 100
+        },
+        "assessmentStatus": "completed",
+        "assessmentPayload": {
+          "items": {
+            "ind-1780540500932": {
+              "ruleId": "new-n1"
+            },
+            "ind-1780540578912": {
+              "ruleId": "new-b0"
+            }
+          },
+          "hasAssessmentSheet": false,
+          "hasSitePhotos": false,
+          "hasElevationMap": false,
+          "assessedAt": "2026-06-09 10:57:33"
+        },
+        "updatedAt": "2026-06-09 10:57:33",
+        "updatedBy": ""
+      },
+      "architectureRefId": "arch-migrate-1780968932125",
+      "architectureRefAt": "2026-06-09 01:35:32",
+      "architectureVersionNo": "V001"
+    },
+    {
       "id": "rp-1780550819119",
       "configAt": "2026-06-04 13:26:42",
       "activeForRating": true,
@@ -2434,7 +2568,10 @@
         },
         "updatedAt": "2026-06-04 13:26:42",
         "updatedBy": ""
-      }
+      },
+      "architectureRefId": "arch-migrate-1780968932125",
+      "architectureRefAt": "2026-06-09 01:35:32",
+      "architectureVersionNo": "V001"
     }
   ],
   "riskChangeLogs": [
@@ -2487,13 +2624,262 @@
       "changeType": "initial"
     }
   ],
-  "level1Weights": {
-    "HAZARD": 0.258,
-    "FORMATION": 0.511,
-    "BEARING": 0.08,
-    "PREVENTION": 0.151
-  },
-  "weightSource": "manual",
+  "architectureRecords": [
+    {
+      "id": "arch-1780969116424",
+      "configAt": "2026-06-09 09:38:12",
+      "activeForRating": false,
+      "config": {
+        "level1Weights": {
+          "HAZARD": 0.258,
+          "FORMATION": 0.511,
+          "BEARING": 0.08,
+          "PREVENTION": 0.151
+        },
+        "indicatorStates": {
+          "ind-1780536994067": {
+            "weight": 0.164,
+            "enabled": true
+          },
+          "ind-1780537022804": {
+            "weight": 0.539,
+            "enabled": true
+          },
+          "ind-1780537043922": {
+            "weight": 0.297,
+            "enabled": true
+          },
+          "ind-1780537109294": {
+            "weight": 0.08,
+            "enabled": true
+          },
+          "ind-1780537229122": {
+            "weight": 0.476,
+            "enabled": true
+          },
+          "ind-1780537479788": {
+            "weight": 0.176,
+            "enabled": true
+          },
+          "ind-1780537530980": {
+            "weight": 0.268,
+            "enabled": true
+          },
+          "ind-1780537642918": {
+            "weight": 0.122,
+            "enabled": true
+          },
+          "ind-1780537696092": {
+            "weight": 0.23,
+            "enabled": true
+          },
+          "ind-1780537736372": {
+            "weight": 0.648,
+            "enabled": true
+          },
+          "ind-1780538618345": {
+            "weight": 0.128,
+            "enabled": true
+          },
+          "ind-1780538671235": {
+            "weight": 0.532,
+            "enabled": true
+          },
+          "ind-1780538837551": {
+            "weight": 0.083,
+            "enabled": true
+          },
+          "ind-1780538889909": {
+            "weight": 0.257,
+            "enabled": true
+          },
+          "ind-1780538961996": {
+            "weight": 0.077,
+            "enabled": true
+          },
+          "ind-1780539100805": {
+            "weight": 0.615,
+            "enabled": true
+          },
+          "ind-1780539684167": {
+            "weight": 0.308,
+            "enabled": true
+          },
+          "ind-1780539765192": {
+            "weight": 0.243,
+            "enabled": true
+          },
+          "ind-1780539828437": {
+            "weight": 0.088,
+            "enabled": true
+          },
+          "ind-1780540164302": {
+            "weight": 0.669,
+            "enabled": true
+          },
+          "ind-1780540231675": {
+            "weight": 0.207,
+            "enabled": true
+          },
+          "ind-1780540322863": {
+            "weight": 0.362,
+            "enabled": true
+          },
+          "ind-1780540383394": {
+            "weight": 0.125,
+            "enabled": true
+          },
+          "ind-1780540415202": {
+            "weight": 0.148,
+            "enabled": true
+          },
+          "ind-1780540500932": {
+            "weight": 0.042,
+            "enabled": true
+          },
+          "ind-1780540578912": {
+            "weight": 0.09,
+            "enabled": true
+          },
+          "ind-1780540599612": {
+            "weight": 0.026,
+            "enabled": true
+          }
+        },
+        "updatedAt": "2026-06-09 09:38:12",
+        "status": "completed"
+      },
+      "versionNo": "V002"
+    },
+    {
+      "id": "arch-migrate-1780968932125",
+      "configAt": "2026-06-09 01:35:32",
+      "label": "自旧版工作区迁移",
+      "activeForRating": true,
+      "config": {
+        "level1Weights": {
+          "HAZARD": 0.258,
+          "FORMATION": 0.511,
+          "BEARING": 0.08,
+          "PREVENTION": 0.151
+        },
+        "indicatorStates": {
+          "ind-1780536994067": {
+            "weight": 1,
+            "enabled": true
+          },
+          "ind-1780537022804": {
+            "weight": 0.7667140825035562,
+            "enabled": false
+          },
+          "ind-1780537043922": {
+            "weight": 0.297,
+            "enabled": false
+          },
+          "ind-1780537109294": {
+            "weight": 1,
+            "enabled": true
+          },
+          "ind-1780537229122": {
+            "weight": 0.476,
+            "enabled": false
+          },
+          "ind-1780537479788": {
+            "weight": 0.176,
+            "enabled": false
+          },
+          "ind-1780537530980": {
+            "weight": 0.268,
+            "enabled": false
+          },
+          "ind-1780537642918": {
+            "weight": 0.3465909090909091,
+            "enabled": true
+          },
+          "ind-1780537696092": {
+            "weight": 0.6534090909090909,
+            "enabled": true
+          },
+          "ind-1780537736372": {
+            "weight": 0.648,
+            "enabled": false
+          },
+          "ind-1780538618345": {
+            "weight": 0.19393939393939394,
+            "enabled": true
+          },
+          "ind-1780538671235": {
+            "weight": 0.806060606060606,
+            "enabled": true
+          },
+          "ind-1780538837551": {
+            "weight": 0.083,
+            "enabled": false
+          },
+          "ind-1780538889909": {
+            "weight": 0.257,
+            "enabled": false
+          },
+          "ind-1780538961996": {
+            "weight": 1,
+            "enabled": true
+          },
+          "ind-1780539100805": {
+            "weight": 0.615,
+            "enabled": false
+          },
+          "ind-1780539684167": {
+            "weight": 0.308,
+            "enabled": false
+          },
+          "ind-1780539765192": {
+            "weight": 1,
+            "enabled": true
+          },
+          "ind-1780539828437": {
+            "weight": 0.26586102719033233,
+            "enabled": false
+          },
+          "ind-1780540164302": {
+            "weight": 0.669,
+            "enabled": false
+          },
+          "ind-1780540231675": {
+            "weight": 0.28473177441540576,
+            "enabled": false
+          },
+          "ind-1780540322863": {
+            "weight": 0.49793672627235214,
+            "enabled": false
+          },
+          "ind-1780540383394": {
+            "weight": 0.125,
+            "enabled": false
+          },
+          "ind-1780540415202": {
+            "weight": 0.148,
+            "enabled": false
+          },
+          "ind-1780540500932": {
+            "weight": 0.31818181818181823,
+            "enabled": true
+          },
+          "ind-1780540578912": {
+            "weight": 0.6818181818181818,
+            "enabled": true
+          },
+          "ind-1780540599612": {
+            "weight": 0.16455696202531644,
+            "enabled": false
+          }
+        },
+        "updatedAt": "2026-06-09 01:35:32",
+        "updatedBy": "系统迁移",
+        "status": "completed"
+      },
+      "versionNo": "V001"
+    }
+  ],
   "indicatorMeta": {
     "userEmptyMode": true,
     "userEmptyIntentional": true,
