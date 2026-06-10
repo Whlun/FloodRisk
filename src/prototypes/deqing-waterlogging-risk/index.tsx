@@ -5,7 +5,6 @@
  * 依据《重庆市城市内涝风险评估技术导则》指标体系法（附录 E/F、表 5.6.1）。
  */
 import './style.css';
-import '../shared/ant-table-text-no-overlap.css';
 import React, { useMemo, useState } from 'react';
 import { Alert, Layout, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';

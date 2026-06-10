@@ -5,7 +5,6 @@
  */
 import '../deqing-waterlogging-risk/style.css';
 import './style.css';
-import '../shared/ant-table-text-no-overlap.css';
 import React from 'react';
 import { Layout } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
