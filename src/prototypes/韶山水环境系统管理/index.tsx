@@ -10,6 +10,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppConfigProvider from '../../common/AppConfigProvider';
+import { useTablePagination } from '../../common/useTablePagination';
 import dayjs from 'dayjs';
 import * as echarts from 'echarts/core';
 import { LineChart, BarChart, PieChart, RadarChart } from 'echarts/charts';
@@ -1581,6 +1582,14 @@ const ReportCenterView: React.FC<{ view: ViewState }> = ({ view }) => {
     });
   }, [meta.rows, kw, region, view, qualityTreeSelectedKeys, reportTreeSelectedKeys]);
 
+  const reportTablePagination = useTablePagination({
+    defaultPageSize: 24,
+    pageSizeOptions: ['12', '24', '48', '96'],
+    showSizeChanger: true,
+    showTotal: t => `共 ${t} 条`,
+    resetDeps: [kw, region, view, qualityTreeSelectedKeys, reportTreeSelectedKeys],
+  });
+
   /** 报表统一仅支持 Excel 导出（按当前筛选结果导出） */
   const exportExcel = () => {
     const rows = filteredRows as unknown as Record<string, unknown>[];
@@ -2071,12 +2080,7 @@ const ReportCenterView: React.FC<{ view: ViewState }> = ({ view }) => {
                     }
                     columns={tableColumns}
                     dataSource={filteredRows}
-                    pagination={{
-                      pageSize: 24,
-                      pageSizeOptions: ['12', '24', '48', '96'],
-                      showSizeChanger: true,
-                      showTotal: t => `共 ${t} 条`
-                    }}
+                    pagination={reportTablePagination}
                   />
                 </div>
               </>

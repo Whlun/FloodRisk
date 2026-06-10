@@ -228,7 +228,7 @@ export interface IndicatorSurveyConfig {
   auxiliaryCondition?: IndicatorAuxiliaryConditionField;
 }
 
-/** 用户新增指标「保存为预置」后的初始化快照，用于默认/修正对比 */
+/** 指标「设置为默认值」后的初始化快照，用于默认/修正对比（新增与预置指标均可） */
 export interface RiskIndicatorInitSnapshot {
   code: string;
   name: string;
@@ -265,7 +265,7 @@ export interface RiskIndicatorRow {
   enabled: boolean;
   updatedAt: string;
   survey: IndicatorSurveyConfig;
-  /** 用户新增指标：保存为预置后的初始化基准（与内置导则预置区分） */
+  /** 设置为默认值后的初始化基准；优先于导则预置参与对比 */
   initSnapshot?: RiskIndicatorInitSnapshot;
 }
 

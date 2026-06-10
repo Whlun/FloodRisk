@@ -495,7 +495,7 @@ export const RiskIndexPage: React.FC = () => {
               <div className="eco-stat-split-table-wrap dq-risk-index-point-table-wrap">
                 <Table
                   size="small"
-                  pagination={{ pageSize: 6, showSizeChanger: false, hideOnSinglePage: true }}
+                  pagination={{ defaultPageSize: 6, showSizeChanger: false, hideOnSinglePage: true }}
                   columns={pointColumns}
                   dataSource={pointTableData}
                   locale={{
@@ -546,7 +546,7 @@ export const RiskIndexPage: React.FC = () => {
               <div className="eco-stat-split-table-wrap dq-risk-index-level-log-wrap">
                 <Table
                   size="small"
-                  pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
+                  pagination={{ defaultPageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
                   columns={levelChangeColumns}
                   dataSource={levelChangeTableData}
                   locale={{

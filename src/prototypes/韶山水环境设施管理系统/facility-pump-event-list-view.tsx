@@ -584,7 +584,7 @@ export const PumpEventListView: React.FC<{
             size="middle"
             columns={columns}
             dataSource={filteredData}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
             scroll={{ x: 2360 }}
           />
         </div>

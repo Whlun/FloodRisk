@@ -386,7 +386,7 @@ export const PumpEventStatsView: React.FC<{ pumpSource?: PumpStationRecord[] }> 
         </Row>
 
         <Card size="small" title="按泵站汇总">
-          <Table size="small" rowKey="key" pagination={{ pageSize: 8, showTotal: n => `共 ${n} 座` }} columns={pumpColumns} dataSource={pumpStatsRows} locale={{ emptyText: '无数据' }} />
+          <Table size="small" rowKey="key" pagination={{ defaultPageSize: 8, showTotal: n => `共 ${n} 座` }} columns={pumpColumns} dataSource={pumpStatsRows} locale={{ emptyText: '无数据' }} />
         </Card>
         </div>
       </Card>

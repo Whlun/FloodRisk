@@ -657,9 +657,15 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       title: '评价版本',
       width: 96,
       render: (_, r) => {
+        const arch = resolveSurveyArchitectureRecord(
+          architectureRecords,
+          r.surveyArchitectureRefId,
+          ratingArchitectureRecord,
+        );
         const versionNo =
           r.surveyArchitectureVersionNo ??
-          architectureRecords.find(a => a.id === r.surveyArchitectureRefId)?.versionNo;
+          arch?.versionNo ??
+          r.ratingResult?.architectureVersionNo;
         return <ArchitectureVersionTag versionNo={versionNo} />;
       },
     },
@@ -994,7 +1000,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           size="small"
           columns={columns}
           dataSource={filtered}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
+          pagination={{ defaultPageSize: 8, showSizeChanger: false }}
           scroll={{ x: 1200 }}
         />
       </Card>

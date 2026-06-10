@@ -1182,7 +1182,7 @@ const ProjectArchive: React.FC<{
             size="small"
             columns={projectTableColumns}
             dataSource={filteredData}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
             scroll={{ x: projectTableScrollX }}
             rowKey="key"
           />
@@ -1746,7 +1746,7 @@ const RiverSection: React.FC<{
             size="small"
             columns={riverTableColumns}
             dataSource={filteredData}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
             scroll={{ x: riverTableScrollX }}
             rowKey="key"
           />
@@ -2239,7 +2239,7 @@ const TaskManage: React.FC<{
           <Table
             columns={taskTableColumns}
             dataSource={filteredData}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
             scroll={{ x: taskTableScrollX }}
             rowKey="key"
           />
@@ -2886,7 +2886,7 @@ const TaskStatistics: React.FC<{ tasks: RiverChiefTaskRow[] }> = ({ tasks }) => 
           <Table
             size="small"
             rowKey="key"
-            pagination={{ pageSize: 8, showTotal: n => `共 ${n} 家` }}
+            pagination={{ defaultPageSize: 8, showTotal: n => `共 ${n} 家` }}
             columns={assigneeColumns}
             dataSource={byAssigneeRows}
             locale={{ emptyText: '无数据' }}
@@ -3417,7 +3417,7 @@ const ProjectStatistics: React.FC<{ projects: EcoProjectArchiveRow[] }> = ({ pro
           <Table
             size="small"
             rowKey="key"
-            pagination={{ pageSize: 8, showTotal: n => `共 ${n} 处` }}
+            pagination={{ defaultPageSize: 8, showTotal: n => `共 ${n} 处` }}
             columns={locationColumns}
             dataSource={byLocationRows}
             locale={{ emptyText: '无数据' }}
@@ -4140,7 +4140,7 @@ const WaterBodyInfoManage: React.FC<{
                 rowKey="key"
                 size="small"
                 scroll={{ x: riverTableScrollX }}
-                pagination={{ pageSize: 10, showTotal: n => `共 ${n} 条` }}
+                pagination={{ defaultPageSize: 10, showTotal: n => `共 ${n} 条` }}
                 columns={riverCols}
                 dataSource={filteredRivers}
               />
@@ -4247,7 +4247,7 @@ const WaterBodyInfoManage: React.FC<{
                 rowKey="key"
                 size="small"
                 scroll={{ x: lakeTableScrollX }}
-                pagination={{ pageSize: 10, showTotal: n => `共 ${n} 条` }}
+                pagination={{ defaultPageSize: 10, showTotal: n => `共 ${n} 条` }}
                 columns={lakeCols}
                 dataSource={filteredLakes}
               />
@@ -4737,7 +4737,7 @@ const WaterBodyInfoManage: React.FC<{
                         dataSource={riverDetailLinkedSections}
                         pagination={
                           riverDetailLinkedSections.length > 8 ?
-                            { pageSize: 8, showTotal: n => `共 ${n} 段` }
+                            { defaultPageSize: 8, showTotal: n => `共 ${n} 段` }
                           : false
                         }
                         scroll={{ x: 1320 }}
@@ -5372,7 +5372,7 @@ const ChiefAreaPage: React.FC<ChiefAreaPageProps> = ({ areas, onAreasChange, cha
             rowKey="key"
             columns={columns}
             dataSource={filteredRows}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             scroll={{ x: 1220 }}
           />
         </div>
@@ -7239,7 +7239,7 @@ const PatrolRecord: React.FC<{
             columns={patrolColumns}
             dataSource={filteredPatrolData}
             rowKey="key"
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             scroll={{ x: 1650 }}
           />
         </div>
@@ -7647,7 +7647,7 @@ const WaterQuality: React.FC<{ sections: RiverSectionRow[] }> = ({ sections }) =
             columns={wqColumns}
             dataSource={filteredWqData}
             rowKey="key"
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             scroll={{ x: 2200 }}
           />
         </div>
@@ -8476,7 +8476,7 @@ const AffairsManage: React.FC<{
                 allAffairCols.filter(c => visibleAffairCols.includes(c.key) || c.key === 'operation'),
               ),
             }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={affairColumns.map(col => {
               if (col.key === 'handleStatus' && 'dataIndex' in col) {
                 return {
@@ -9842,7 +9842,7 @@ const ScoreStatistics: React.FC<{
             size="small"
             rowKey="key"
             scroll={{ x: comparePrev && scopeMode === 'single' ? 1100 : 900 }}
-            pagination={{ pageSize: 10, showTotal: n => `共 ${n} 人` }}
+            pagination={{ defaultPageSize: 10, showTotal: n => `共 ${n} 人` }}
             columns={rankColumns}
             dataSource={rankRows}
             locale={{ emptyText: '当前条件下暂无评价记录' }}
@@ -10289,7 +10289,7 @@ const ScoreManage: React.FC<{
             rowKey="key"
             size="small"
             scroll={{ x: 1200 }}
-            pagination={{ pageSize: 10, showTotal: n => `共 ${n} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: n => `共 ${n} 条` }}
             columns={manualTableColumns}
             dataSource={manualRowsFiltered}
             locale={{ emptyText: '当前周期暂无评价记录，请点击「新增」' }}
@@ -11001,7 +11001,7 @@ const RiverChiefContactsPage: React.FC<{
             rowKey="id"
             size="small"
             scroll={{ x: contactTableScrollX }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={contactTableColumns}
             dataSource={filtered}
           />
@@ -11515,7 +11515,7 @@ const RiverChiefChangeRecordPage: React.FC<RiverChiefChangeRecordPageProps> = ({
             rowKey="key"
             size="small"
             scroll={{ x: changeTableScrollX }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={changeTableColumns}
             dataSource={filtered}
           />

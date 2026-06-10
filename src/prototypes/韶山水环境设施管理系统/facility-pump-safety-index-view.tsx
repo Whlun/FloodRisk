@@ -576,7 +576,7 @@ export const PumpSafetyIndexView: React.FC<{
         size="middle"
         columns={columns}
         dataSource={filteredData}
-        pagination={{ pageSize: 10 }}
+        pagination={{ defaultPageSize: 10 }}
         scroll={{ x: 1860 }}
       />
 

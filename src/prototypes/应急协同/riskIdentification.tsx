@@ -847,7 +847,7 @@ export const RiskEnterprisePage: React.FC<{
             rowKey="id"
             size="small"
             scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={columns}
             dataSource={filtered}
           />
@@ -1228,7 +1228,7 @@ export const EmergencySupplyPage: React.FC<{
             rowKey="id"
             size="small"
             scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={columns}
             dataSource={filtered}
           />
@@ -1623,7 +1623,7 @@ export const SocialSupplyPointPage: React.FC<{
             rowKey="id"
             size="small"
             scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={columns}
             dataSource={filtered}
           />
@@ -1681,7 +1681,7 @@ export const SocialSupplyPointPage: React.FC<{
                       rowKey="id"
                       size="small"
                       scroll={{ x: linkedSupplyScrollX }}
-                      pagination={linkedForDetail.length > 10 ? { pageSize: 10, showTotal: t => `共 ${t} 条` } : false}
+                      pagination={linkedForDetail.length > 10 ? { defaultPageSize: 10, showTotal: t => `共 ${t} 条` } : false}
                       dataSource={linkedForDetail}
                       columns={linkedEmergencySupplyColumns}
                     />
@@ -2021,7 +2021,7 @@ export const EmergencyPlanPage: React.FC<{
           </Row>
         </Form>
         <div className="facility-table-wrap">
-          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
+          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
         </div>
       </Card>
       <Modal title="预案详情" open={detailOpen} onCancel={() => { setDetailOpen(false); setDetail(null); }} footer={null} width={920} destroyOnClose styles={detailModalStyles}>
@@ -2377,7 +2377,7 @@ export const EmergencyTeamPage: React.FC<{
           </Row>
         </Form>
         <div className="facility-table-wrap">
-          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
+          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
         </div>
       </Card>
       <Modal title="队伍详情" open={detailOpen} onCancel={() => { setDetailOpen(false); setDetail(null); }} footer={null} width={920} destroyOnClose styles={detailModalStyles}>
@@ -2772,7 +2772,7 @@ export const ExpertPage: React.FC<{
           </Row>
         </Form>
         <div className="facility-table-wrap">
-          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
+          <Table rowKey="id" size="small" scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} columns={columns} dataSource={filtered} />
         </div>
       </Card>
       <Modal title="专家详情" open={detailOpen} onCancel={() => { setDetailOpen(false); setDetail(null); }} footer={null} width={720} destroyOnClose styles={detailModalStyles}>

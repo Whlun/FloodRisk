@@ -260,7 +260,9 @@ export const RiskLevelPage: React.FC<Props> = ({
       title: '版本编号',
       dataIndex: 'versionNo',
       width: 88,
-      render: (v: string) => <RiskLevelVersionTag versionNo={v || undefined} />,
+      render: (v: string) => (
+        <RiskLevelVersionTag variant="plain" versionNo={v || undefined} />
+      ),
     },
     {
       title: '批次说明',
@@ -478,7 +480,7 @@ export const RiskLevelPage: React.FC<Props> = ({
             size="small"
             columns={columns}
             dataSource={filtered}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
+            pagination={{ defaultPageSize: 8, showSizeChanger: false }}
             scroll={{ x: 1180 }}
           />
         )}

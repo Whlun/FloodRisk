@@ -112,7 +112,7 @@ export function RiverChannelReadonlyDetailContent({
                 rowKey="key"
                 size="small"
                 dataSource={linkedSections}
-                pagination={linkedSections.length > 8 ? { pageSize: 8, showTotal: n => `共 ${n} 段` } : false}
+                pagination={linkedSections.length > 8 ? { defaultPageSize: 8, showTotal: n => `共 ${n} 段` } : false}
                 scroll={{ x: 960 }}
                 columns={[
                   { title: '河段编码', dataIndex: 'sectionId', width: 220 },

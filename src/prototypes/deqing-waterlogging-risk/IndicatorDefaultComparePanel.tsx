@@ -30,6 +30,7 @@ export const IndicatorDefaultComparePanel: React.FC<Props> = ({
   const changedCount = countChangedFields(diffs);
   const isNewSource = getIndicatorSource(current, defaultIndicators) === 'new';
   const hasBaseline = Boolean(baseline);
+  const canSetAsDefault = Boolean(onSaveAsPreset) && (!hasBaseline || changedCount > 0);
 
   const columns: ColumnsType<IndicatorFieldDiff> = [
     {
@@ -71,13 +72,13 @@ export const IndicatorDefaultComparePanel: React.FC<Props> = ({
         <Alert
           type="info"
           showIcon
-          message="该指标为新增项，尚未保存初始化预置"
-          description="可将当前配置保存为预置，作为后续「默认与修正」对比的初始化基准。"
+          message="该指标为新增项，尚未设置初始化默认值"
+          description="可将当前配置设置为默认值，作为后续「默认与修正」对比的初始化基准。"
           style={{ marginBottom: 12 }}
           action={
-            onSaveAsPreset ? (
+            canSetAsDefault ? (
               <Button size="small" type="primary" onClick={onSaveAsPreset}>
-                保存为预置
+                设置为默认值
               </Button>
             ) : undefined
           }
@@ -93,9 +94,9 @@ export const IndicatorDefaultComparePanel: React.FC<Props> = ({
           style={{ marginBottom: 12 }}
           action={
             <Space size={8}>
-              {isNewSource && onSaveAsPreset ? (
-                <Button size="small" onClick={onSaveAsPreset}>
-                  更新预置
+              {canSetAsDefault ? (
+                <Button size="small" type="primary" onClick={onSaveAsPreset}>
+                  设置为默认值
                 </Button>
               ) : null}
               {onRestoreDefault ? (

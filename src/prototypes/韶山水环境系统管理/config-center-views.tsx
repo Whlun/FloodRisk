@@ -513,7 +513,7 @@ export const ConfigHydroReservoirView: React.FC = () => {
           scroll={{ x: 'max-content' }}
           dataSource={filtered}
           columns={tableColumns}
-          pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+          pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
         />
       </div>
 
@@ -1055,7 +1055,7 @@ export const ConfigHydroLeveeView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             dataSource={filtered}
             columns={tableColumns}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
 
@@ -1633,7 +1633,7 @@ export const ConfigRsView: React.FC = () => {
             dataSource={filtered}
             columns={tableColumns}
             scroll={{ x: 'max-content' }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
 
@@ -2034,7 +2034,7 @@ export const ConfigParkView: React.FC = () => {
           </Row>
         </div>
         <div className="facility-table-wrap">
-          <Table size="small" rowKey="id" scroll={{ x: 1180 }} dataSource={filtered} columns={columns} pagination={{ pageSize: 10 }} />
+          <Table size="small" rowKey="id" scroll={{ x: 1180 }} dataSource={filtered} columns={columns} pagination={{ defaultPageSize: 10 }} />
         </div>
 
         <Modal
@@ -2542,7 +2542,7 @@ export const ConfigUnitView: React.FC = () => {
         </Row>
       </div>
       <div className="facility-table-wrap">
-        <Table size="small" rowKey="id" scroll={{ x: 1100 }} dataSource={filtered} columns={columns} pagination={{ pageSize: 10 }} />
+        <Table size="small" rowKey="id" scroll={{ x: 1100 }} dataSource={filtered} columns={columns} pagination={{ defaultPageSize: 10 }} />
       </div>
 
       <Modal

@@ -164,7 +164,7 @@ export function EmgSocialSupplyPointReadonlyMapDetailContent({ id, showLocationM
                 rowKey="id"
                 size="small"
                 scroll={{ x: scrollX }}
-                pagination={linkedForDetail.length > 10 ? { pageSize: 10, showTotal: t => `共 ${t} 条` } : false}
+                pagination={linkedForDetail.length > 10 ? { defaultPageSize: 10, showTotal: t => `共 ${t} 条` } : false}
                 dataSource={linkedForDetail}
                 columns={columns}
               />

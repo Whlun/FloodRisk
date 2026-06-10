@@ -62,7 +62,7 @@ export const AlertDetailDrawer: React.FC<Props> = ({ open, registryId, alerts, o
         size="small"
         columns={columns}
         dataSource={rows}
-        pagination={{ pageSize: 10, showSizeChanger: false }}
+        pagination={{ defaultPageSize: 10, showSizeChanger: false }}
         locale={{ emptyText: '该积水点暂无预警记录' }}
       />
     </Drawer>

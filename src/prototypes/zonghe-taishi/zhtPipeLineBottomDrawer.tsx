@@ -331,7 +331,7 @@ export const ZhtPipeLineBottomDrawer: React.FC<ZhtPipeLineBottomDrawerProps> = (
               rowKey="nodeId"
               columns={nodeTableColumns}
               dataSource={filteredNodeRows}
-              pagination={{ pageSize: 6 }}
+              pagination={{ defaultPageSize: 6 }}
               scroll={{ x: nodeTableScrollX, y: tableScrollY }}
               locale={{ emptyText: '暂无符合条件的管点数据' }}
             />
@@ -341,7 +341,7 @@ export const ZhtPipeLineBottomDrawer: React.FC<ZhtPipeLineBottomDrawerProps> = (
               rowKey="lineId"
               columns={lineTableColumns}
               dataSource={filteredLineRows}
-              pagination={{ pageSize: 6 }}
+              pagination={{ defaultPageSize: 6 }}
               scroll={{ x: lineTableScrollX, y: tableScrollY }}
               locale={{ emptyText: '暂无符合条件的管线数据' }}
             />

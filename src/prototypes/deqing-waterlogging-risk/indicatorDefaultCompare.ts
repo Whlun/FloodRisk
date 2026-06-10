@@ -61,7 +61,21 @@ export const INDICATOR_SOURCE_LABEL: Record<IndicatorSourceKind, string> = {
   new: '新增',
 };
 
-/** 对比与恢复用的初始化基准：内置指标为导则预置，用户新增为 initSnapshot */
+export type IndicatorDataStatus = 'default' | 'corrected' | 'manual';
+
+export const INDICATOR_DATA_STATUS_LABEL: Record<IndicatorDataStatus, string> = {
+  default: '默认',
+  corrected: '修正',
+  manual: '手工',
+};
+
+export const INDICATOR_DATA_STATUS_COLOR: Record<IndicatorDataStatus, string | undefined> = {
+  default: undefined,
+  corrected: 'orange',
+  manual: 'blue',
+};
+
+/** 对比与恢复用的初始化快照；写入后优先于导则预置作为对比基准 */
 export function createInitSnapshot(row: RiskIndicatorRow): RiskIndicatorInitSnapshot {
   return {
     code: row.code,
@@ -93,16 +107,22 @@ export function rowFromInitSnapshot(
   };
 }
 
+/** 导则预置种子基准（不受本地 initSnapshot 影响） */
+export function getGuidelineBaseline(
+  current: RiskIndicatorRow,
+  defaults: RiskIndicatorRow[],
+): RiskIndicatorRow | undefined {
+  return getBaselineIndicator(current, defaults);
+}
+
 export function getCompareBaseline(
   current: RiskIndicatorRow,
   defaults: RiskIndicatorRow[],
 ): RiskIndicatorRow | undefined {
-  const builtin = getBaselineIndicator(current, defaults);
-  if (builtin) return builtin;
   if (current.initSnapshot) {
     return rowFromInitSnapshot(current, current.initSnapshot);
   }
-  return undefined;
+  return getGuidelineBaseline(current, defaults);
 }
 
 export function getIndicatorSource(
@@ -120,6 +140,27 @@ export function isIndicatorDataCorrected(
   const baseline = getCompareBaseline(current, defaults);
   if (!baseline) return false;
   return isIndicatorModified(current, baseline);
+}
+
+/**
+ * 列表「数据状态」三态：
+ * - 手工：用户新增指标，尚未「设置为默认值」
+ * - 修正：相对初始化基准已调整
+ * - 默认：已与初始化基准一致（含新增指标设置默认值后）
+ */
+export function getIndicatorDataStatus(
+  current: RiskIndicatorRow,
+  defaults: RiskIndicatorRow[],
+): IndicatorDataStatus {
+  const isNew = getIndicatorSource(current, defaults) === 'new';
+  const baseline = getCompareBaseline(current, defaults);
+  if (isNew && !baseline) {
+    return 'manual';
+  }
+  if (isIndicatorDataCorrected(current, defaults)) {
+    return 'corrected';
+  }
+  return 'default';
 }
 
 /** 是否与初始化默认值存在差异 */

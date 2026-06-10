@@ -1160,7 +1160,7 @@ export const EventReviewPage: React.FC<EventReviewPageProps> = ({
             rowKey="id"
             size="small"
             scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={columns}
             dataSource={filtered}
           />

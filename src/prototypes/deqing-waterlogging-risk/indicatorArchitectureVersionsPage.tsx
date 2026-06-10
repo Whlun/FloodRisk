@@ -372,7 +372,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
       title: '版本编号',
       dataIndex: 'versionNo',
       width: 88,
-      render: (v: string) => <ArchitectureVersionTag versionNo={v || undefined} />,
+      render: (v: string) => (
+        <ArchitectureVersionTag variant="plain" versionNo={v || undefined} />
+      ),
     },
     {
       title: '批次说明',
@@ -621,7 +623,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
             size="small"
             columns={columns}
             dataSource={filtered}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
+            pagination={{ defaultPageSize: 8, showSizeChanger: false }}
             scroll={{ x: 1240 }}
           />
         )}

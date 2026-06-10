@@ -462,7 +462,7 @@ export const ConfigHydroWaterGateView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             dataSource={filtered}
             columns={tableColumns}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
 
@@ -915,7 +915,7 @@ export const ConfigHydroSluiceView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             dataSource={filtered}
             columns={tableColumns}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
 
@@ -1355,7 +1355,7 @@ export const ConfigHydroWeirView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             dataSource={filtered}
             columns={tableColumns}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
         <Modal styles={formModalStyles} wrapClassName={CONFIG_CENTER_MODAL_WRAP_CLASS} title={modal.mode === 'create' ? '新增堰坝' : modal.mode === 'detail' ? '堰坝详情' : '编辑堰坝'} open={modal.open} onCancel={closeModal} width={1000} destroyOnClose
@@ -1717,7 +1717,7 @@ export const ConfigHydroPolderView: React.FC = () => {
           </Row>
         </div>
         <div className="facility-table-wrap">
-          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} />
+          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} />
         </div>
         <Modal styles={formModalStyles} wrapClassName={CONFIG_CENTER_MODAL_WRAP_CLASS} title={modal.mode === 'create' ? '新增圩区' : modal.mode === 'detail' ? '圩区详情' : '编辑圩区'} open={modal.open} onCancel={closeModal} width={1000} destroyOnClose
           footer={modal.mode === 'detail' ? null : <Space>{modal.mode === 'edit' && <Popconfirm title="确认删除该条记录？" onConfirm={handleDelete}><Button danger>删除</Button></Popconfirm>}<Button onClick={closeModal}>取消</Button><Button type="primary" onClick={submit}>保存</Button></Space>}
@@ -2100,7 +2100,7 @@ export const ConfigHydroHillpondView: React.FC = () => {
           </Row>
         </div>
         <div className="facility-table-wrap">
-          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} />
+          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} />
         </div>
         <Modal styles={formModalStyles} wrapClassName={CONFIG_CENTER_MODAL_WRAP_CLASS} title={modal.mode === 'create' ? '新增山塘' : modal.mode === 'detail' ? '山塘详情' : '编辑山塘'} open={modal.open} onCancel={closeModal} width={1000} destroyOnClose
           footer={modal.mode === 'detail' ? null : <Space>{modal.mode === 'edit' && <Popconfirm title="确认删除该条记录？" onConfirm={handleDelete}><Button danger>删除</Button></Popconfirm>}<Button onClick={closeModal}>取消</Button><Button type="primary" onClick={submit}>保存</Button></Space>}
@@ -2461,7 +2461,7 @@ export const ConfigHydroRiverView: React.FC = () => {
           </Row>
         </div>
         <div className="facility-table-wrap">
-          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} />
+          <Table size="small" rowKey="id" scroll={{ x: 'max-content' }} dataSource={filtered} columns={tableColumns} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} />
         </div>
         <Modal styles={formModalStyles} wrapClassName={CONFIG_CENTER_MODAL_WRAP_CLASS} title={modal.mode === 'create' ? '新增河流' : modal.mode === 'detail' ? '河流详情' : '编辑河流'} open={modal.open} onCancel={closeModal} width={1000} destroyOnClose
           footer={modal.mode === 'detail' ? null : <Space>{modal.mode === 'edit' && <Popconfirm title="确认删除该条记录？" onConfirm={handleDelete}><Button danger>删除</Button></Popconfirm>}<Button onClick={closeModal}>取消</Button><Button type="primary" onClick={submit}>保存</Button></Space>}

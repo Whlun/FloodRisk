@@ -106,7 +106,7 @@ export const MatterListPage: React.FC<MatterListPageProps> = ({
           size="small"
           rowKey="key"
           dataSource={rows}
-          pagination={{ total: config.caseCount, pageSize: 10, showTotal: t => `共 ${t} 条` }}
+          pagination={{ total: config.caseCount, defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           columns={[
             ...config.columns.map(col => ({
               title: col.title,

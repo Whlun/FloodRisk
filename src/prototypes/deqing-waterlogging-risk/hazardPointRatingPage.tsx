@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTablePagination } from '../../common/useTablePagination';
 import {
   Button,
   Card,
@@ -89,6 +90,12 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
       changeAtTo: to,
     });
   }, [riskChangeLogs, registryFilter, typeFilter, changeTypeFilter, levelFilter, dateRange]);
+
+  const tablePagination = useTablePagination({
+    showSizeChanger: true,
+    showTotal: t => `共 ${t} 条`,
+    resetDeps: [registryFilter, typeFilter, changeTypeFilter, levelFilter, dateRange],
+  });
 
   const levelFilterOptions = useMemo(
     () =>
@@ -336,7 +343,7 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
           columns={columns}
           dataSource={filtered}
           scroll={{ x: 1200 }}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: t => `共 ${t} 条` }}
+          pagination={tablePagination}
         />
       </Card>
 

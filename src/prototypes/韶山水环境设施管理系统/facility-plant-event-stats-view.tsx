@@ -501,7 +501,7 @@ export const PlantEventStatsView: React.FC<{ plantSource?: PlantRecord[] }> = ({
           <Table
             size="small"
             rowKey="key"
-            pagination={{ pageSize: 8, showTotal: (n) => `共 ${n} 家` }}
+            pagination={{ defaultPageSize: 8, showTotal: (n) => `共 ${n} 家` }}
             columns={plantColumns}
             dataSource={plantStatsRows}
             locale={{ emptyText: '无数据' }}

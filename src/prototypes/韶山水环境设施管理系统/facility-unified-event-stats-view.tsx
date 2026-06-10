@@ -565,7 +565,7 @@ export const FacilityUnifiedEventStatsView: React.FC<FacilityUnifiedEventStatsVi
                 <Table
                   size="small"
                   rowKey="key"
-                  pagination={{ pageSize: 6, showTotal: t => `共 ${t} 个区划` }}
+                  pagination={{ defaultPageSize: 6, showTotal: t => `共 ${t} 个区划` }}
                   columns={[
                     { title: '所属区域', dataIndex: '所属区域', key: '所属区域' },
                     { title: '事件数', dataIndex: '事件数', key: '事件数', align: 'right' as const },
@@ -581,7 +581,7 @@ export const FacilityUnifiedEventStatsView: React.FC<FacilityUnifiedEventStatsVi
             <Table
               size="small"
               rowKey="key"
-              pagination={{ pageSize: 8, showTotal: n => `共 ${n} 处点位` }}
+              pagination={{ defaultPageSize: 8, showTotal: n => `共 ${n} 处点位` }}
               columns={facilityColumns}
               dataSource={facilityStatsRows}
               locale={{ emptyText: '无数据' }}

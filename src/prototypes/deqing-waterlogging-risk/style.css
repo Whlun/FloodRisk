@@ -1097,7 +1097,22 @@
 
 .dq-indicator-page .dq-indicator-table .ant-table-cell {
   padding-block: 8px;
+}
+
+.dq-indicator-page .dq-indicator-table .ant-table-tbody .ant-table-cell:not(.dq-indicator-table-op-cell) {
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dq-indicator-page .dq-indicator-table .dq-indicator-table-op-cell {
+  overflow: visible;
+  padding-inline: 12px;
+}
+
+.dq-indicator-page .dq-indicator-table .dq-indicator-table-op-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .dq-indicator-page .dq-indicator-table .dq-indicator-table-nowrap {

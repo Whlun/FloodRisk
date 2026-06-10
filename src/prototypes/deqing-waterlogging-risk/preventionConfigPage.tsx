@@ -391,7 +391,9 @@ export const PreventionConfigPage: React.FC<Props> = ({
       title: '防灾减灾版本',
       dataIndex: 'versionNo',
       width: 130,
-      render: (v: string) => <PreventionVersionTag versionNo={v || undefined} />,
+      render: (v: string) => (
+        <PreventionVersionTag variant="plain" versionNo={v || undefined} />
+      ),
     },
     {
       title: '配置时间',
@@ -629,7 +631,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
           size="small"
           columns={columns}
           dataSource={filtered}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
+          pagination={{ defaultPageSize: 8, showSizeChanger: false }}
           scroll={{ x: 1040 }}
         />
       </Card>

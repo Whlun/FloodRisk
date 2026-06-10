@@ -702,7 +702,7 @@ export const PipeArchiveView: React.FC = () => {
             rowKey="id"
             columns={projectColumns}
             dataSource={filteredProjects}
-            pagination={{ pageSize: 10, showSizeChanger: false }}
+            pagination={{ defaultPageSize: 10, showSizeChanger: false }}
             scroll={{ x: 2200 }}
             tableLayout="fixed"
           />
@@ -803,7 +803,7 @@ export const PipeArchiveView: React.FC = () => {
                     size="small"
                     columns={projectDocColumns}
                     dataSource={projectDraftDocuments}
-                    pagination={{ pageSize: 5, showSizeChanger: false }}
+                    pagination={{ defaultPageSize: 5, showSizeChanger: false }}
                     scroll={{ x: 1200 }}
                   />
                 </div>
@@ -843,7 +843,7 @@ export const PipeArchiveView: React.FC = () => {
                     size="small"
                     columns={docColumns}
                     dataSource={viewProject.documents}
-                    pagination={{ pageSize: 5, showSizeChanger: false }}
+                    pagination={{ defaultPageSize: 5, showSizeChanger: false }}
                     scroll={{ x: 1200 }}
                   />
                 ),
@@ -895,7 +895,7 @@ export const PipeArchiveView: React.FC = () => {
           ) : (
             <List
               dataSource={filteredProjectDocs}
-              pagination={{ pageSize: 4, size: 'small' }}
+              pagination={{ defaultPageSize: 4, size: 'small' }}
               renderItem={doc => (
                 <List.Item
                   actions={[

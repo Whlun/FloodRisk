@@ -206,7 +206,7 @@ export const CmProjectExportRecordsModal: React.FC<CmProjectExportRecordsModalPr
           <Table<CmProjectExportRecord>
             size="small"
             rowKey="id"
-            pagination={{ pageSize: 8, showSizeChanger: false }}
+            pagination={{ defaultPageSize: 8, showSizeChanger: false }}
             scroll={{ x: 848 }}
             columns={columns}
             dataSource={records}

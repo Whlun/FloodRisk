@@ -846,7 +846,7 @@ export const FacilityUnifiedEventListView: React.FC<FacilityUnifiedEventListView
             size="middle"
             columns={columns}
             dataSource={filteredData}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
             scroll={{ x: scrollX }}
             onRow={record => ({
               onClick: () => openReadonlyDetail(record),

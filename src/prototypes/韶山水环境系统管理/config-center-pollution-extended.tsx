@@ -746,7 +746,7 @@ export const ConfigRuralSewagePollutionView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             columns={tableColumns}
             dataSource={filtered}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
         <Modal
@@ -1132,7 +1132,7 @@ export const ConfigAgriRuralPollutionView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             columns={tableColumns}
             dataSource={filtered}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
         <Modal
@@ -1776,7 +1776,7 @@ export const ConfigIndustryPollutionView: React.FC = () => {
             scroll={{ x: 'max-content' }}
             columns={tableColumns}
             dataSource={filtered}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
         <Modal

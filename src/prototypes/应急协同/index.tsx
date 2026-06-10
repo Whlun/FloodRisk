@@ -1046,7 +1046,7 @@ const EmergencyEventInfoPage: React.FC<EmergencyEventInfoPageProps> = ({
             rowKey="id"
             size="small"
             scroll={{ x: getEcoTableScrollX(allCols.filter(c => visibleCols.includes(c.key) || c.key === 'operation')) }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
             columns={columns}
             dataSource={filtered}
           />
@@ -1825,7 +1825,7 @@ const EventAssessmentPage: React.FC<EventAssessmentPageProps> = ({ events, asses
           </Row>
         </Form>
         <div className="facility-table-wrap">
-          <Table rowKey="id" size="small" columns={columns} dataSource={filtered} pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }} />
+          <Table rowKey="id" size="small" columns={columns} dataSource={filtered} pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }} />
         </div>
       </Card>
       <Modal

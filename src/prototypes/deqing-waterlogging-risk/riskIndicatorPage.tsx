@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTablePagination } from '../../common/useTablePagination';
 import {
   Button,
   Card,
@@ -6,6 +7,7 @@ import {
   Form,
   type FormInstance,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Row,
@@ -48,7 +50,10 @@ import {
   getCompareBaseline,
   getIndicatorSource,
   isBuiltinIndicator,
-  isIndicatorDataCorrected,
+  getIndicatorDataStatus,
+  INDICATOR_DATA_STATUS_COLOR,
+  INDICATOR_DATA_STATUS_LABEL,
+  type IndicatorDataStatus,
 } from './indicatorDefaultCompare';
 import { ApplicableTypesHelpTip } from './ApplicableTypesHelpTip';
 import { formLabelWithHelp, INDICATOR_CODE_HELP_EDIT } from './FormLabelHelpTip';
@@ -262,6 +267,11 @@ export const RiskIndicatorPage: React.FC<Props> = ({
 }) => {
   const [keyword, setKeyword] = useState('');
   const [treeSelectedKey, setTreeSelectedKey] = useState(INDICATOR_TREE_ALL_KEY);
+  const tablePagination = useTablePagination({
+    showSizeChanger: true,
+    showTotal: t => `共 ${t} 条`,
+    resetDeps: [keyword, treeSelectedKey],
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [createWizardOpen, setCreateWizardOpen] = useState(false);
   const [postSaveGuideOpen, setPostSaveGuideOpen] = useState(false);
@@ -276,6 +286,8 @@ export const RiskIndicatorPage: React.FC<Props> = ({
   const level1Watch = Form.useWatch('level1', form) as RiskIndicatorRow['level1'] | undefined;
 
   const surveyWatch = Form.useWatch('survey', form) as RiskIndicatorRow['survey'] | undefined;
+  /** 任意表单变更时刷新「默认与修正」Tab 的当前值对比 */
+  const compareFormPulse = Form.useWatch([], form);
   const surveyInputVariant = surveyWatch?.inputVariant;
   const compositeSurveyMode = useMemo(() => {
     if (surveyInputVariant === 'composite_appendix_numeric') return true;
@@ -372,7 +384,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
   const restoreDefault = (row: RiskIndicatorRow) => {
     const baseline = getBaseline(row);
     if (!baseline) {
-      message.warning('请先保存为预置，或该指标无可恢复的初始化默认值');
+      message.warning('请先设置为默认值，或该指标无可恢复的初始化默认值');
       return;
     }
     const restored = {
@@ -396,7 +408,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     const snapshot = createInitSnapshot(row);
     const next = { ...row, initSnapshot: snapshot };
     onChange(indicators.map(i => (i.id === row.id ? next : i)));
-    message.success('已保存为预置，可作为初始化默认值参与对比');
+    message.success('已设置为默认值，将作为后续「默认与修正」对比的初始化基准');
     if (editing?.id === row.id) {
       setEditing(next);
     }
@@ -420,7 +432,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     }
     const baseline = getBaseline(editing);
     if (!baseline) {
-      message.warning('新增指标请先保存为预置，或无可恢复的初始化默认值');
+      message.warning('新增指标请先设置为默认值，或无可恢复的初始化默认值');
       return;
     }
     const restored = {
@@ -1033,15 +1045,18 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       title: '数据状态',
       width: 88,
       render: (_, row) => {
-        const corrected = isIndicatorDataCorrected(row, defaultIndicators);
-        return corrected ? (
-          <Tag bordered={false} color="orange" style={{ margin: 0 }}>
-            修正
-          </Tag>
-        ) : (
-          <Tag bordered={false} style={{ margin: 0 }}>
-            默认
-          </Tag>
+        const status = getIndicatorDataStatus(row, defaultIndicators);
+        const tooltips: Record<IndicatorDataStatus, string> = {
+          default: '配置与初始化默认值一致',
+          corrected: '相对初始化默认值已本地修正',
+          manual: '用户手工新增指标，尚未设置为默认值',
+        };
+        return (
+          <Tooltip title={tooltips[status]}>
+            <Tag bordered={false} color={INDICATOR_DATA_STATUS_COLOR[status]} style={{ margin: 0 }}>
+              {INDICATOR_DATA_STATUS_LABEL[status]}
+            </Tag>
+          </Tooltip>
         );
       },
     },
@@ -1058,10 +1073,12 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     {
       title: '操作',
       key: 'op',
-      width: 120,
+      width: 148,
       fixed: 'right',
+      onCell: () => ({ className: 'dq-indicator-table-op-cell' }),
+      onHeaderCell: () => ({ className: 'dq-indicator-table-op-cell' }),
       render: (_, row) => (
-        <Space size={4} wrap={false} align="center">
+        <Space size={4} wrap={false} align="center" className="dq-indicator-table-op-actions">
           <Button type="link" size="small" icon={<EyeOutlined />} className="action-btn" onClick={() => openEdit(row, true)}>
             详情
           </Button>
@@ -1134,10 +1151,10 @@ export const RiskIndicatorPage: React.FC<Props> = ({
               rowKey="id"
               size="small"
               className="dq-indicator-table"
-              scroll={{ x: 1280 }}
+              scroll={{ x: 1460 }}
               columns={columns}
               dataSource={filtered}
-              pagination={{ pageSize: 10, showSizeChanger: true, showTotal: t => `共 ${t} 条` }}
+              pagination={tablePagination}
             />
           </Card>
         </div>
@@ -1365,26 +1382,27 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     {
                       key: 'compare',
                       label: '默认与修正',
+                      forceRender: true,
                       children: (() => {
+                        void compareFormPulse;
                         const compareRow = detailOnly
                           ? editing
                           : ({
                               ...editing,
-                              ...(form.getFieldsValue() as Partial<RiskIndicatorRow>),
+                              ...(form.getFieldsValue(true) as Partial<RiskIndicatorRow>),
                             } as RiskIndicatorRow);
-                        const isNewSource =
-                          getIndicatorSource(editing, defaultIndicators) === 'new';
+                        const baseline = getBaseline(compareRow);
                         return (
                           <IndicatorDefaultComparePanel
                             current={compareRow}
-                            baseline={getBaseline(compareRow)}
+                            baseline={baseline}
                             defaultIndicators={defaultIndicators}
                             onRestoreDefault={
-                              getBaseline(compareRow)
-                                ? () => restoreDefault(compareRow)
-                                : undefined
+                              baseline ? () => restoreDefault(compareRow) : undefined
                             }
-                            onSaveAsPreset={isNewSource ? () => saveAsInitPreset(compareRow) : undefined}
+                            onSaveAsPreset={
+                              detailOnly ? undefined : () => saveAsInitPreset(compareRow)
+                            }
                           />
                         );
                       })(),

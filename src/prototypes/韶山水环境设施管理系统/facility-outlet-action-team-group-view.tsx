@@ -275,7 +275,7 @@ export const OutletActionTeamGroupView: React.FC<{
             dataSource={filtered}
             columns={columns}
             scroll={{ x: scrollX }}
-            pagination={{ pageSize: 10, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 10, showTotal: t => `共 ${t} 条` }}
           />
         </div>
       </Card>

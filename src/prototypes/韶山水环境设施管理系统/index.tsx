@@ -1016,7 +1016,7 @@ const PipeNodeView = ({
             columns={columns}
             rowKey="nodeId"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 20, showTotal: t => `共 ${t} 条` }}
+            pagination={{ defaultPageSize: 20, showTotal: t => `共 ${t} 条` }}
           />
         </div>
       </Card>
@@ -2288,7 +2288,7 @@ const PipeLineView = ({
             columns={columns}
             rowKey="lineId"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
           />
         </div>
       </Card>
@@ -2812,7 +2812,7 @@ const PumpStationStatView: React.FC<{ rows: PumpStationRecord[] }> = ({ rows }) 
           <Table
             size="small"
             rowKey="key"
-            pagination={{ pageSize: 8, showTotal: (t) => `共 ${t} 处` }}
+            pagination={{ defaultPageSize: 8, showTotal: (t) => `共 ${t} 处` }}
             columns={[
               { title: '区划/乡镇', dataIndex: 'region', key: 'region' },
               { title: '泵站数', dataIndex: 'n', key: 'n', align: 'right' as const },
@@ -3280,7 +3280,7 @@ const PumpStationView = ({
             columns={columns}
             rowKey="id"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
           />
         </div>
       </Card>
@@ -4164,7 +4164,7 @@ const OutletView = ({
             columns={columns}
             rowKey="入河入海排污口编码"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
           />
         </div>
       </Card>
@@ -4900,7 +4900,7 @@ const PlantView = ({
             columns={columns}
             rowKey="id"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
           />
         </div>
       </Card>

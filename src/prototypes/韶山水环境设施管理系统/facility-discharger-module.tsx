@@ -1377,7 +1377,7 @@ export const DischargerView: React.FC<{
             columns={columns}
             rowKey="id"
             scroll={{ x: facilityTableScrollX }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ defaultPageSize: 10 }}
           />
         </div>
       </Card>
