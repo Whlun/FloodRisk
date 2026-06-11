@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
@@ -157,10 +157,11 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   onCancel,
   onSave,
 }) => {
-  const syncedInitial = useMemo(
+  const draftEmitBase = useMemo(
     () => syncConfigWithIndicatorCatalog(initialConfig, baseIndicators),
     [initialConfig, baseIndicators],
   );
+  const syncedInitial = draftEmitBase;
 
   const [formationType, setFormationType] = useState<HazardPointType>('SUNKEN');
   const [draftIndicators, setDraftIndicators] = useState<RiskIndicatorRow[]>(() =>
@@ -170,21 +171,29 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
     ...syncedInitial.level1Weights,
   }));
 
+  const skipDraftEmitRef = useRef(true);
+
   useEffect(() => {
     const synced = syncConfigWithIndicatorCatalog(initialConfig, baseIndicators);
     setDraftIndicators(cloneIndicators(configToMergedIndicators(baseIndicators, synced)));
     setDraftLevel1Weights({ ...synced.level1Weights });
+    skipDraftEmitRef.current = true;
   }, [initialConfig, baseIndicators]);
 
-  const emitDraft = (
+  useEffect(() => {
+    if (!onDraftChange) return;
+    if (skipDraftEmitRef.current) {
+      skipDraftEmitRef.current = false;
+      return;
+    }
+    onDraftChange(buildConfigFromEditedIndicators(draftEmitBase, draftIndicators, draftLevel1Weights));
+  }, [draftIndicators, draftLevel1Weights, draftEmitBase, onDraftChange]);
+
+  const buildDraftConfig = (
     nextIndicators: RiskIndicatorRow[],
     nextLevel1: Level1Weights,
-    base: IndicatorArchitectureConfig,
-  ) => {
-    const config = buildConfigFromEditedIndicators(base, nextIndicators, nextLevel1);
-    onDraftChange?.(config);
-    return config;
-  };
+  ): IndicatorArchitectureConfig =>
+    buildConfigFromEditedIndicators(draftEmitBase, nextIndicators, nextLevel1);
 
   const arch = useMemo(
     () => buildArchitectureData(draftIndicators, formationType, draftLevel1Weights),
@@ -200,11 +209,7 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   const level1Valid = isLevel1WeightSumValid(draftLevel1Weights);
 
   const patchGroupWeights = (weightMap: Record<string, number>) => {
-    setDraftIndicators(prev => {
-      const next = applyWeightMap(prev, weightMap);
-      emitDraft(next, draftLevel1Weights, syncedInitial);
-      return next;
-    });
+    setDraftIndicators(prev => applyWeightMap(prev, weightMap));
   };
 
   const handleSave = () => {
@@ -227,7 +232,7 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
       });
       return null;
     }
-    return emitDraft(draftIndicators, draftLevel1Weights, syncedInitial);
+    return buildDraftConfig(draftIndicators, draftLevel1Weights);
   };
 
   const handleToggleEnabled = (ind: RiskIndicatorRow, enabled: boolean) => {
@@ -242,36 +247,26 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
       message.info('用户新增指标：请设置 ω 并调整同列启用项权重合计为 1.000 后保存');
     }
     const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    setDraftIndicators(prev => {
-      const next = prev.map(i => (i.id === ind.id ? { ...i, enabled, updatedAt: ts } : i));
-      emitDraft(next, draftLevel1Weights, syncedInitial);
-      return next;
-    });
+    setDraftIndicators(prev =>
+      prev.map(i => (i.id === ind.id ? { ...i, enabled, updatedAt: ts } : i)),
+    );
     if (!enabled) {
       message.info('已标记停用：不参与赋分与同级合计，请调整同列启用指标 ω 或「按比例归一化」');
     }
   };
 
   const handleWeightChange = (_level1: Level1Factor, ind: RiskIndicatorRow, value: number | null) => {
-    if (value == null) return;
+    if (value == null || value === ind.weight) return;
     patchGroupWeights(setSingleIndicatorWeightMap(ind.id, value));
   };
 
   const handleLevel1WeightChange = (level1: Level1Factor, value: number | null) => {
-    if (value == null) return;
-    setDraftLevel1Weights(prev => {
-      const next = setSingleLevel1Weight(prev, level1, value);
-      emitDraft(draftIndicators, next, syncedInitial);
-      return next;
-    });
+    if (value == null || value === draftLevel1Weights[level1]) return;
+    setDraftLevel1Weights(prev => setSingleLevel1Weight(prev, level1, value));
   };
 
   const handleNormalizeLevel1 = () => {
-    setDraftLevel1Weights(prev => {
-      const next = normalizeLevel1Weights(prev);
-      emitDraft(draftIndicators, next, syncedInitial);
-      return next;
-    });
+    setDraftLevel1Weights(prev => normalizeLevel1Weights(prev));
     message.success('已按当前比例归一化一级权重，合计为 1.000');
   };
 
@@ -280,18 +275,13 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
       ? { HAZARD: 0.258, FORMATION: 0.511, BEARING: 0.08, PREVENTION: 0.151 }
       : draftLevel1Weights;
     setDraftLevel1Weights(defaults);
-    emitDraft(draftIndicators, defaults, syncedInitial);
     message.success('已恢复为系统预置一级权重');
   };
 
   const handleRestoreAllDefaults = () => {
     const defaults = { HAZARD: 0.258, FORMATION: 0.511, BEARING: 0.08, PREVENTION: 0.151 };
     setDraftLevel1Weights(defaults);
-    setDraftIndicators(prev => {
-      const next = restoreIndicatorsWeightAndEnabledFromDefaults(prev, defaultIndicators);
-      emitDraft(next, defaults, syncedInitial);
-      return next;
-    });
+    setDraftIndicators(prev => restoreIndicatorsWeightAndEnabledFromDefaults(prev, defaultIndicators));
     message.success('已恢复系统预置：一级权重、二级 ω 与启用状态；用户新增指标已停用');
   };
 
@@ -306,15 +296,13 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   const handleRestoreColumn = (level1: Level1Factor) => {
     const columnChildren = filterColumnIndicators(draftIndicators, level1, formationType);
     if (columnChildren.length === 0) return;
-    setDraftIndicators(prev => {
-      const next = applyColumnRestoreFromDefaults(
+    setDraftIndicators(prev =>
+      applyColumnRestoreFromDefaults(
         prev,
         columnChildren.map(c => c.id),
         defaultIndicators,
-      );
-      emitDraft(next, draftLevel1Weights, syncedInitial);
-      return next;
-    });
+      ),
+    );
     message.success('已恢复为系统预置权重，用户新增指标已停用');
   };
 

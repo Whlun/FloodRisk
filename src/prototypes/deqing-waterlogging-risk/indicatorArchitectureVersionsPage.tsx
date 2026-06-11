@@ -132,6 +132,10 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   const [draftConfig, setDraftConfig] = useState<IndicatorArchitectureConfig>(
     emptyIndicatorArchitectureConfig(),
   );
+  /** 弹窗打开时的基准 config，勿随 onDraftChange 更新，避免编辑器内循环同步 */
+  const [modalInitialConfig, setModalInitialConfig] = useState<IndicatorArchitectureConfig>(
+    emptyIndicatorArchitectureConfig(),
+  );
   const [form] = Form.useForm();
   const mountHandledRef = useRef(false);
   const detailMountHandledRef = useRef<string | null>(null);
@@ -231,6 +235,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
       : buildArchitectureSnapshot(baseIndicators, cloneLevel1Weights());
     setEditing(null);
     setDetailOnly(false);
+    setModalInitialConfig(initial);
     setDraftConfig(initial);
     form.resetFields();
     form.setFieldsValue({
@@ -245,7 +250,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setPreviewArchitectureId(row.id);
     setEditing(row);
     setDetailOnly(true);
-    setDraftConfig(syncConfigWithIndicatorCatalog(row.config, baseIndicators));
+    const synced = syncConfigWithIndicatorCatalog(row.config, baseIndicators);
+    setModalInitialConfig(synced);
+    setDraftConfig(synced);
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
@@ -254,7 +261,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setPreviewArchitectureId(row.id);
     setEditing(row);
     setDetailOnly(false);
-    setDraftConfig(syncConfigWithIndicatorCatalog(row.config, baseIndicators));
+    const synced = syncConfigWithIndicatorCatalog(row.config, baseIndicators);
+    setModalInitialConfig(synced);
+    setDraftConfig(synced);
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
@@ -672,7 +681,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         <IndicatorArchitectureEditor
           baseIndicators={baseIndicators}
           defaultIndicators={defaultIndicators}
-          initialConfig={draftConfig}
+          initialConfig={modalInitialConfig}
           onDraftChange={detailOnly ? undefined : setDraftConfig}
           embedded
           readOnly={detailOnly}
