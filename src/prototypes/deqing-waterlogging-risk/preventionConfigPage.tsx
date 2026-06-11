@@ -302,6 +302,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
     }
     patchRecords(patched);
     message.success('已删除');
+    setModalOpen(false);
   };
 
   const handleSave = async () => {
@@ -475,7 +476,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
     },
     {
       title: '操作',
-      width: 200,
+      width: 168,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} onClick={e => e.stopPropagation()}>
@@ -516,11 +517,6 @@ export const PreventionConfigPage: React.FC<Props> = ({
               </Tooltip>
             )
           ) : null}
-          <Popconfirm title="确定删除该条配置？" onConfirm={() => handleDelete(row.id)}>
-            <Button type="link" size="small" danger className="action-btn">
-              删除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -642,12 +638,22 @@ export const PreventionConfigPage: React.FC<Props> = ({
         className="dq-prevention-config-modal"
         onCancel={() => setModalOpen(false)}
         width={900}
-        onOk={detailOnly ? undefined : handleSave}
-        okText="保存"
         footer={
-          detailOnly
-            ? [<Button key="close" onClick={() => setModalOpen(false)}>关闭</Button>]
-            : undefined
+          detailOnly ? (
+            <Button onClick={() => setModalOpen(false)}>关闭</Button>
+          ) : (
+            <Space>
+              <Button onClick={() => setModalOpen(false)}>取消</Button>
+              {editing ? (
+                <Popconfirm title="确定删除该条配置？" onConfirm={() => handleDelete(editing.id)}>
+                  <Button danger>删除</Button>
+                </Popconfirm>
+              ) : null}
+              <Button type="primary" onClick={handleSave}>
+                保存
+              </Button>
+            </Space>
+          )
         }
         destroyOnClose
       >

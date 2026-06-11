@@ -45,7 +45,6 @@ import {
   normalizeLevel1Weights,
   normalizeSiblingWeightMap,
   applyColumnRestoreFromDefaults,
-  restoreIndicatorsWeightAndEnabledFromDefaults,
   setSingleIndicatorWeightMap,
   setSingleLevel1Weight,
   sumLevel1Weights,
@@ -143,6 +142,8 @@ export interface IndicatorArchitectureEditorProps {
   onCancel?: () => void;
   /** 嵌入弹窗时工具栏「保存」 */
   onSave?: () => void;
+  /** 嵌入弹窗编辑已有版本时工具栏「删除」（置于保存左侧） */
+  onDelete?: () => void;
   onRequestSave?: () => IndicatorArchitectureConfig | null;
 }
 
@@ -156,12 +157,18 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   onEdit,
   onCancel,
   onSave,
+  onDelete,
 }) => {
   const draftEmitBase = useMemo(
     () => syncConfigWithIndicatorCatalog(initialConfig, baseIndicators),
     [initialConfig, baseIndicators],
   );
   const syncedInitial = draftEmitBase;
+  /** 打开弹窗时的已保存基准（编辑/详情进入时的 config），供「恢复默认」回退 */
+  const savedIndicators = useMemo(
+    () => cloneIndicators(configToMergedIndicators(baseIndicators, syncedInitial)),
+    [baseIndicators, syncedInitial],
+  );
 
   const [formationType, setFormationType] = useState<HazardPointType>('SUNKEN');
   const [draftIndicators, setDraftIndicators] = useState<RiskIndicatorRow[]>(() =>
@@ -271,18 +278,14 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   };
 
   const handleRestoreLevel1 = () => {
-    const defaults = defaultIndicators.length
-      ? { HAZARD: 0.258, FORMATION: 0.511, BEARING: 0.08, PREVENTION: 0.151 }
-      : draftLevel1Weights;
-    setDraftLevel1Weights(defaults);
-    message.success('已恢复为系统预置一级权重');
+    setDraftLevel1Weights({ ...syncedInitial.level1Weights });
+    message.success('已恢复为上次保存的一级权重');
   };
 
   const handleRestoreAllDefaults = () => {
-    const defaults = { HAZARD: 0.258, FORMATION: 0.511, BEARING: 0.08, PREVENTION: 0.151 };
-    setDraftLevel1Weights(defaults);
-    setDraftIndicators(prev => restoreIndicatorsWeightAndEnabledFromDefaults(prev, defaultIndicators));
-    message.success('已恢复系统预置：一级权重、二级 ω 与启用状态；用户新增指标已停用');
+    setDraftLevel1Weights({ ...syncedInitial.level1Weights });
+    setDraftIndicators(cloneIndicators(savedIndicators));
+    message.success('已恢复为上次保存的配置');
   };
 
   const handleNormalizeColumn = (level1: Level1Factor) => {
@@ -300,10 +303,10 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
       applyColumnRestoreFromDefaults(
         prev,
         columnChildren.map(c => c.id),
-        defaultIndicators,
+        savedIndicators,
       ),
     );
-    message.success('已恢复为系统预置权重，用户新增指标已停用');
+    message.success('已恢复为上次保存的权重与启用状态');
   };
 
   const renderColumnFooter = (level1: Level1Factor, children: RiskIndicatorRow[]) => {
@@ -342,7 +345,7 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
                 按比例归一化
               </Button>
             </Tooltip>
-            <Tooltip title="内置指标恢复为附录 E 预置 ω 与启用状态；用户新增指标将停用，不参与同级合计">
+            <Tooltip title="将该列指标的 ω 与启用/停用恢复为上次保存（打开弹窗时）的状态">
               <Button size="small" onClick={() => handleRestoreColumn(level1)}>
                 恢复默认
               </Button>
@@ -396,13 +399,18 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
                 {embedded && onCancel ? <Button onClick={onCancel}>取消</Button> : null}
                 <Popconfirm
                   title="一键恢复默认"
-                  description="将一级权重、全部内置指标 ω 及启用/停用恢复为系统预置；用户新增指标将停用。当前未保存的修改将被覆盖。"
+                  description="将一级权重、全部指标 ω 及启用/停用恢复为上次保存的配置。当前未保存的修改将被覆盖。"
                   onConfirm={handleRestoreAllDefaults}
                   okText="恢复"
                   cancelText="取消"
                 >
                   <Button>一键恢复默认</Button>
                 </Popconfirm>
+                {embedded && onDelete ? (
+                  <Popconfirm title="确定删除该条评价版本？" onConfirm={onDelete}>
+                    <Button danger>删除</Button>
+                  </Popconfirm>
+                ) : null}
                 {embedded && onSave ? (
                   <Button type="primary" onClick={onSave}>
                     保存
@@ -472,7 +480,7 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
                   一级按比例归一化
                 </Button>
               </Tooltip>
-              <Tooltip title="恢复为系统预置：0.258 / 0.511 / 0.080 / 0.151">
+              <Tooltip title="恢复为上次保存的一级权重">
                 <Button size="small" onClick={handleRestoreLevel1}>
                   一级恢复默认
                 </Button>

@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -497,6 +498,24 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
 
   const handleCreateTownChange = () => {
     clearRegistrySelection();
+  };
+
+  const handleDelete = (id: string) => {
+    const deleted = points.find(p => p.id === id);
+    const next = points.filter(p => p.id !== id);
+    let patched = next;
+    if (
+      deleted?.activeForRating &&
+      !next.some(p => p.activeForRating && p.registryId === deleted.registryId)
+    ) {
+      const latest = sortSurveyRecords(next).find(
+        p => p.registryId === deleted.registryId && p.surveyStatus === 'completed',
+      );
+      if (latest) patched = setActiveSurveyRecord(next, latest.id);
+    }
+    patchPoints(patched);
+    message.success('已删除');
+    setModalOpen(false);
   };
 
   const handleSave = async () => {
@@ -1017,12 +1036,22 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         width={900}
-        onOk={detailOnly ? undefined : handleSave}
-        okText="保存"
         footer={
-          detailOnly
-            ? [<Button key="close" onClick={() => setModalOpen(false)}>关闭</Button>]
-            : undefined
+          detailOnly ? (
+            <Button onClick={() => setModalOpen(false)}>关闭</Button>
+          ) : (
+            <Space>
+              <Button onClick={() => setModalOpen(false)}>取消</Button>
+              {editing ? (
+                <Popconfirm title="确定删除该条普查记录？" onConfirm={() => handleDelete(editing.id)}>
+                  <Button danger>删除</Button>
+                </Popconfirm>
+              ) : null}
+              <Button type="primary" onClick={handleSave}>
+                保存
+              </Button>
+            </Space>
+          )
         }
         destroyOnClose
       >

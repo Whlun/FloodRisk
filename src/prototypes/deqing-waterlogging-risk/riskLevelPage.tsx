@@ -89,6 +89,7 @@ export const RiskLevelPage: React.FC<Props> = ({
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<RiskLevelVersionRecord | null>(null);
   const [draftLevels, setDraftLevels] = useState<IndicatorRiskLevelRow[]>([]);
+  const [baselineLevels, setBaselineLevels] = useState<IndicatorRiskLevelRow[]>([]);
   const [form] = Form.useForm();
   const detailMountHandledRef = useRef<string | null>(null);
 
@@ -146,7 +147,9 @@ export const RiskLevelPage: React.FC<Props> = ({
       : initialIndicatorRiskLevels.map(row => ({ ...row, builtin: true }));
     setEditing(null);
     setDetailOnly(false);
-    setDraftLevels(baseLevels.map(row => ({ ...row })));
+    const cloned = baseLevels.map(row => ({ ...row }));
+    setBaselineLevels(cloned);
+    setDraftLevels(cloned);
     form.resetFields();
     form.setFieldsValue({
       configAt: dayjs(),
@@ -157,17 +160,21 @@ export const RiskLevelPage: React.FC<Props> = ({
   };
 
   const openDetail = (row: RiskLevelVersionRecord) => {
+    const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
     setEditing(row);
     setDetailOnly(true);
-    setDraftLevels(getLevelsFromRecord(row));
+    setBaselineLevels(levels);
+    setDraftLevels(levels);
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
 
   const openEdit = (row: RiskLevelVersionRecord) => {
+    const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
     setEditing(row);
     setDetailOnly(false);
-    setDraftLevels(getLevelsFromRecord(row));
+    setBaselineLevels(levels);
+    setDraftLevels(levels);
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
@@ -198,6 +205,8 @@ export const RiskLevelPage: React.FC<Props> = ({
     const next = records.filter(r => r.id !== id);
     if (!next.length) {
       patchRecords([]);
+      setModalOpen(false);
+      message.success('已删除');
       return;
     }
     let patched = next;
@@ -206,6 +215,7 @@ export const RiskLevelPage: React.FC<Props> = ({
       if (latest) patched = setActiveRiskLevelRecord(next, latest.id);
     }
     patchRecords(patched);
+    setModalOpen(false);
     message.success('已删除');
   };
 
@@ -335,7 +345,7 @@ export const RiskLevelPage: React.FC<Props> = ({
     },
     {
       title: '操作',
-      width: 220,
+      width: 160,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} onClick={e => e.stopPropagation()}>
@@ -368,11 +378,6 @@ export const RiskLevelPage: React.FC<Props> = ({
               引用
             </Button>
           ) : null}
-          <Popconfirm title="确定删除该条等级版本？" onConfirm={() => handleDelete(row.id)}>
-            <Button type="link" size="small" danger className="action-btn">
-              删除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -481,7 +486,7 @@ export const RiskLevelPage: React.FC<Props> = ({
             columns={columns}
             dataSource={filtered}
             pagination={{ defaultPageSize: 8, showSizeChanger: false }}
-            scroll={{ x: 1180 }}
+            scroll={{ x: 1160 }}
           />
         )}
       </Card>
@@ -491,25 +496,26 @@ export const RiskLevelPage: React.FC<Props> = ({
         open={modalOpen}
         className="dq-risk-level-version-modal"
         onCancel={() => setModalOpen(false)}
-        width="100vw"
-        centered={false}
-        style={{ top: 0, paddingBottom: 0, maxWidth: '100vw' }}
-        styles={{ body: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' } }}
-        onOk={detailOnly ? undefined : handleSave}
-        okText="保存"
+        width={1200}
+        centered
         footer={
-          detailOnly
-            ? [
-                <Button
-                  key="edit"
-                  type="primary"
-                  icon={<EditOutlined />}
-                  onClick={switchDetailToEdit}
-                >
-                  编辑
-                </Button>,
-              ]
-            : undefined
+          detailOnly ? (
+            <Button type="primary" icon={<EditOutlined />} onClick={switchDetailToEdit}>
+              编辑
+            </Button>
+          ) : (
+            <Space>
+              <Button onClick={() => setModalOpen(false)}>取消</Button>
+              {editing ? (
+                <Popconfirm title="确定删除该条等级版本？" onConfirm={() => handleDelete(editing.id)}>
+                  <Button danger>删除</Button>
+                </Popconfirm>
+              ) : null}
+              <Button type="primary" onClick={handleSave}>
+                保存
+              </Button>
+            </Space>
+          )
         }
         destroyOnClose
       >
@@ -543,6 +549,7 @@ export const RiskLevelPage: React.FC<Props> = ({
         </Form>
         <RiskLevelEditor
           levels={draftLevels}
+          baselineLevels={baselineLevels}
           onChange={detailOnly ? undefined : setDraftLevels}
           readOnly={detailOnly}
         />

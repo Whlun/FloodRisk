@@ -8,7 +8,6 @@ import {
   Form,
   Input,
   Modal,
-  Popconfirm,
   Progress,
   Row,
   Select,
@@ -315,6 +314,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     const next = records.filter(r => r.id !== id);
     if (!next.length) {
       patchRecords([]);
+      setModalOpen(false);
+      setEditing(null);
+      message.success('已删除');
       return;
     }
     let patched = next;
@@ -324,6 +326,8 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     }
     patchRecords(patched);
     message.success('已删除');
+    setModalOpen(false);
+    setEditing(null);
   };
 
   const handleSave = async () => {
@@ -362,6 +366,10 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
 
     if (!validation.ok) {
       message.warning('权重合计未全部达标，已保存为草稿；完善后可设为定级引用');
+      const syncedSaved = syncConfigWithIndicatorCatalog(nextConfig, baseIndicators);
+      setModalInitialConfig(syncedSaved);
+      setDraftConfig(syncedSaved);
+      setEditing(nextRecord);
     } else {
       message.success(
         `已保存 ${nextRecord.versionNo}${
@@ -457,7 +465,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     },
     {
       title: '操作',
-      width: 220,
+      width: 180,
       fixed: 'right',
       render: (_, row) => (
         <Space size={4} onClick={e => e.stopPropagation()}>
@@ -490,11 +498,6 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
               引用
             </Button>
           ) : null}
-          <Popconfirm title="确定删除该条评价版本？" onConfirm={() => handleDelete(row.id)}>
-            <Button type="link" size="small" danger className="action-btn">
-              删除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -688,6 +691,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
           onEdit={detailOnly ? switchDetailToEdit : undefined}
           onCancel={detailOnly ? undefined : () => setModalOpen(false)}
           onSave={detailOnly ? undefined : handleSave}
+          onDelete={editing && !detailOnly ? () => handleDelete(editing.id) : undefined}
         />
       </Modal>
 

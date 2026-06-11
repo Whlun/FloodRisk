@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-06-10T08:35:14.414Z",
+  "updatedAt": "2026-06-11T01:15:16.795Z",
   "indicators": [
     {
       "id": "ind-1780536994067",
@@ -3477,7 +3477,7 @@
       "levelName": "高风险",
       "color": "#f5222d",
       "scoreMin": 0.6,
-      "scoreMax": 1.01,
+      "scoreMax": 1,
       "sort": 3,
       "description": "V≥0.6",
       "enabled": true,
@@ -3523,15 +3523,15 @@
             "levelName": "高风险",
             "color": "#f5222d",
             "scoreMin": 0.6,
-            "scoreMax": 1.01,
+            "scoreMax": 1,
             "sort": 3,
             "description": "V≥0.6",
             "enabled": true,
             "builtin": true
           }
         ],
-        "updatedAt": "2026-06-09 01:35:32",
         "updatedBy": "系统迁移",
+        "updatedAt": "2026-06-09 01:35:32",
         "status": "completed"
       }
     }
@@ -3628,99 +3628,6 @@
       "collectedAt": "2026-05-18 10:00:00",
       "surveyAt": "2026-05-18 10:00:00",
       "label": "汛后复核",
-      "activeForRating": false
-    },
-    {
-      "id": "pt-001-hist",
-      "registryId": "reg-001",
-      "pointCode": "NL-DEQ-SK-001",
-      "name": "武康路与千秋街下凹立交",
-      "pointType": "SUNKEN",
-      "townCode": "330521001",
-      "address": "德清县武康街道武康路与千秋街交叉口",
-      "lng": 120.0521,
-      "lat": 30.5412,
-      "surveyStatus": "completed",
-      "surveyPayload": {
-        "appendixB": {
-          "areaImportance": "COUNTY_KEY",
-          "hasHistoricalDisaster": true,
-          "historicalDeathCount": 0,
-          "historicalSeriousInjuryCount": 0,
-          "historicalTrappedCount": 0,
-          "historicalDirectEconomicLossWan": 12.5,
-          "maxHistoricalDepthCm": 28,
-          "hasStorageTank": false,
-          "hasDrainagePump": true,
-          "pumpCapacityM3H": 120,
-          "hasMonitoring": true,
-          "alarmDeviceNormal": true,
-          "hasEmergencyPlan": true,
-          "collectorName": "王豪伦",
-          "collectorUnit": "德清县住建局",
-          "collectedAt": "2026-04-10 09:00:00",
-          "sunkenDepthCm": 80,
-          "catchmentAreaM2": 8200,
-          "elevationM": 12.5,
-          "rainInletMeetsStandard": true
-        },
-        "indicatorValues": {
-          "HZ_RAIN_ALERT_FREQ": 8,
-          "HZ_GUEST_WATER": false,
-          "HZ_BACKWATER": false,
-          "FM_SK_LONG_SLOPE": 5,
-          "FM_SK_DESIGN_P": 30,
-          "FM_SK_DRAIN_TYPE": "重力自排",
-          "FM_SK_INTERCEPT": "外截内排措施较完善",
-          "BR_AREA_IMPORTANCE": "其他行车道路、附近具有丙类民用建筑工程的区域",
-          "BR_ROAD_CLASS": "主干路",
-          "BR_HIST_LOSS": "较低"
-        }
-      },
-      "assessmentStatus": "completed",
-      "assessmentPayload": {
-        "items": {
-          "ind-hz-01": {
-            "ruleId": "ind-hz-01-r0"
-          },
-          "ind-hz-02": {
-            "ruleId": "ind-hz-02-r0"
-          },
-          "ind-hz-03": {
-            "ruleId": "ind-hz-03-r0"
-          },
-          "ind-fm-sk-01": {
-            "ruleId": "ind-fm-sk-01-r1"
-          },
-          "ind-fm-sk-03": {
-            "ruleId": "ind-fm-sk-03-r0"
-          },
-          "ind-fm-sk-04": {
-            "ruleId": "ind-fm-sk-04-r1"
-          },
-          "ind-br-01": {
-            "ruleId": "ind-br-01-r1"
-          },
-          "ind-br-02": {
-            "ruleId": "ind-br-02-r2"
-          },
-          "ind-br-03": {
-            "ruleId": "ind-br-03-r1"
-          }
-        },
-        "hasAssessmentSheet": true,
-        "hasSitePhotos": true,
-        "hasElevationMap": false,
-        "assessor": "王豪伦",
-        "assessorUnit": "德清县住建局",
-        "assessedAt": "2026-04-10 09:00:00",
-        "conclusion": "现场核查与普查数据一致，按认定赋分档参与定级。"
-      },
-      "ratingStatus": "none",
-      "collector": "王豪伦",
-      "collectedAt": "2026-04-10 09:00:00",
-      "surveyAt": "2026-04-10 09:00:00",
-      "label": "汛前普查",
       "activeForRating": false
     },
     {
@@ -4301,6 +4208,10 @@
           "ind-1780540599612": {
             "weight": 0.026,
             "enabled": true
+          },
+          "ind-1781076170214": {
+            "weight": 0,
+            "enabled": false
           }
         },
         "updatedAt": "2026-06-09 09:38:12",

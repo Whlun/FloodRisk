@@ -1688,6 +1688,19 @@
   overflow-y: auto;
 }
 
+.dq-risk-level-version-modal .ant-modal-body {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.dq-risk-level-editor .dq-risk-level-color-cell .ant-input {
+  width: 88px;
+}
+
+.dq-risk-level-editor .dq-risk-level-score-range .ant-input-number {
+  width: 72px;
+}
+
 /* 防灾减灾弹窗（Portal 不在 .dq-risk-page 内）：编辑态标签与控件紧凑贴合 */
 .dq-prevention-config-modal .dq-survey-modal-form:not(.dq-form-detail-view) .dq-survey-field-grid .ant-form-item {
   margin-bottom: 10px;
