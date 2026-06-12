@@ -187,7 +187,7 @@ if (hasSingleEntry) {
 const isIifeBuild = hasSingleEntry;
 
 /** 与下方 server.port / package 脚本保持一致，供 HMR 显式绑定端口 */
-const DEV_SERVER_PORT = 51720;
+const DEV_SERVER_PORT = 51730;
 
 export default defineConfig(async ({ command }) => {
   const isServe = command === 'serve';

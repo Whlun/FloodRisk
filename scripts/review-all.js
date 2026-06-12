@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const HOST = 'localhost';
-const PORT = 51720;
+const PORT = 51730;
 
 function reviewCode(targetPath) {
   return new Promise((resolve, reject) => {

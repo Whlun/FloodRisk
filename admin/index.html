@@ -294,7 +294,7 @@
         var host = location.hostname;
         var localHint =
           host !== '127.0.0.1' && host !== 'localhost'
-            ? '\n\n建议先在本机浏览器打开：http://127.0.0.1:' + (location.port || '51720') + '/\n若本机可开、局域网 IP 不行，多为网络或浏览器扩展拦截大文件。'
+            ? '\n\n建议先在本机浏览器打开：http://127.0.0.1:' + (location.port || '51730') + '/\n若本机可开、局域网 IP 不行，多为网络或浏览器扩展拦截大文件。'
             : '';
         showBootError(
           '管理台加载超时（已超过 ' + BOOT_MS / 1000 + ' 秒）：' + location.href +

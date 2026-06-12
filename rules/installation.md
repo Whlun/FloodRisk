@@ -139,7 +139,7 @@ npx -y axhub-make . --no-start
 npm run dev
 ```
 
-把终端里输出的本地访问地址（例如 `http://localhost:51720`）回传给用户，提醒用户打开验证。
+把终端里输出的本地访问地址（例如 `http://localhost:51730`）回传给用户，提醒用户打开验证。
 
 ---
 

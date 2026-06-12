@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const baseUrl = process.argv[2] || 'http://localhost:51720';
+const baseUrl = process.argv[2] || 'http://localhost:51730';
 const rootUrl = new URL('/', baseUrl).toString();
 const previewUrl = new URL('/prototypes/ref-antd-copy', baseUrl).toString();
 

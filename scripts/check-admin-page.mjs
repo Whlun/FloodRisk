@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const url = process.argv[2] || 'http://192.168.5.61:51720/';
+const url = process.argv[2] || 'http://192.168.5.61:51730/';
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const errors = [];

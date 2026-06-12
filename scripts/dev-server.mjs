@@ -2,13 +2,13 @@
 /**
  * 开发服务启停：避免「端口已占用」误报为启动失败。
  * - start：端口健康则提示已在运行；否则启动
- * - restart：先释放 51720 再启动
- * - stop：结束占用 51720 的进程
+ * - restart：先释放 51730 再启动
+ * - stop：结束占用 51730 的进程
  */
 import { execSync, spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const PORT = 51720;
+const PORT = 51730;
 const HEALTH_URL = `http://127.0.0.1:${PORT}/health`;
 const VITE_ARGS = [
   '--import',
@@ -82,7 +82,7 @@ async function main() {
     if (pids.length) {
       console.log(`已停止开发服务（PID: ${pids.join(', ')}）`);
     } else {
-      console.log('51720 端口当前没有开发服务在运行');
+      console.log('51730 端口当前没有开发服务在运行');
     }
     return;
   }
@@ -109,7 +109,7 @@ async function main() {
 
   const stale = listListenPids();
   if (stale.length) {
-    console.log('检测到 51720 被占用但服务无响应，正在清理旧进程…');
+    console.log('检测到 51730 被占用但服务无响应，正在清理旧进程…');
     killPort();
     await sleep(800);
   }

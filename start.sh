@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-PORT=51720
+PORT=51730
 BASE_URL="http://127.0.0.1:${PORT}/"
 
 usage() {
@@ -25,7 +25,7 @@ FloodRisk 开发服务启动脚本
   ./start.sh install      仅安装依赖，不启动
   ./start.sh help         显示此帮助
 
-服务地址: http://127.0.0.1:51720/
+服务地址: http://127.0.0.1:51730/
 EOF
 }
 

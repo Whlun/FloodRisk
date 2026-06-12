@@ -24,16 +24,16 @@
  *   status: "READY" | "ERROR" | "TIMEOUT",
  *   phase: "server|build|page|done",
  *   message: "...",
- *   url: "http://localhost:51720/components/button",
+ *   url: "http://localhost:51730/components/button",
  *   errors: [...],
  *   logs: [...],
  *   buildCheck?: { status: "SUCCESS" | "FAILED" | "SKIPPED", errors: [...], logs: [...] }
  *   lintCheck?: { status: "SUCCESS" | "FAILED" | "SKIPPED", errors: [...], logs: [...] }
  *   typeCheck?: { status: "SUCCESS" | "FAILED" | "SKIPPED", errors: [...], logs: [...] }
  *   checks?: [{ name: "lint|typecheck|build", status: "...", message: "...", errors: [...] }]
- *   homeUrl?: "http://localhost:51720"
- *   targetUrl?: "http://localhost:51720/components/button"
- *   targetPath?: "http://localhost:51720/prototypes/ref-app-home/index.html"
+ *   homeUrl?: "http://localhost:51730"
+ *   targetUrl?: "http://localhost:51730/components/button"
+ *   targetPath?: "http://localhost:51730/prototypes/ref-app-home/index.html"
  * }
  * =====================================================
  */

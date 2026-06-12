@@ -26,7 +26,7 @@ if (!targetPath) {
 
 // 配置
 const HOST = 'localhost';
-const PORT = 51720;
+const PORT = 51730;
 
 // 发送检查请求
 function reviewCode(targetPath) {

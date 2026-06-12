@@ -1416,7 +1416,7 @@ export function configApiPlugin(): Plugin {
           try {
             const config = readSystemConfig(configPath);
             
-            // 移除 port 字段（不对外暴露，固定使用 51720 起始）
+            // 移除 port 字段（不对外暴露，固定使用 51730 起始）
             if (config.server && 'port' in config.server) {
               delete config.server.port;
             }
@@ -1587,7 +1587,7 @@ export function configApiPlugin(): Plugin {
                 return;
               }
 
-              // 移除 port 字段（不允许配置，固定使用 51720 起始）
+              // 移除 port 字段（不允许配置，固定使用 51730 起始）
               if (newConfig.server && 'port' in newConfig.server) {
                 delete newConfig.server.port;
               }
