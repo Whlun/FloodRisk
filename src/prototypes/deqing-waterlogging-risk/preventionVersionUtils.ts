@@ -24,6 +24,14 @@ export function nextPreventionVersionNo(records: RegionalPreventionRecord[]): st
   return `P${String(max + 1).padStart(3, '0')}`;
 }
 
+/** 已完成、正在作为 V₄ 数据引用或已被历史定级结果引用的记录不可原地修改。 */
+export function isPreventionVersionImmutable(
+  record: RegionalPreventionRecord,
+  referenced = false,
+): boolean {
+  return referenced || record.activeForRating || record.config.assessmentStatus === 'completed';
+}
+
 /** 为缺少 versionNo 的历史记录按 configAt 顺序补编号 */
 export function ensurePreventionVersionNos(
   records: RegionalPreventionRecord[],

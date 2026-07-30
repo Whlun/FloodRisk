@@ -141,7 +141,12 @@ export interface IndicatorArchitectureEditorProps {
   /** 嵌入弹窗时工具栏「取消」 */
   onCancel?: () => void;
   /** 嵌入弹窗时工具栏「保存」 */
-  onSave?: () => void;
+  onSave?: () => void | Promise<void>;
+  /** 保存请求进行中，阻止重复提交 */
+  saving?: boolean;
+  /** 当前内容不满足保存条件（如复制版本尚无实质修改） */
+  saveDisabled?: boolean;
+  saveDisabledReason?: string;
   /** 嵌入弹窗编辑已有版本时工具栏「删除」（置于保存左侧） */
   onDelete?: () => void;
   onRequestSave?: () => IndicatorArchitectureConfig | null;
@@ -157,6 +162,9 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
   onEdit,
   onCancel,
   onSave,
+  saving = false,
+  saveDisabled = false,
+  saveDisabledReason,
   onDelete,
 }) => {
   const draftEmitBase = useMemo(
@@ -412,9 +420,19 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
                   </Popconfirm>
                 ) : null}
                 {embedded && onSave ? (
-                  <Button type="primary" onClick={onSave}>
-                    保存
-                  </Button>
+                  saveDisabled && saveDisabledReason ? (
+                    <Tooltip title={saveDisabledReason}>
+                      <span>
+                        <Button type="primary" disabled>
+                          保存
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Button type="primary" loading={saving} disabled={saving} onClick={onSave}>
+                      保存
+                    </Button>
+                  )
                 ) : !embedded ? (
                   <Button type="primary" onClick={() => handleSave()}>
                     校验并应用

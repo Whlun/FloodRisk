@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTablePagination } from '../../common/useTablePagination';
 import {
   Button,
@@ -43,6 +43,7 @@ import {
   type Level1Factor,
   type RiskIndicatorRow,
   type ScoreRule,
+  type IndicatorArchitectureRecord,
 } from './types';
 import {
   checkIndicatorDeletable,
@@ -254,7 +255,9 @@ function readOptionalTextField(
 interface Props {
   indicators: RiskIndicatorRow[];
   defaultIndicators: RiskIndicatorRow[];
-  onChange: (rows: RiskIndicatorRow[]) => void;
+  /** 已发布方案引用的指标不得物理删除，确保历史记录始终可追溯。 */
+  architectureRecords?: IndicatorArchitectureRecord[];
+  onChange: (rows: RiskIndicatorRow[]) => void | Promise<void>;
   /** 跳转指标评价管理；editMode 为 true 时进入架构版本编辑 */
   onOpenArchitecture?: (options?: { editMode?: boolean }) => void;
 }
@@ -262,10 +265,12 @@ interface Props {
 export const RiskIndicatorPage: React.FC<Props> = ({
   indicators,
   defaultIndicators,
+  architectureRecords = [],
   onChange,
   onOpenArchitecture,
 }) => {
   const [keyword, setKeyword] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
   const [treeSelectedKey, setTreeSelectedKey] = useState(INDICATOR_TREE_ALL_KEY);
   const tablePagination = useTablePagination({
     showSizeChanger: true,
@@ -279,6 +284,9 @@ export const RiskIndicatorPage: React.FC<Props> = ({
   const [editing, setEditing] = useState<RiskIndicatorRow | null>(null);
   const [detailOnly, setDetailOnly] = useState(false);
   const [form] = Form.useForm();
+  const modalFormBaselineRef = useRef('');
+  const createFormBaselineRef = useRef('');
+  const getFormSnapshot = () => JSON.stringify(form.getFieldsValue(true));
   const valueTypeWatch = Form.useWatch('valueType', form) as RiskIndicatorRow['valueType'] | undefined;
   const unitWatch = Form.useWatch('unit', form) as string | undefined;
   const scoringRuleModeWatch = Form.useWatch('scoringRuleMode', form);
@@ -340,7 +348,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     return true;
   };
 
-  const handleValueTypeChange = (next: RiskIndicatorRow['valueType']) => {
+  const applyValueTypeChange = (next: RiskIndicatorRow['valueType']) => {
     const limits = getScoreRuleLimits(next);
     const current: ScoreRule[] = form.getFieldValue('scoreRules') ?? [];
     const code = form.getFieldValue('code') as string | undefined;
@@ -373,6 +381,39 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     }
   };
 
+  /**
+   * 值类型决定普查原值形态与赋分规则结构。存量指标切换时会丢弃不兼容配置，
+   * 必须由用户显式确认，不能在一次 Select 切换中静默覆盖。
+   */
+  const handleValueTypeChange = (next: RiskIndicatorRow['valueType']) => {
+    const previous = valueTypeWatch;
+    if (!previous || previous === next) {
+      applyValueTypeChange(next);
+      return;
+    }
+    const rules = (form.getFieldValue('scoreRules') ?? []) as ScoreRule[];
+    const hasMeaningfulRules = rules.some(
+      rule =>
+        String(rule.label ?? '').trim() ||
+        rule.numericMatch ||
+        Number(rule.score ?? 0) !== 0,
+    );
+    const hasConditionalBranches = Boolean(form.getFieldValue(['conditionalScoring', 'branches'])?.length);
+    if (!editing || (!hasMeaningfulRules && !hasConditionalBranches)) {
+      applyValueTypeChange(next);
+      return;
+    }
+    Modal.confirm({
+      title: '确认切换普查填报方式？',
+      content: '切换会重置与原填报方式不兼容的赋分档和条件配置，且不能自动转换已采集的原始数据。',
+      okText: '确认切换并重置配置',
+      okButtonProps: { danger: true },
+      cancelText: '保留当前方式',
+      onOk: () => applyValueTypeChange(next),
+      onCancel: () => form.setFieldValue('valueType', previous),
+    });
+  };
+
   const handleLevel1Change = (level1: RiskIndicatorRow['level1']) => {
     const survey = (form.getFieldValue('survey') as RiskIndicatorRow['survey'] | undefined) ?? {};
     form.setFieldsValue({
@@ -381,7 +422,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     });
   };
 
-  const restoreDefault = (row: RiskIndicatorRow) => {
+  const restoreDefault = async (row: RiskIndicatorRow) => {
     const baseline = getBaseline(row);
     if (!baseline) {
       message.warning('请先设置为默认值，或该指标无可恢复的初始化默认值');
@@ -391,10 +432,14 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       ...baseline,
       id: row.id,
       initSnapshot: row.initSnapshot,
-      conditionalScoring: row.conditionalScoring,
       updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     };
-    onChange(indicators.map(i => (i.id === row.id ? restored : i)));
+    try {
+      await onChange(indicators.map(i => (i.id === row.id ? restored : i)));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '恢复失败，请重试');
+      return;
+    }
     message.success(
       isBuiltinIndicator(row, defaultIndicators) ? '已恢复为初始化默认值' : '已恢复为预置值',
     );
@@ -404,10 +449,15 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     }
   };
 
-  const saveAsInitPreset = (row: RiskIndicatorRow) => {
+  const saveAsInitPreset = async (row: RiskIndicatorRow) => {
     const snapshot = createInitSnapshot(row);
     const next = { ...row, initSnapshot: snapshot };
-    onChange(indicators.map(i => (i.id === row.id ? next : i)));
+    try {
+      await onChange(indicators.map(i => (i.id === row.id ? next : i)));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '设置默认值失败，请重试');
+      return;
+    }
     message.success('已设置为默认值，将作为后续「默认与修正」对比的初始化基准');
     if (editing?.id === row.id) {
       setEditing(next);
@@ -439,7 +489,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       ...baseline,
       id: editing.id,
       initSnapshot: editing.initSnapshot,
-      conditionalScoring: editing.conditionalScoring,
       scoreRules: baseline.scoreRules.map(r => ({ ...r })),
     };
     setEditing(restored);
@@ -457,6 +506,14 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       return true;
     });
   }, [indicators, keyword, treeSelectedKey]);
+
+  const currentArchitectureRecord = useMemo(
+    () =>
+      architectureRecords.find(
+        record => record.activeForRating && record.config.status === 'completed',
+      ) ?? null,
+    [architectureRecords],
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -483,10 +540,24 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       },
       _autoCodePrev: code,
     });
+    createFormBaselineRef.current = getFormSnapshot();
     setCreateWizardOpen(true);
   };
 
-  const closeModal = () => {
+  const closeModal = (force = false) => {
+    const hasUnsavedChanges =
+      form.isFieldsTouched(true) || getFormSnapshot() !== modalFormBaselineRef.current;
+    if (!force && !detailOnly && hasUnsavedChanges) {
+      Modal.confirm({
+        title: '放弃未保存修改？',
+        content: '关闭后本次对指标定义和赋分规则的修改不会保存。',
+        okText: '放弃修改',
+        okButtonProps: { danger: true },
+        cancelText: '继续编辑',
+        onOk: () => closeModal(true),
+      });
+      return;
+    }
     setModalOpen(false);
     form.resetFields();
   };
@@ -495,8 +566,27 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     setEditing(row);
     setDetailOnly(readonly);
     setIndicatorOnForm(form, row, indicators, defaultIndicators);
+    modalFormBaselineRef.current = getFormSnapshot();
     setModalTabKey(defaultModalTabForRow(row));
     setModalOpen(true);
+  };
+
+  const closeCreateWizard = (force = false) => {
+    const hasUnsavedChanges =
+      form.isFieldsTouched(true) || getFormSnapshot() !== createFormBaselineRef.current;
+    if (!force && hasUnsavedChanges) {
+      Modal.confirm({
+        title: '放弃未保存的新指标？',
+        content: '关闭向导后本次填写内容不会保存。',
+        okText: '放弃填写',
+        okButtonProps: { danger: true },
+        cancelText: '继续填写',
+        onOk: () => closeCreateWizard(true),
+      });
+      return;
+    }
+    setCreateWizardOpen(false);
+    form.resetFields();
   };
 
   const handleSave = async () => {
@@ -639,10 +729,15 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       ? indicators.map(i => (i.id === editing.id ? row : i))
       : [...indicators, row];
 
-    onChange(next);
+    try {
+      await onChange(next);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '保存失败，请重试');
+      return;
+    }
     const wasCreate = !editing;
     message.success(editing ? '更新成功' : '新增成功');
-    closeModal();
+    closeModal(true);
     setCreateWizardOpen(false);
     if (wasCreate) {
       setPostSaveGuideOpen(true);
@@ -654,22 +749,54 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     return indicators.find(i => i.id === editing.id) ?? editing;
   };
 
-  const handleDelete = (row: RiskIndicatorRow) => {
-    const check = checkIndicatorDeletable(row, defaultIndicators);
-    if (!check.allowed) {
-      message.warning(check.reason);
+  const getDeleteBlockReason = (row: RiskIndicatorRow): string | undefined => {
+    const basic = checkIndicatorDeletable(row, defaultIndicators);
+    if (!basic.allowed) return basic.reason;
+    const referencedVersions = architectureRecords
+      .filter(record => Boolean(record.config.indicatorStates?.[row.id]))
+      .map(record => record.versionNo)
+      .filter(Boolean);
+    if (referencedVersions.length) {
+      return `该指标已被评价版本 ${referencedVersions.join('、')} 引用，为保证历史定级可追溯不可删除`;
+    }
+    const keys = new Set(
+      [row.code, row.survey?.fieldKey, row.survey?.auxiliaryCondition?.fieldKey]
+        .map(v => String(v ?? '').trim())
+        .filter(Boolean),
+    );
+    const dependent = indicators.find(other => {
+      if (other.id === row.id) return false;
+      const condition = other.conditionalScoring?.source;
+      if (condition?.type === 'indicator' && keys.has(String(condition.key ?? '').trim())) return true;
+      return (other.survey?.appendixBSurveyParts ?? []).some(
+        part => part.source?.type === 'indicator' && keys.has(String(part.source.key ?? '').trim()),
+      );
+    });
+    if (dependent) return `该指标正被「${dependent.name}」作为条件字段引用，请先解除依赖`;
+    return undefined;
+  };
+
+  const handleDelete = async (row: RiskIndicatorRow) => {
+    const reason = getDeleteBlockReason(row);
+    if (reason) {
+      message.warning(reason);
       return;
     }
-    onChange(indicators.filter(i => i.id !== row.id));
+    try {
+      await onChange(indicators.filter(i => i.id !== row.id));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除失败，请重试');
+      return;
+    }
     message.success('删除成功');
-    closeModal();
+    closeModal(true);
   };
 
   const renderEditModalDelete = () => {
     const row = resolveEditingRow();
     if (!row || detailOnly || isBuiltinIndicator(row, defaultIndicators)) return null;
-    const deleteCheck = checkIndicatorDeletable(row, defaultIndicators);
-    if (deleteCheck.allowed) {
+    const deleteBlockReason = getDeleteBlockReason(row);
+    if (!deleteBlockReason) {
       return (
         <Popconfirm
           key="delete"
@@ -685,7 +812,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       );
     }
     return (
-      <Tooltip key="delete" title={deleteCheck.reason}>
+      <Tooltip key="delete" title={deleteBlockReason}>
         <Button danger disabled>
           删除指标
         </Button>
@@ -1042,6 +1169,34 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       },
     },
     {
+      title: '当前方案',
+      width: 118,
+      render: (_, row) => {
+        if (!currentArchitectureRecord) {
+          return (
+            <Tooltip title="尚无已完成的定级引用评价版本，请前往指标评价管理配置启用状态和权重">
+              <Tag bordered={false} color="default" style={{ margin: 0 }}>未配置</Tag>
+            </Tooltip>
+          );
+        }
+        const state = currentArchitectureRecord.config.indicatorStates[row.id];
+        if (!state?.enabled) {
+          return (
+            <Tooltip title={`${currentArchitectureRecord.versionNo} 中未启用，不参与当前自动定级`}>
+              <Tag bordered={false} style={{ margin: 0 }}>未启用</Tag>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title={`评价版本 ${currentArchitectureRecord.versionNo}：已启用，权重 ω=${state.weight.toFixed(3)}`}>
+            <Tag bordered={false} color="success" style={{ margin: 0 }}>
+              启用 · {state.weight.toFixed(3)}
+            </Tag>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: '数据状态',
       width: 88,
       render: (_, row) => {
@@ -1120,19 +1275,25 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                 <Input
                   placeholder="指标名称/编码"
                   allowClear
-                  value={keyword}
-                  onChange={e => setKeyword(e.target.value)}
-                  onPressEnter={() => undefined}
+                  value={keywordInput}
+                  onChange={e => setKeywordInput(e.target.value)}
+                  onPressEnter={() => setKeyword(keywordInput)}
                 />
               </Col>
               <Col flex="auto" style={{ textAlign: 'right' }}>
                 <Space wrap>
-                  <Button type="primary" icon={<SearchOutlined />} className="search-btn">
+                  <Button
+                    type="primary"
+                    icon={<SearchOutlined />}
+                    className="search-btn"
+                    onClick={() => setKeyword(keywordInput)}
+                  >
                     查询
                   </Button>
                   <Button
                     onClick={() => {
                       setKeyword('');
+                      setKeywordInput('');
                       setTreeSelectedKey(INDICATOR_TREE_ALL_KEY);
                     }}
                   >
@@ -1163,12 +1324,12 @@ export const RiskIndicatorPage: React.FC<Props> = ({
       <Modal
         title={detailOnly ? '指标详情' : editing ? '编辑指标' : '新增指标'}
         open={modalOpen}
-        onCancel={closeModal}
+        onCancel={() => closeModal()}
         width={900}
         destroyOnClose
         footer={
           detailOnly ? (
-            <Button onClick={closeModal}>关闭</Button>
+            <Button onClick={() => closeModal()}>关闭</Button>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <div>{renderEditModalDelete()}</div>
@@ -1186,7 +1347,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                 ) : (
                   <Button onClick={resetModalForm}>重置</Button>
                 )}
-                <Button onClick={closeModal}>取消</Button>
+                <Button onClick={() => closeModal()}>取消</Button>
                 <Button type="primary" onClick={handleSave}>
                   保存
                 </Button>
@@ -1353,7 +1514,10 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                       </Form.Item>
                     ) : null}
                     <IndicatorSurveyCollectFields disabled={detailOnly} />
-                    <IndicatorSurveyFieldKeyFields disabled={detailOnly} />
+                    <IndicatorSurveyFieldKeyFields
+                      disabled={detailOnly}
+                      fieldKeyLocked={Boolean(editing)}
+                    />
                     <Form.Item name="remark" label="说明">
                       <TextArea rows={2} />
                     </Form.Item>
@@ -1420,10 +1584,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
         defaultIndicators={defaultIndicators}
         indicators={indicators}
         scoreRulesSection={scoreRulesSection}
-        onCancel={() => {
-          setCreateWizardOpen(false);
-          form.resetFields();
-        }}
+        onCancel={() => closeCreateWizard()}
         onSave={handleSave}
       />
 
@@ -1456,4 +1617,3 @@ export const RiskIndicatorPage: React.FC<Props> = ({
     </div>
   );
 };
-

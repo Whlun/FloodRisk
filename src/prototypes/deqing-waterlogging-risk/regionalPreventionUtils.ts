@@ -79,7 +79,7 @@ export function getRegionalPreventionRecordForLockedRating(
   }
   const active = underArch.find(r => r.activeForRating);
   if (active) return active;
-  return sortRegionalPreventionRecords(underArch)[0] ?? null;
+  return null;
 }
 
 /** 更新定级计分用 V₄（锁定评价版本 + 可选锁定 preventionVersionNo / preventionRefAt） */
@@ -191,13 +191,7 @@ export function migratePreventionRecordsForArchitecture(
 ): RegionalPreventionRecord[] {
   if (!records.length) return records;
 
-  const ratingArch =
-    architectureRecords.find(r => r.activeForRating) ??
-    [...architectureRecords]
-      .filter(r => r.config.status === 'completed')
-      .sort((a, b) => b.configAt.localeCompare(a.configAt))[0] ??
-    architectureRecords[0] ??
-    null;
+  const ratingArch = architectureRecords.find(r => r.activeForRating) ?? null;
 
   let patched = records.map(r => {
     if (r.architectureRefId && r.architectureVersionNo) return r;
@@ -211,23 +205,6 @@ export function migratePreventionRecordsForArchitecture(
   });
 
   patched = normalizePreventionActiveRefs(patched);
-
-  if (ratingArch) {
-    const hasActiveForRating = patched.some(
-      r =>
-        r.activeForRating &&
-        r.architectureRefId === ratingArch.id &&
-        r.config.assessmentStatus === 'completed',
-    );
-    if (!hasActiveForRating) {
-      const latestCompleted = sortRegionalPreventionRecords(patched).find(
-        r => r.architectureRefId === ratingArch.id && r.config.assessmentStatus === 'completed',
-      );
-      if (latestCompleted) {
-        patched = setActiveRegionalPreventionRecord(patched, latestCompleted.id);
-      }
-    }
-  }
 
   return patched;
 }

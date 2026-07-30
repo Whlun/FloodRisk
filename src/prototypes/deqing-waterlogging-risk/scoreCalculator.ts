@@ -71,8 +71,21 @@ export function mapScoreToLevel(
   v: number,
   levels: IndicatorRiskLevelRow[],
 ): IndicatorRiskLevelRow | undefined {
+  if (!Number.isFinite(v) || v < 0 || v > 1) return undefined;
   const enabled = levels.filter(l => l.enabled).sort((a, b) => a.sort - b.sort);
-  return enabled.find(l => v >= l.scoreMin && v < l.scoreMax) ?? enabled[enabled.length - 1];
+  const matched = enabled.find(l => v >= l.scoreMin && v < l.scoreMax);
+  if (matched) return matched;
+
+  // 所有区间默认采用 [min, max)；综合分的定义域终点 1 仅允许命中最后一档。
+  if (v === 1) {
+    const finalLevel = [...enabled].sort(
+      (a, b) => a.scoreMax - b.scoreMax || a.scoreMin - b.scoreMin,
+    )[enabled.length - 1];
+    if (finalLevel && v >= finalLevel.scoreMin && v <= finalLevel.scoreMax) {
+      return finalLevel;
+    }
+  }
+  return undefined;
 }
 
 /** 同级权重合计校验 */

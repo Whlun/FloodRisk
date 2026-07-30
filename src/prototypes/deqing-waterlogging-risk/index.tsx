@@ -6,7 +6,7 @@
  */
 import './style.css';
 import React, { useMemo, useState } from 'react';
-import { Alert, Layout, Spin } from 'antd';
+import { Alert, Button, Layout, Modal, Space, Spin, Tag, message } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import AppConfigProvider from '../../common/AppConfigProvider';
 import { DownOutlined, SafetyOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -16,12 +16,10 @@ import type { MenuKey } from './types';
 import { enrichIndicatorsWithBaseline } from './indicatorSurveyUtils';
 import {
   configToMergedIndicators,
-  getActiveArchitectureRecord,
   getArchitectureForRating,
   getRatingLevel1Weights,
 } from './indicatorArchitectureUtils';
 import {
-  getActiveRiskLevelRecord,
   getLevelsFromRecord,
   getRiskLevelForRating,
 } from './riskLevelVersionUtils';
@@ -73,15 +71,58 @@ const App: React.FC = () => {
   const {
     ready,
     loadError,
+    saveStatus,
+    saveError,
     state,
     setIndicators,
-    setIndicatorLevels,
     setRiskLevelRecords,
     setPoints,
     setRegionalPreventionRecords,
     setRiskChangeLogs,
     setArchitectureRecords,
+    flushWorkspaceSave,
+    retryLoad,
+    reloadWorkspace,
+    exportConflict,
   } = useDeqingWorkspace();
+
+  const persistenceBlocked = saveStatus === 'error' || saveStatus === 'conflict';
+
+  const commitWorkspaceChange = async (apply: () => void) => {
+    if (persistenceBlocked) {
+      throw new Error('工作区保存尚未恢复，请先在顶部处理保存失败或并发冲突');
+    }
+    apply();
+    await flushWorkspaceSave();
+  };
+
+  const downloadConflictCopy = () => {
+    const content = exportConflict();
+    if (!content) {
+      message.warning('当前没有可导出的本地工作区副本');
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `deqing-waterlogging-workspace-local-${Date.now()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const confirmReloadWorkspace = () => {
+    Modal.confirm({
+      title: '重新加载服务器版本？',
+      content: '这会放弃当前尚未成功保存的本地修改。建议先下载本地副本留存。',
+      okText: '重新加载',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await reloadWorkspace();
+        message.success('已重新加载服务器版本');
+      },
+    });
+  };
 
   const indicators = state?.indicators ?? [];
   const indicatorLevels = state?.indicatorLevels ?? [];
@@ -91,19 +132,11 @@ const App: React.FC = () => {
   const riskChangeLogs = state?.riskChangeLogs ?? [];
   const architectureRecords = state?.architectureRecords ?? [];
 
-  const activeArchitectureRecord = useMemo(
-    () => getActiveArchitectureRecord(architectureRecords),
-    [architectureRecords],
-  );
   const ratingArchitectureRecord = useMemo(
     () => getArchitectureForRating(architectureRecords),
     [architectureRecords],
   );
 
-  const activeRiskLevelRecord = useMemo(
-    () => getActiveRiskLevelRecord(riskLevelRecords),
-    [riskLevelRecords],
-  );
   const ratingRiskLevelRecord = useMemo(
     () => getRiskLevelForRating(riskLevelRecords),
     [riskLevelRecords],
@@ -178,7 +211,7 @@ const App: React.FC = () => {
         return (
           <HazardPointSurveyPage
             points={points}
-            onChange={setPoints}
+            onChange={next => commitWorkspaceChange(() => setPoints(next))}
             baseIndicators={enrichedIndicators}
             architectureRecords={architectureRecords}
             ratingArchitectureRecord={ratingArchitectureRecord}
@@ -188,11 +221,13 @@ const App: React.FC = () => {
             ratingLevel1Weights={ratingLevel1Weights}
             regionalPrevention={regionalPreventionForRating}
             regionalPreventionRecords={regionalPreventionRecords}
-            activeArchitectureRecord={activeArchitectureRecord}
-            activeRiskLevelRecord={activeRiskLevelRecord}
+            activeArchitectureRecord={ratingArchitectureRecord}
+            activeRiskLevelRecord={ratingRiskLevelRecord}
             riskLevelRecords={riskLevelRecords}
             riskChangeLogs={riskChangeLogs}
-            onAppendRiskChangeLog={entry => setRiskChangeLogs(prev => [entry, ...prev])}
+            onAppendRiskChangeLog={entry =>
+              commitWorkspaceChange(() => setRiskChangeLogs(prev => [entry, ...prev]))
+            }
             onViewArchitectureDetail={record => viewArchitectureDetail(record.id)}
             onViewRiskLevelDetail={record => viewRiskLevelDetail(record.id)}
           />
@@ -208,10 +243,14 @@ const App: React.FC = () => {
         return (
           <PreventionConfigPage
             records={regionalPreventionRecords}
-            onChange={setRegionalPreventionRecords}
+            onChange={next =>
+              commitWorkspaceChange(() => setRegionalPreventionRecords(next))
+            }
             baseIndicators={enrichedIndicators}
             architectureRecords={architectureRecords}
             ratingArchitectureRecord={ratingArchitectureRecord}
+            points={points}
+            riskChangeLogs={riskChangeLogs}
             onViewArchitectureDetail={record => viewArchitectureDetail(record.id)}
           />
         );
@@ -220,7 +259,8 @@ const App: React.FC = () => {
           <RiskIndicatorPage
             indicators={enrichedIndicators}
             defaultIndicators={defaultIndicators}
-            onChange={setIndicators}
+            architectureRecords={architectureRecords}
+            onChange={next => commitWorkspaceChange(() => setIndicators(next))}
             onOpenArchitecture={options => {
               setActiveSubMenu('indicator-architecture-versions');
               if (options?.editMode) {
@@ -233,12 +273,16 @@ const App: React.FC = () => {
         return (
           <IndicatorArchitectureVersionsPage
             records={architectureRecords}
-            onChange={setArchitectureRecords}
+            onChange={next =>
+              commitWorkspaceChange(() => setArchitectureRecords(next))
+            }
             baseIndicators={enrichedIndicators}
             defaultIndicators={defaultIndicators}
             indicatorLevels={effectiveIndicatorLevels}
             activeRiskLevelRecord={ratingRiskLevelRecord}
             regionalPreventionRecords={regionalPreventionRecords}
+            points={points}
+            riskChangeLogs={riskChangeLogs}
             openEditOnMount={openArchVersionsEdit}
             onEditMountHandled={() => setOpenArchVersionsEdit(false)}
             openDetailRecordIdOnMount={openArchVersionsDetailId}
@@ -249,7 +293,11 @@ const App: React.FC = () => {
         return (
           <RiskLevelPage
             records={riskLevelRecords}
-            onChange={setRiskLevelRecords}
+            onChange={next =>
+              commitWorkspaceChange(() => setRiskLevelRecords(next))
+            }
+            points={points}
+            riskChangeLogs={riskChangeLogs}
             openDetailRecordIdOnMount={openRiskLevelDetailId}
             onDetailMountHandled={() => setOpenRiskLevelDetailId(null)}
           />
@@ -269,16 +317,49 @@ const App: React.FC = () => {
     );
   }
 
+  if (!state) {
+    return (
+      <AppConfigProvider locale={zhCN}>
+        <div className="dq-workspace-blocked">
+          <Alert
+            type="error"
+            showIcon
+            message="工作区加载失败，已阻止进入编辑"
+            description={loadError ?? '无法读取工作区数据，请检查本地服务后重试。'}
+            action={
+              <Button type="primary" danger onClick={() => void retryLoad().catch(() => undefined)}>
+                重试
+              </Button>
+            }
+          />
+        </div>
+      </AppConfigProvider>
+    );
+  }
+
   return (
     <AppConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1e5bb5', borderRadius: 4 } }}>
       <Layout className="water-env-dashboard facility-mgmt-standalone">
-        {loadError && (
+        {persistenceBlocked && (
           <Alert
-            type="warning"
+            type="error"
             showIcon
             banner
-            message="工作区从本地服务加载失败，已使用默认数据"
-            description={loadError}
+            message={saveStatus === 'conflict' ? '工作区存在并发冲突，已停止自动保存' : '工作区保存失败'}
+            description={saveError ?? '本地修改仍保留，请先处理后再继续引用或定级。'}
+            action={
+              <Space wrap>
+                <Button onClick={() => void flushWorkspaceSave().catch(() => undefined)}>
+                  重试保存
+                </Button>
+                <Button onClick={downloadConflictCopy}>下载本地副本</Button>
+                {saveStatus === 'conflict' ? (
+                  <Button danger onClick={confirmReloadWorkspace}>
+                    重新加载服务器版本
+                  </Button>
+                ) : null}
+              </Space>
+            }
           />
         )}
         <div className="main-layout with-sidebar">
@@ -324,6 +405,12 @@ const App: React.FC = () => {
           <div className="main-content-area">
             <div className="breadcrumb-bar">
               <span className="breadcrumb-current">{getBreadcrumbPath()}</span>
+              <span className="dq-workspace-save-state" aria-live="polite">
+                {saveStatus === 'saving' ? <Tag color="processing">保存中</Tag> : null}
+                {saveStatus === 'saved' ? <Tag color="success">已保存</Tag> : null}
+                {saveStatus === 'error' ? <Tag color="error">保存失败</Tag> : null}
+                {saveStatus === 'conflict' ? <Tag color="error">并发冲突</Tag> : null}
+              </span>
             </div>
             <Content className="main-content with-sidebar">
               <div className="content-wrapper">{renderContent()}</div>

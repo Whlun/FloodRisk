@@ -6,10 +6,12 @@ import { validateScoreRulesForValueType, getScoreRuleLimits } from './indicatorV
 import {
   hasConfiguredNumericBands,
   requiresNumericBandConfig,
+  validateNumericMatchCoverage,
 } from './scoreRuleNumericBands';
 import { isCompositeAppendixNumericSurvey } from './appendixBSurveyBinding';
 import { hasAuxiliaryConditionSurvey } from './compositeConditionalSurvey';
 import { getSiblingGroup, isSiblingWeightSumValid, sumSiblingWeights } from './weightBalance';
+import { findIndicatorIdentityConflicts, participatesInPointSurvey } from './indicatorSurveyUtils';
 
 export type IndicatorConfigStatus = 'ready' | 'incomplete' | 'blocked';
 
@@ -57,6 +59,17 @@ export function validateIndicatorConfig(
   if (!code) pushUnique(blockers, '缺少指标编码');
   if (!name) pushUnique(blockers, '缺少指标名称');
   if (!fieldKey) pushUnique(blockers, '缺少普查字段键');
+  const identityConflicts = findIndicatorIdentityConflicts(ind, allIndicators);
+  if (identityConflicts.duplicateCode) pushUnique(blockers, `指标编码重复：${code}`);
+  if (identityConflicts.duplicateFieldKey) pushUnique(blockers, `普查字段键重复：${fieldKey}`);
+  if (
+    ind.enabled &&
+    ind.weight > 0 &&
+    ind.level1 !== 'PREVENTION' &&
+    !participatesInPointSurvey(ind)
+  ) {
+    pushUnique(blockers, '已启用且有权重的指标必须参与普查，才能进入自动定级');
+  }
 
   const mode = resolveScoringRuleMode(ind);
 
@@ -77,6 +90,13 @@ export function validateIndicatorConfig(
         const bands = p.tierBands ?? [];
         if (bands.length < 2) {
           pushUnique(blockers, `子项「${p.label || '未命名'}」须至少 2 档数值分档`);
+        } else {
+          const coverageError = validateNumericMatchCoverage(
+            bands.map(band => ({ numericMatch: band?.match })),
+          );
+          if (coverageError) {
+            pushUnique(blockers, `子项「${p.label || '未命名'}」${coverageError}`);
+          }
         }
       }
     }

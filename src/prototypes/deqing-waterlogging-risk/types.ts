@@ -243,6 +243,8 @@ export interface RiskIndicatorInitSnapshot {
   remark?: string;
   enabled: boolean;
   survey: IndicatorSurveyConfig;
+  /** 条件来源、分支和分档同样影响 F，必须纳入默认/修正审计与恢复。 */
+  conditionalScoring?: ConditionalScoringConfig;
 }
 
 export interface RiskIndicatorRow {
@@ -476,6 +478,11 @@ export interface IndicatorArchitectureConfig {
   level1Weights: Level1Weights;
   /** 按 indicatorId 快照；未出现的指标视为停用 */
   indicatorStates: Record<string, IndicatorArchitectureState>;
+  /**
+   * 本评价版本采用的完整指标定义快照。
+   * 历史计分必须优先使用该快照，避免风险指标目录后续编辑/删除追溯改写既有版本。
+   */
+  indicatorDefinitions?: Record<string, RiskIndicatorRow>;
   updatedAt?: string;
   updatedBy?: string;
   /** draft：权重合计未达标；completed：可设为定级引用 */

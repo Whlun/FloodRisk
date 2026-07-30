@@ -2,6 +2,95 @@ import { matchNumericCondition } from './branchNumericMatch';
 import type { BranchNumericMatch, IndicatorAppendixBTierBand, RiskIndicatorRow, ScoreRule } from './types';
 import { resolveScoringRuleMode } from './scoringRuleMode';
 
+type NumericMatchOwner = { numericMatch?: BranchNumericMatch };
+type NumericInterval = {
+  min: number;
+  max: number;
+  minInclusive: boolean;
+  maxInclusive: boolean;
+};
+
+function toNumericInterval(match: BranchNumericMatch): NumericInterval | null {
+  switch (match.kind) {
+    case 'eq':
+      return Number.isFinite(match.value)
+        ? { min: match.value, max: match.value, minInclusive: true, maxInclusive: true }
+        : null;
+    case 'lt':
+    case 'lte':
+      return Number.isFinite(match.value)
+        ? {
+            min: Number.NEGATIVE_INFINITY,
+            max: match.value,
+            minInclusive: false,
+            maxInclusive: match.kind === 'lte',
+          }
+        : null;
+    case 'gt':
+    case 'gte':
+      return Number.isFinite(match.value)
+        ? {
+            min: match.value,
+            max: Number.POSITIVE_INFINITY,
+            minInclusive: match.kind === 'gte',
+            maxInclusive: false,
+          }
+        : null;
+    case 'between':
+      if (!Number.isFinite(match.min) || !Number.isFinite(match.max) || match.min > match.max) {
+        return null;
+      }
+      return {
+        min: match.min,
+        max: match.max,
+        minInclusive: match.minInclusive !== false,
+        maxInclusive: match.maxInclusive !== false,
+      };
+    default:
+      return null;
+  }
+}
+
+/** 数值区间须合法、互斥，且已声明的最小到最大范围之间连续无空档。 */
+export function validateNumericMatchCoverage(
+  owners: NumericMatchOwner[] | undefined,
+): string | null {
+  if (!owners?.length) return null;
+  if (owners.some(owner => !owner?.numericMatch)) return '每一档都须配置匹配区间';
+  const intervals = owners.map(owner => toNumericInterval(owner.numericMatch!));
+  if (intervals.some(interval => interval === null)) {
+    return '匹配区间包含无效数值，且区间下限不得大于上限';
+  }
+  const sorted = (intervals as NumericInterval[]).sort((a, b) => {
+    if (a.min !== b.min) return a.min - b.min;
+    if (a.minInclusive !== b.minInclusive) return a.minInclusive ? -1 : 1;
+    return a.max - b.max;
+  });
+  let previous = sorted[0]!;
+  for (let index = 1; index < sorted.length; index += 1) {
+    const current = sorted[index]!;
+    if (
+      current.min < previous.max ||
+      (current.min === previous.max && current.minInclusive && previous.maxInclusive)
+    ) {
+      return '匹配区间不可重叠';
+    }
+    if (
+      current.min > previous.max ||
+      (current.min === previous.max && !current.minInclusive && !previous.maxInclusive)
+    ) {
+      return '匹配区间之间不可留空档';
+    }
+    if (
+      current.max > previous.max ||
+      (current.max === previous.max && current.maxInclusive && !previous.maxInclusive)
+    ) {
+      previous = current;
+    }
+  }
+  return null;
+}
+
 /** 导则预置数值指标：种子或持久化缺 numericMatch 时按编码补全附录 F 区间 */
 export const BUILTIN_NUMERIC_SCORE_CODES = new Set([
   'HZ_RAIN_ALERT_FREQ',
@@ -119,10 +208,11 @@ export function requiresNumericBandConfig(ind: Pick<RiskIndicatorRow, 'code' | '
 
 export function validateNumericUniformBands(scoreRules: ScoreRule[]): string | null {
   if (!scoreRules.length) return null;
-  const missing = scoreRules.filter(r => !r.numericMatch);
-  if (missing.length) {
+  if (scoreRules.some(r => !r.numericMatch)) {
     return '数值型统一赋分须为每一档配置「匹配区间」，否则无法按填报值自动赋分';
   }
+  const coverageError = validateNumericMatchCoverage(scoreRules);
+  if (coverageError) return `数值型统一赋分${coverageError}`;
   return null;
 }
 

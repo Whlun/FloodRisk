@@ -5,8 +5,11 @@ import { initialRiskChangeLogs } from '../../database/deqing-risk-change-logs';
 import { loadPersistedIndicators } from './indicatorPersistence';
 import { loadPersistedRiskLevels } from './riskLevelPersistence';
 import {
+  ensureArchitectureIndicatorSnapshots,
   ensureArchitectureVersionNos,
   migrateLegacyArchitectureToRecords,
+  refreshArchitectureConfigForNewVersion,
+  validateArchitectureConfig,
 } from './indicatorArchitectureUtils';
 import {
   ensureRiskLevelVersionNos,
@@ -28,7 +31,7 @@ import {
   migratePreventionRecordsForArchitecture,
   normalizePreventionActiveRefs,
 } from './regionalPreventionUtils';
-import { ensurePreventionVersionNos } from './preventionVersionUtils';
+import { ensurePreventionVersionNos, nextPreventionVersionNo } from './preventionVersionUtils';
 import {
   loadPersistedArchitectureRecords,
   loadPersistedLevel1Weights,
@@ -45,6 +48,10 @@ import {
 } from './workspacePersistence';
 import type { DeqingWaterloggingWorkspace } from './workspaceTypes';
 import { DEQING_WORKSPACE_VERSION } from './workspaceTypes';
+import {
+  assertValidWorkspace,
+  getWorkspaceRevision,
+} from './workspaceValidation';
 import type {
   IndicatorArchitectureRecord,
   IndicatorRiskLevelRow,
@@ -83,6 +90,235 @@ function syncIndicatorLevelsFromRecords(
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function repairCurrentCatalogForRatingIntegrity(
+  indicators: RiskIndicatorRow[],
+): RiskIndicatorRow[] {
+  return indicators.map(ind => {
+    if (ind.code === 'FM_U005' && ind.valueType === 'numeric' && ind.scoreRules.length >= 3) {
+      const scoreRules = ind.scoreRules.map((rule, index) =>
+        index === 2
+          ? {
+              ...rule,
+              label: '值≥4%',
+              numericMatch: { kind: 'gte' as const, value: 4 },
+            }
+          : rule,
+      );
+      const scoreExplanation = '· 值<1% → 低风险\n· 1%≤值<4% → 中风险\n· 值≥4% → 高风险';
+      return {
+        ...ind,
+        scoreRules,
+        scoreExplanation,
+        initSnapshot: ind.initSnapshot
+          ? {
+              ...ind.initSnapshot,
+              scoreRules: JSON.parse(JSON.stringify(scoreRules)),
+              scoreExplanation,
+            }
+          : ind.initSnapshot,
+      };
+    }
+    if (ind.code === 'HZ_U001' && ind.scoreRules.length >= 4) {
+      return {
+        ...ind,
+        scoreRules: ind.scoreRules.map((rule, index) => ({
+          ...rule,
+          numericMatch:
+            index === 0
+              ? { kind: 'lte' as const, value: 8 }
+              : index === 1
+                ? { kind: 'between' as const, min: 8, max: 16, minInclusive: false, maxInclusive: true }
+                : index === 2
+                  ? { kind: 'between' as const, min: 16, max: 24, minInclusive: false, maxInclusive: true }
+                  : { kind: 'gt' as const, value: 24 },
+        })),
+      };
+    }
+    if (ind.code === 'FM_U012' && ind.scoreRules.length >= 3) {
+      return {
+        ...ind,
+        scoreRules: ind.scoreRules.map((rule, index) => ({
+          ...rule,
+          numericMatch:
+            index === 0
+              ? { kind: 'lte' as const, value: 0.45 }
+              : index === 1
+                ? { kind: 'between' as const, min: 0.45, max: 0.6, minInclusive: false, maxInclusive: true }
+                : { kind: 'gt' as const, value: 0.6 },
+        })),
+      };
+    }
+    if (ind.code === 'FM_U008' && ind.survey?.appendixBSurveyParts?.length) {
+      return {
+        ...ind,
+        survey: {
+          ...ind.survey,
+          appendixBSurveyParts: ind.survey.appendixBSurveyParts.map(part => ({
+            ...part,
+            tierBands: part.tierBands?.map(band =>
+              band.match.kind === 'between'
+                ? {
+                    ...band,
+                    match: {
+                      ...band.match,
+                      minInclusive: true,
+                      maxInclusive: true,
+                    },
+                  }
+                : band,
+            ),
+          })),
+        },
+      };
+    }
+    return ind;
+  });
+}
+
+/**
+ * 一次性评分完整性迁移：
+ * - 只修当前指标目录，绝不改写 V001–V003 的定义快照；
+ * - 从 V003 状态 + 当前目录生成 V004；
+ * - 克隆 P007 的现有 V₄ 数据为绑定 V004 的新 P 版本，并显式设为引用。
+ */
+export function applyRatingIntegrityV1Migration(
+  bundle: DeqingWaterloggingWorkspace,
+  architectureRecords: IndicatorArchitectureRecord[],
+): {
+  indicators: RiskIndicatorRow[];
+  architectureRecords: IndicatorArchitectureRecord[];
+  regionalPreventionRecords: RegionalPreventionRecord[];
+  indicatorMeta: DeqingWaterloggingWorkspace['indicatorMeta'];
+} {
+  const existingV004 = architectureRecords.find(
+    record => record.id === 'arch-rating-integrity-v1' && record.versionNo === 'V004',
+  );
+  const existingDefinitions = Object.values(existingV004?.config.indicatorDefinitions ?? {});
+  const existingP = (bundle.regionalPreventionRecords ?? []).find(
+    record =>
+      record.id === 'prevention-rating-integrity-v1' &&
+      record.activeForRating &&
+      record.architectureRefId === existingV004?.id &&
+      record.config.assessmentStatus === 'completed',
+  );
+  const existingFm = bundle.indicators.find(ind => ind.code === 'FM_U005');
+  const existingFmRule = existingFm?.scoreRules[2];
+  const existingFmInitRule = existingFm?.initSnapshot?.scoreRules[2];
+  const existingArtifactsValid =
+    existingV004?.activeForRating === true &&
+    existingV004.config.status === 'completed' &&
+    existingDefinitions.length > 0 &&
+    validateArchitectureConfig(existingV004.config, existingDefinitions).ok &&
+    Boolean(existingP) &&
+    existingFmRule?.numericMatch?.kind === 'gte' &&
+    existingFmRule.numericMatch.value === 4 &&
+    existingFmInitRule?.numericMatch?.kind === 'gte' &&
+    existingFmInitRule.numericMatch.value === 4 &&
+    existingFm?.scoreExplanation?.includes('值≥4%');
+
+  if (bundle.indicatorMeta?.ratingIntegrityV1 && existingArtifactsValid) {
+    return {
+      indicators: bundle.indicators,
+      architectureRecords,
+      regionalPreventionRecords: bundle.regionalPreventionRecords ?? [],
+      indicatorMeta: bundle.indicatorMeta,
+    };
+  }
+
+  const indicators = repairCurrentCatalogForRatingIntegrity(bundle.indicators ?? []);
+  let nextArchitectures = architectureRecords;
+  const sourceV003 = architectureRecords.find(record => record.versionNo === 'V003');
+  let targetV004 = architectureRecords.find(record => record.versionNo === 'V004');
+
+  if (
+    sourceV003 &&
+    (!targetV004 || targetV004.id === 'arch-rating-integrity-v1')
+  ) {
+    const refreshed = refreshArchitectureConfigForNewVersion(sourceV003.config, indicators);
+    const mergedForValidation = Object.values(refreshed.indicatorDefinitions ?? {});
+    const validation = validateArchitectureConfig(refreshed, mergedForValidation);
+    const config = {
+      ...refreshed,
+      status: validation.ok ? ('completed' as const) : ('draft' as const),
+      updatedAt: nowIso(),
+      updatedBy: '系统迁移 · ratingIntegrityV1',
+    };
+    targetV004 = {
+      id: 'arch-rating-integrity-v1',
+      versionNo: 'V004',
+      configAt: nowIso().slice(0, 19).replace('T', ' '),
+      label: '评分完整性修复',
+      activeForRating: validation.ok,
+      config,
+    };
+    nextArchitectures = architectureRecords
+      .filter(record => record.id !== targetV004!.id)
+      .map(record => ({
+        ...record,
+        activeForRating: validation.ok ? false : record.activeForRating,
+      }));
+    nextArchitectures.push(targetV004);
+  }
+
+  let prevention = bundle.regionalPreventionRecords ?? [];
+  const existingMigratedPrevention = prevention.find(
+    record => record.id === 'prevention-rating-integrity-v1',
+  );
+  if (
+    targetV004?.config.status === 'completed' &&
+    !existingMigratedPrevention
+  ) {
+    const sourceP007 =
+      prevention.find(record => record.versionNo === 'P007') ??
+      prevention.find(
+        record =>
+          record.activeForRating &&
+          record.architectureRefId === sourceV003?.id &&
+          record.config.assessmentStatus === 'completed',
+      );
+    if (sourceP007) {
+      const createdAt = nowIso().slice(0, 19).replace('T', ' ');
+      prevention = [
+        ...prevention,
+        {
+          ...JSON.parse(JSON.stringify(sourceP007)) as RegionalPreventionRecord,
+          id: 'prevention-rating-integrity-v1',
+          versionNo: nextPreventionVersionNo(prevention),
+          configAt: createdAt,
+          label: '评分完整性修复',
+          activeForRating: true,
+          architectureRefId: targetV004.id,
+          architectureRefAt: targetV004.configAt,
+          architectureVersionNo: targetV004.versionNo,
+        },
+      ];
+    }
+  }
+
+  const migrationComplete =
+    targetV004?.config.status === 'completed' &&
+    targetV004.activeForRating &&
+    prevention.some(
+      record =>
+        record.id === 'prevention-rating-integrity-v1' &&
+        record.activeForRating &&
+        record.architectureRefId === targetV004?.id &&
+        record.config.assessmentStatus === 'completed',
+    );
+
+  return {
+    indicators,
+    architectureRecords: nextArchitectures,
+    regionalPreventionRecords: prevention,
+    indicatorMeta: {
+      ...bundle.indicatorMeta,
+      ratingIntegrityV1: migrationComplete
+        ? true
+        : bundle.indicatorMeta?.ratingIntegrityV1,
+    },
+  };
 }
 
 function readJsonArray<T>(key: string, fallback: T[]): T[] {
@@ -194,16 +430,25 @@ function backfillRatingResultVersionRefs(
 export function migrateWorkspaceBundle(
   bundle: DeqingWaterloggingWorkspace,
 ): DeqingWaterloggingWorkspace {
+  let indicators = bundle.indicators ?? [];
   let architectureRecords = bundle.architectureRecords?.length
     ? ensureArchitectureVersionNos(bundle.architectureRecords)
     : migrateLegacyArchitectureToRecords(
         bundle.indicators,
         bundle.level1Weights ?? cloneLevel1Weights(),
       );
+  architectureRecords = ensureArchitectureIndicatorSnapshots(
+    architectureRecords,
+    indicators,
+  );
+
+  const integrity = applyRatingIntegrityV1Migration(bundle, architectureRecords);
+  indicators = integrity.indicators;
+  architectureRecords = integrity.architectureRecords;
 
   const regionalPreventionRecords = ensurePreventionVersionNos(
     migratePreventionRecordsForArchitecture(
-      normalizePreventionActiveRefs(bundle.regionalPreventionRecords ?? []),
+      normalizePreventionActiveRefs(integrity.regionalPreventionRecords),
       architectureRecords,
     ),
   );
@@ -225,7 +470,7 @@ export function migrateWorkspaceBundle(
 
   const riskChangeLogs = bundle.riskChangeLogs ?? [];
   const points = backfillRatingResultVersionRefs(
-    normalizeSurveyActiveRefs(bundle.points ?? [], bundle.indicators ?? []),
+    normalizeSurveyActiveRefs(bundle.points ?? [], indicators),
     riskChangeLogs,
     architectureRecords,
     riskLevelRecords,
@@ -235,6 +480,8 @@ export function migrateWorkspaceBundle(
   if (bundle.riskLevelRecords?.length) {
     return {
       ...bundle,
+      indicators,
+      indicatorMeta: integrity.indicatorMeta,
       version: DEQING_WORKSPACE_VERSION,
       architectureRecords,
       regionalPreventionRecords,
@@ -246,6 +493,8 @@ export function migrateWorkspaceBundle(
   }
   return {
     ...bundle,
+    indicators,
+    indicatorMeta: integrity.indicatorMeta,
     version: DEQING_WORKSPACE_VERSION,
     architectureRecords,
     regionalPreventionRecords,
@@ -326,10 +575,13 @@ export function resolveWorkspaceStateFromPersistence(): DeqingWorkspaceState {
   };
 }
 
-export function buildWorkspaceBundleFromPersistence(): DeqingWaterloggingWorkspace {
+export function buildWorkspaceBundleFromPersistence(
+  revision = 0,
+): DeqingWaterloggingWorkspace {
   const state = resolveWorkspaceStateFromPersistence();
   return {
     version: DEQING_WORKSPACE_VERSION,
+    revision,
     updatedAt: nowIso(),
     indicators: state.indicators,
     indicatorLevels: state.indicatorLevels,
@@ -363,6 +615,7 @@ function buildWorkspaceFromBrowserLocalStorage(): DeqingWaterloggingWorkspace | 
       : migrateLegacyArchitectureToRecords(indicatorsStored, level1Weights);
   return {
     version: DEQING_WORKSPACE_VERSION,
+    revision: 0,
     updatedAt: nowIso(),
     indicators: indicatorsStored,
     indicatorLevels: state.indicatorLevels,
@@ -382,48 +635,178 @@ export async function fetchWorkspaceFromServer(): Promise<DeqingWaterloggingWork
   const res = await fetch(WORKSPACE_API, { cache: 'no-store' });
   if (res.status === 404) return null;
   if (!res.ok) {
-    throw new Error(`加载工作区失败（${res.status}）`);
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error || `加载工作区失败（${res.status}）`,
+    );
   }
-  return (await res.json()) as DeqingWaterloggingWorkspace;
+  const workspace = await res.json();
+  assertValidWorkspace(workspace);
+  return {
+    ...workspace,
+    revision: getWorkspaceRevision(workspace),
+  };
 }
 
-export async function saveWorkspaceToServer(bundle: DeqingWaterloggingWorkspace): Promise<void> {
-  const migrated = migrateWorkspaceBundle(bundle);
+export class WorkspaceRevisionConflictError extends Error {
+  readonly currentRevision: number | null;
+  readonly localWorkspace: DeqingWaterloggingWorkspace;
+
+  constructor(
+    message: string,
+    localWorkspace: DeqingWaterloggingWorkspace,
+    currentRevision: number | null,
+  ) {
+    super(message);
+    this.name = 'WorkspaceRevisionConflictError';
+    this.localWorkspace = localWorkspace;
+    this.currentRevision = currentRevision;
+  }
+}
+
+export async function saveWorkspaceToServer(
+  bundle: DeqingWaterloggingWorkspace,
+  expectedRevision = getWorkspaceRevision(bundle),
+): Promise<number> {
+  const migrated = {
+    ...migrateWorkspaceBundle(bundle),
+    revision: expectedRevision,
+  };
   const res = await fetch(WORKSPACE_API, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(migrated),
+    body: JSON.stringify({
+      expectedRevision,
+      workspace: migrated,
+    }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || `保存工作区失败（${res.status}）`);
+    const err = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      currentRevision?: number;
+    };
+    const message = err.error || `保存工作区失败（${res.status}）`;
+    if (res.status === 409) {
+      throw new WorkspaceRevisionConflictError(
+        message,
+        migrated,
+        Number.isSafeInteger(err.currentRevision) ? err.currentRevision! : null,
+      );
+    }
+    throw new Error(message);
   }
+  const result = (await res.json().catch(() => ({}))) as { revision?: number };
+  if (!Number.isSafeInteger(result.revision) || result.revision! <= expectedRevision) {
+    throw new Error('服务端未返回有效的新 revision');
+  }
+  return result.revision!;
 }
 
-export async function loadWorkspaceForApp(): Promise<DeqingWorkspaceState> {
+export interface LoadedDeqingWorkspace {
+  state: DeqingWorkspaceState;
+  revision: number;
+}
+
+export interface WorkspaceSaveCoordinator {
+  enqueue: (bundle: DeqingWaterloggingWorkspace) => Promise<void>;
+  flush: () => Promise<void>;
+  getRevision: () => number;
+  getPendingWorkspace: () => DeqingWaterloggingWorkspace | null;
+  exportPendingWorkspace: () => string | null;
+}
+
+/**
+ * 单通道保存队列：同一时刻最多一个 PUT，期间的新快照会合并为下一次保存。
+ * 失败时保留最后的本地快照，可重试或导出，不会用服务端内容覆盖本地状态。
+ */
+export function createWorkspaceSaveCoordinator(
+  initialRevision: number,
+  save: (
+    bundle: DeqingWaterloggingWorkspace,
+    expectedRevision: number,
+  ) => Promise<number> = saveWorkspaceToServer,
+): WorkspaceSaveCoordinator {
+  let revision = initialRevision;
+  let pending: DeqingWaterloggingWorkspace | null = null;
+  let inFlight: Promise<void> | null = null;
+
+  const startDrain = (): Promise<void> => {
+    if (inFlight) return inFlight;
+    inFlight = (async () => {
+      while (pending) {
+        const snapshot = pending;
+        pending = null;
+        try {
+          revision = await save(snapshot, revision);
+        } catch (error) {
+          if (!pending) pending = snapshot;
+          throw error;
+        }
+      }
+    })().finally(() => {
+      inFlight = null;
+    });
+    return inFlight;
+  };
+
+  return {
+    enqueue(bundle) {
+      pending = bundle;
+      return startDrain();
+    },
+    flush() {
+      return pending ? startDrain() : (inFlight ?? Promise.resolve());
+    },
+    getRevision() {
+      return revision;
+    },
+    getPendingWorkspace() {
+      return pending;
+    },
+    exportPendingWorkspace() {
+      return pending ? `${JSON.stringify(pending, null, 2)}\n` : null;
+    },
+  };
+}
+
+export async function loadWorkspaceForApp(): Promise<LoadedDeqingWorkspace> {
   let bundle = await fetchWorkspaceFromServer();
   if (!bundle) {
     const migrated = buildWorkspaceFromBrowserLocalStorage();
     if (migrated) {
       bundle = migrateWorkspaceBundle(migrated);
       hydratePersistenceFromWorkspace(bundle);
-      await saveWorkspaceToServer(bundle);
+      const revision = await saveWorkspaceToServer(bundle, 0);
+      bundle = { ...bundle, revision };
     }
   }
   if (bundle) {
+    let revision = getWorkspaceRevision(bundle);
     const blankMigrated = applyBlankSlateIndicatorsMigration(bundle);
+    const missingArchitectureSnapshots =
+      blankMigrated.architectureRecords?.some(
+        record => !record.config.indicatorDefinitions,
+      ) ?? false;
     bundle = migrateWorkspaceBundle(blankMigrated);
+    const migrationChanged = JSON.stringify(blankMigrated) !== JSON.stringify(bundle);
     const needsSave =
+      migrationChanged ||
       blankMigrated.indicators.length !== bundle.indicators.length ||
       !bundle.indicatorMeta?.blankSlateIndicators ||
+      !blankMigrated.indicatorMeta?.ratingIntegrityV1 ||
+      missingArchitectureSnapshots ||
       (bundle.version ?? 1) < DEQING_WORKSPACE_VERSION ||
       !bundle.architectureRecords?.length ||
       !bundle.riskLevelRecords?.length;
     if (needsSave) {
-      await saveWorkspaceToServer(bundle);
+      revision = await saveWorkspaceToServer(bundle, revision);
+      bundle = { ...bundle, revision };
     }
     hydratePersistenceFromWorkspace(bundle);
-    return resolveWorkspaceStateFromPersistence();
+    return {
+      state: resolveWorkspaceStateFromPersistence(),
+      revision,
+    };
   }
 
   enableServerMemoryPersistence({
@@ -441,16 +824,19 @@ export async function loadWorkspaceForApp(): Promise<DeqingWorkspaceState> {
     initialIndicatorRiskLevels.map(row => ({ ...row, builtin: true })),
   );
   return {
-    indicators: [],
-    indicatorLevels: getLevelsFromRecord(defaultRecords[0]),
-    riskLevelRecords: defaultRecords,
-    points: normalizeSurveyActiveRefs(
-      initialWaterloggingPoints.map(row => ({ ...row })),
-      [],
-    ),
-    regionalPreventionRecords: initialRegionalPreventionRecords.map(row => ({ ...row })),
-    riskChangeLogs: initialRiskChangeLogs.map(row => ({ ...row })),
-    architectureRecords: [],
+    revision: 0,
+    state: {
+      indicators: [],
+      indicatorLevels: getLevelsFromRecord(defaultRecords[0]),
+      riskLevelRecords: defaultRecords,
+      points: normalizeSurveyActiveRefs(
+        initialWaterloggingPoints.map(row => ({ ...row })),
+        [],
+      ),
+      regionalPreventionRecords: initialRegionalPreventionRecords.map(row => ({ ...row })),
+      riskChangeLogs: initialRiskChangeLogs.map(row => ({ ...row })),
+      architectureRecords: [],
+    },
   };
 }
 

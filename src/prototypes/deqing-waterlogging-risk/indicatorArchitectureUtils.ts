@@ -1,4 +1,5 @@
 import { collectArchitectureWeightIssues } from './weightBalance';
+import { validateIndicatorConfig } from './indicatorConfigReadiness';
 import {
   cloneLevel1Weights,
   type IndicatorArchitectureConfig,
@@ -77,22 +78,94 @@ export function getActiveArchitectureRecord(
   return records.find(r => r.activeForRating) ?? null;
 }
 
-/** 定级引用：activeForRating 优先，否则最近一条 completed */
+/** 返回评价版本不可作为定级引用的原因；null 表示可引用。 */
+export function getArchitectureRatingReferenceIssue(
+  record: IndicatorArchitectureRecord,
+): string | null {
+  if (record.config.status !== 'completed') {
+    return '仅已完成的评价版本可设为定级引用';
+  }
+  const definitions = Object.values(record.config.indicatorDefinitions ?? {});
+  if (!definitions.length) {
+    return '版本缺少冻结的指标定义快照，无法作为定级引用';
+  }
+  const validation = validateArchitectureConfig(record.config, definitions);
+  if (validation.weightIssues.length) {
+    return `权重校验未通过（${validation.weightIssues.length} 项）`;
+  }
+  if (validation.indicatorIssues.length) {
+    return `指标校验未通过（${validation.indicatorIssues.length} 项不可计算）`;
+  }
+  return null;
+}
+
+/** 定级引用只认显式 activeForRating，且版本必须完成并通过权重与指标可计算性校验。 */
 export function getArchitectureForRating(
   records: IndicatorArchitectureRecord[],
 ): IndicatorArchitectureRecord | null {
   if (!records.length) return null;
   const active = records.find(r => r.activeForRating);
-  if (active) return active;
-  const completed = sortArchitectureRecords(records).find(r => r.config.status === 'completed');
-  return completed ?? null;
+  if (!active || getArchitectureRatingReferenceIssue(active)) return null;
+  return active;
 }
 
 export function setActiveArchitectureRecord(
   records: IndicatorArchitectureRecord[],
   id: string,
 ): IndicatorArchitectureRecord[] {
+  const target = records.find(r => r.id === id);
+  if (!target || getArchitectureRatingReferenceIssue(target)) {
+    return records;
+  }
   return records.map(r => ({ ...r, activeForRating: r.id === id }));
+}
+
+/** 已完成或正在定级引用的版本属于发布快照，不允许原地覆盖。 */
+export function isArchitectureVersionImmutable(
+  record: IndicatorArchitectureRecord,
+): boolean {
+  return record.activeForRating || record.config.status === 'completed';
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(item => stableSerialize(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * 判断“复制为新版本”是否包含值得落库的业务调整。
+ * 自动变化的版本状态、维护时间和维护人不算方案变更；配置内容或批次说明改变才允许生成新版本。
+ */
+export function hasMeaningfulArchitectureCopyChanges(
+  initialConfig: IndicatorArchitectureConfig,
+  currentConfig: IndicatorArchitectureConfig,
+  suggestedLabel: string,
+  currentLabel: string | undefined,
+): boolean {
+  // indicatorDefinitions 中的 weight/enabled 是定义快照里的冗余展示值；
+  // 编辑器初始化时会按 indicatorStates 重建它们，不能把这种内部同步误判为用户修改。
+  const initialContent = {
+    level1Weights: initialConfig.level1Weights,
+    indicatorStates: initialConfig.indicatorStates,
+  };
+  const currentContent = {
+    level1Weights: currentConfig.level1Weights,
+    indicatorStates: currentConfig.indicatorStates,
+  };
+
+  return (
+    stableSerialize(initialContent) !== stableSerialize(currentContent) ||
+    (currentLabel ?? '').trim() !== suggestedLabel.trim()
+  );
 }
 
 export function buildIndicatorStatesFromIndicators(
@@ -110,22 +183,27 @@ export function buildArchitectureSnapshot(
   level1Weights: Level1Weights,
   updatedBy?: string,
 ): IndicatorArchitectureConfig {
-  const issues = collectArchitectureWeightIssues(indicators, level1Weights);
+  const weightIssues = collectArchitectureWeightIssues(indicators, level1Weights);
+  const indicatorIssues = collectArchitectureIndicatorIssues(indicators);
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   return {
     level1Weights: { ...level1Weights },
     indicatorStates: buildIndicatorStatesFromIndicators(indicators),
+    indicatorDefinitions: snapshotIndicatorDefinitions(indicators),
     updatedAt: now,
     updatedBy,
-    status: issues.length === 0 ? 'completed' : 'draft',
+    status: weightIssues.length === 0 && indicatorIssues.length === 0 ? 'completed' : 'draft',
   };
 }
 
 export function mergeArchitectureOntoIndicators(
   indicators: RiskIndicatorRow[],
-  config: Pick<IndicatorArchitectureConfig, 'indicatorStates'>,
+  config: Pick<IndicatorArchitectureConfig, 'indicatorStates' | 'indicatorDefinitions'>,
 ): RiskIndicatorRow[] {
-  return indicators.map(ind => {
+  const definitions = config.indicatorDefinitions
+    ? Object.values(config.indicatorDefinitions)
+    : indicators;
+  return definitions.map(ind => {
     const snap = config.indicatorStates[ind.id];
     if (!snap) {
       return { ...ind, enabled: false };
@@ -144,10 +222,34 @@ export function configToMergedIndicators(
 export function validateArchitectureConfig(
   config: IndicatorArchitectureConfig,
   indicators: RiskIndicatorRow[],
-): { ok: boolean; issues: ReturnType<typeof collectArchitectureWeightIssues> } {
+): {
+  ok: boolean;
+  weightIssues: ReturnType<typeof collectArchitectureWeightIssues>;
+  indicatorIssues: string[];
+  issues: Array<ReturnType<typeof collectArchitectureWeightIssues>[number] | string>;
+} {
   const merged = configToMergedIndicators(indicators, config);
-  const issues = collectArchitectureWeightIssues(merged, config.level1Weights);
-  return { ok: issues.length === 0, issues };
+  const weightIssues = collectArchitectureWeightIssues(merged, config.level1Weights);
+  const indicatorIssues = collectArchitectureIndicatorIssues(merged);
+  return {
+    ok: weightIssues.length === 0 && indicatorIssues.length === 0,
+    weightIssues,
+    indicatorIssues,
+    issues: [...weightIssues, ...indicatorIssues],
+  };
+}
+
+/** 评价版本只校验启用指标；任一指标无法自动计分时，该版本不得完成或成为定级引用。 */
+export function collectArchitectureIndicatorIssues(indicators: RiskIndicatorRow[]): string[] {
+  const enabled = indicators.filter(ind => ind.enabled);
+  const issues: string[] = [];
+  for (const ind of enabled) {
+    const readiness = validateIndicatorConfig(ind, indicators);
+    for (const blocker of readiness.blockers) {
+      issues.push(`${ind.code || ind.name}：${blocker}`);
+    }
+  }
+  return issues;
 }
 
 export function summarizeArchitectureRecord(
@@ -157,15 +259,24 @@ export function summarizeArchitectureRecord(
   enabledCount: number;
   totalCount: number;
   weightValid: boolean;
+  indicatorValid: boolean;
+  weightIssueCount: number;
+  indicatorIssueCount: number;
   issueCount: number;
 } {
   const merged = configToMergedIndicators(indicators, record.config);
-  const { ok, issues } = validateArchitectureConfig(record.config, indicators);
+  const { weightIssues, indicatorIssues, issues } = validateArchitectureConfig(
+    record.config,
+    indicators,
+  );
   const enabledCount = merged.filter(i => i.enabled).length;
   return {
     enabledCount,
-    totalCount: indicators.length,
-    weightValid: ok,
+    totalCount: merged.length,
+    weightValid: weightIssues.length === 0,
+    indicatorValid: indicatorIssues.length === 0,
+    weightIssueCount: weightIssues.length,
+    indicatorIssueCount: indicatorIssues.length,
     issueCount: issues.length,
   };
 }
@@ -176,14 +287,16 @@ export function buildConfigFromEditedIndicators(
   editedIndicators: RiskIndicatorRow[],
   level1Weights: Level1Weights,
 ): IndicatorArchitectureConfig {
-  const issues = collectArchitectureWeightIssues(editedIndicators, level1Weights);
+  const weightIssues = collectArchitectureWeightIssues(editedIndicators, level1Weights);
+  const indicatorIssues = collectArchitectureIndicatorIssues(editedIndicators);
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   return {
     ...base,
     level1Weights: { ...level1Weights },
     indicatorStates: buildIndicatorStatesFromIndicators(editedIndicators),
+    indicatorDefinitions: snapshotIndicatorDefinitions(editedIndicators),
     updatedAt: now,
-    status: issues.length === 0 ? 'completed' : 'draft',
+    status: weightIssues.length === 0 && indicatorIssues.length === 0 ? 'completed' : 'draft',
   };
 }
 
@@ -192,13 +305,71 @@ export function syncConfigWithIndicatorCatalog(
   config: IndicatorArchitectureConfig,
   indicators: RiskIndicatorRow[],
 ): IndicatorArchitectureConfig {
+  const catalog = config.indicatorDefinitions
+    ? Object.values(config.indicatorDefinitions)
+    : indicators;
   const nextStates = { ...config.indicatorStates };
-  for (const ind of indicators) {
+  for (const ind of catalog) {
     if (!nextStates[ind.id]) {
       nextStates[ind.id] = { weight: ind.weight, enabled: false };
     }
   }
-  return { ...config, indicatorStates: nextStates };
+  return {
+    ...config,
+    indicatorStates: nextStates,
+    indicatorDefinitions:
+      config.indicatorDefinitions ?? snapshotIndicatorDefinitions(catalog),
+  };
+}
+
+/** 深拷贝指标定义，冻结 fieldKey、赋分档、条件规则、适用类型与普查配置。 */
+export function snapshotIndicatorDefinitions(
+  indicators: RiskIndicatorRow[],
+): Record<string, RiskIndicatorRow> {
+  return Object.fromEntries(
+    indicators.map(ind => [ind.id, JSON.parse(JSON.stringify(ind)) as RiskIndicatorRow]),
+  );
+}
+
+/**
+ * 复制为新评价版本时采用当前指标目录定义，同时沿用来源版本中仍存在指标的启用与权重。
+ * 已从目录删除的指标不会进入新版本；新指标默认停用。
+ */
+export function refreshArchitectureConfigForNewVersion(
+  config: IndicatorArchitectureConfig,
+  currentIndicators: RiskIndicatorRow[],
+): IndicatorArchitectureConfig {
+  const indicatorStates: Record<string, IndicatorArchitectureState> = {};
+  for (const ind of currentIndicators) {
+    indicatorStates[ind.id] = config.indicatorStates[ind.id] ?? {
+      weight: ind.weight,
+      enabled: false,
+    };
+  }
+  return {
+    ...config,
+    indicatorStates,
+    indicatorDefinitions: snapshotIndicatorDefinitions(currentIndicators),
+    status: 'draft',
+  };
+}
+
+/** 为旧工作区一次性补齐定义快照；已有快照绝不重写。 */
+export function ensureArchitectureIndicatorSnapshots(
+  records: IndicatorArchitectureRecord[],
+  indicators: RiskIndicatorRow[],
+): IndicatorArchitectureRecord[] {
+  return records.map(record =>
+    record.config.indicatorDefinitions
+      ? record
+      : {
+          ...record,
+          config: {
+            ...record.config,
+            indicatorDefinitions: snapshotIndicatorDefinitions(indicators),
+          },
+        },
+  );
 }
 
 /** v1→v2：从根级 indicators/level1Weights 生成初始架构版本 */
@@ -226,14 +397,14 @@ export function getRatingLevel1Weights(
   return record?.config.level1Weights ?? cloneLevel1Weights();
 }
 
-/** 解析单条普查记录绑定的架构版本；无绑定时回退定级引用 */
+/** 解析单条普查记录绑定的架构版本；显式引用丢失时必须返回 null，不得静默回退。 */
 export function resolveSurveyArchitectureRecord(
   records: IndicatorArchitectureRecord[],
   surveyArchitectureRefId: string | undefined,
   fallback: IndicatorArchitectureRecord | null,
 ): IndicatorArchitectureRecord | null {
   if (surveyArchitectureRefId) {
-    return records.find(r => r.id === surveyArchitectureRefId) ?? fallback;
+    return records.find(r => r.id === surveyArchitectureRefId) ?? null;
   }
   return fallback;
 }

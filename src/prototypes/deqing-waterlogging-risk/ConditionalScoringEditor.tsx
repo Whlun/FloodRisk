@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'antd';
 import {
+  Alert,
   Button,
   Col,
   Divider,
   Form,
   Input,
   InputNumber,
+  Modal,
   Row,
   Segmented,
   Select,
@@ -20,8 +21,6 @@ import type { FormInstance } from 'antd';
 import type { BranchNumericMatch, ConditionalScoringConfig, HazardPointType, RiskIndicatorRow } from './types';
 import {
   SURVEY_BASIC_INFO_SOURCE_LABEL,
-  CONDITIONAL_SCORING_MODE_HINT,
-  CONDITIONAL_SCORING_MODE_LABEL,
   allowedConditionCandidateValueTypes,
   getAppendixBMatchValueOptions,
   filterExclusiveMatchValueOptions,
@@ -100,6 +99,30 @@ function ConditionFieldReadonlyDisplay({
 
 const NUMERIC_MATCH_OPTIONS = NUMERIC_MATCH_KIND_SELECT_OPTIONS.filter(o => o.value !== 'between');
 
+function hasConfiguredBranchConditions(
+  branches: ConditionalScoringConfig['branches'] | undefined,
+): boolean {
+  return Boolean(
+    branches?.some(
+      branch =>
+        Boolean(branch.matchValues?.length) ||
+        Boolean(branch.numericMatch) ||
+        branch.numericThreshold !== undefined,
+    ),
+  );
+}
+
+function clearBranchConditions(
+  branches: ConditionalScoringConfig['branches'] | undefined,
+): ConditionalScoringConfig['branches'] {
+  return (branches ?? []).map(branch => ({
+    ...branch,
+    matchValues: [],
+    numericMatch: undefined,
+    numericThreshold: undefined,
+  }));
+}
+
 interface Props {
   form: FormInstance;
   valueType: RiskIndicatorRow['valueType'];
@@ -135,10 +158,12 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
 }) => {
   const enabledWatch = Form.useWatch(['conditionalScoring', 'enabled'], form) as boolean | undefined;
   const effectiveEnabled = drivenByScoringRuleMode ? true : Boolean(enabledWatch);
-  const mode = Form.useWatch(['conditionalScoring', 'mode'], form) as
+  const automaticMode = valueType === 'numeric' ? 'branch_threshold' : 'branch_rules';
+  const watchedMode = Form.useWatch(['conditionalScoring', 'mode'], form) as
     | 'branch_threshold'
     | 'branch_rules'
     | undefined;
+  const mode = automaticMode;
   const sourceType = Form.useWatch(['conditionalScoring', 'source', 'type'], form) as
     | 'appendix_b'
     | 'indicator'
@@ -160,8 +185,12 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
   const surveyWatch = Form.useWatch('survey', form) as RiskIndicatorRow['survey'] | undefined;
   const unitWatch = Form.useWatch('unit', form) as string | undefined;
 
-  const numericBranchBandRules =
-    valueType === 'numeric' && (mode === 'branch_threshold' || mode === 'branch_rules');
+  const numericBranchBandRules = valueType === 'numeric';
+
+  useEffect(() => {
+    if (watchedMode === automaticMode) return;
+    form.setFieldValue(['conditionalScoring', 'mode'], automaticMode);
+  }, [automaticMode, form, watchedMode]);
 
   const syncBranchNumericRuleLabel = useCallback(
     (branchFieldName: number, ruleIndex: number) => {
@@ -216,19 +245,12 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
     Boolean(surveyWatch?.auxiliaryCondition?.fieldKey?.trim()) ||
     selfAuxiliaryCondKey;
 
-  const auxiliaryIndicatorCensusMode = Boolean(
-    surveyWatch?.inputVariant === 'auxiliary_then_select' &&
-      hasAuxiliaryConditionSurvey(selfIndicatorForConditional) &&
-      selfIndicatorForConditional?.survey?.auxiliaryCondition?.surveyPlacement !== 'appendix_b' &&
-      !(selfIndicatorForConditional && shouldCollectAuxiliaryInAppendixB(selfIndicatorForConditional)),
-  );
-
   useEffect(() => {
     if (!isAuxiliaryScenario || detailOnly) return;
     syncAuxiliarySurveyFromConditionalBranches(form);
   }, [isAuxiliaryScenario, detailOnly, conditionalWatched, form]);
 
-  const defaultMode = valueType === 'numeric' ? 'branch_threshold' : 'branch_rules';
+  const defaultMode = automaticMode;
 
   const selfDraftSurvey = useMemo(
     (): Pick<RiskIndicatorRow, 'survey'> | undefined =>
@@ -267,10 +289,16 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
     return {
       level1,
       applicableTypes: isFormationLevel1(level1) ? types : (['GLOBAL'] as HazardPointType[]),
-      code: ((form.getFieldValue('code') as string | undefined) ?? selfCode)?.trim() || undefined,
-      survey: surveyWatch ?? (form.getFieldValue('survey') as RiskIndicatorRow['survey'] | undefined),
+      code: ((form.getFieldValue('code') as string | undefined) ?? selfCode)?.trim() || idPrefix,
+      survey:
+        surveyWatch ??
+        (form.getFieldValue('survey') as RiskIndicatorRow['survey'] | undefined) ?? {
+          collectInSurvey: true,
+          surveyRequired: false,
+          fieldKey: idPrefix,
+        },
     };
-  }, [level1Watch, applicableTypesWatch, selfCode, surveyWatch, form]);
+  }, [level1Watch, applicableTypesWatch, selfCode, surveyWatch, form, idPrefix]);
 
   const selfIndicatorForConditional = useMemo(() => {
     if (!basicInfoConditionContext) return undefined;
@@ -298,7 +326,10 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
         },
       conditionalScoring: form.getFieldValue('conditionalScoring'),
     } as RiskIndicatorRow;
-    return mergeIndicatorSurveyConfig(draft, fromList);
+    return {
+      ...draft,
+      survey: mergeIndicatorSurveyConfig(draft, fromList),
+    };
   }, [
     allIndicators,
     selfCode,
@@ -311,6 +342,12 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
   ]);
 
   const selfIndicator = selfIndicatorForConditional;
+  const auxiliaryIndicatorCensusMode = Boolean(
+    surveyWatch?.inputVariant === 'auxiliary_then_select' &&
+      hasAuxiliaryConditionSurvey(selfIndicatorForConditional) &&
+      selfIndicatorForConditional?.survey?.auxiliaryCondition?.surveyPlacement !== 'appendix_b' &&
+      !(selfIndicatorForConditional && shouldCollectAuxiliaryInAppendixB(selfIndicatorForConditional)),
+  );
 
   const flowModel = useMemo(() => {
     const fromForm = (conditionalWatched ??
@@ -339,9 +376,9 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
     return {
       level1,
       applicableTypes: isFormationLevel1(level1) ? types : ['GLOBAL'],
-      code: selfCode ?? selfIndicatorForConditional?.code,
+      code: selfCode ?? selfIndicatorForConditional?.code ?? idPrefix,
     };
-  }, [level1Watch, applicableTypesWatch, selfIndicatorForConditional, selfCode]);
+  }, [level1Watch, applicableTypesWatch, selfIndicatorForConditional, selfCode, idPrefix]);
 
   const conditionFilterIncomplete = isConditionSourceFilterIncomplete(
     conditionFilterContext,
@@ -369,8 +406,7 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
   const appendixSourceUsesDiscreteMatch =
     sourceType === 'appendix_b' &&
     !isRegion &&
-    Boolean(sourceKey) &&
-    appendixBConditionFieldUsesDiscreteMatch(sourceKey, allIndicators);
+    Boolean(sourceKey && appendixBConditionFieldUsesDiscreteMatch(sourceKey, allIndicators));
 
   const branchSectionHelp = useMemo(
     () =>
@@ -407,6 +443,41 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
   ]);
 
   const branchesWatch = conditionalWatched?.branches ?? [];
+
+  const applyConditionSourceChange = useCallback(
+    (nextSource: ConditionalScoringConfig['source']) => {
+      const cfg = form.getFieldValue('conditionalScoring') as ConditionalScoringConfig | undefined;
+      form.setFieldsValue({
+        conditionalScoring: {
+          ...cfg,
+          source: nextSource,
+          branches: clearBranchConditions(cfg?.branches),
+        },
+      });
+    },
+    [form],
+  );
+
+  const requestConditionSourceChange = useCallback(
+    (nextSource: ConditionalScoringConfig['source']): boolean => {
+      if (nextSource.type === sourceType && nextSource.key === sourceKey) return true;
+      const cfg = form.getFieldValue('conditionalScoring') as ConditionalScoringConfig | undefined;
+      if (!hasConfiguredBranchConditions(cfg?.branches)) {
+        applyConditionSourceChange(nextSource);
+        return true;
+      }
+      Modal.confirm({
+        title: '切换条件字段？',
+        content:
+          '切换后将清空各条件分支已配置的「匹配取值 / 数值条件」，避免沿用不兼容的命中条件；本指标在各分支内的赋分选项或数值分档会保留。',
+        okText: '切换并清空分支条件',
+        cancelText: '取消',
+        onOk: () => applyConditionSourceChange(nextSource),
+      });
+      return false;
+    },
+    [applyConditionSourceChange, form, sourceKey, sourceType],
+  );
 
   const handleBranchMatchValuesChange = useCallback(
     (branchIndex: number, values: string[]) => {
@@ -930,52 +1001,48 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
               同组尚无其他数值型防灾减灾指标可作条件，请先新增或关闭条件赋分。
             </Text>
           ) : null}
+          <Form.Item
+            name={['conditionalScoring', 'mode']}
+            hidden
+            initialValue={defaultMode}
+          >
+            <Input />
+          </Form.Item>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message={
+              valueType === 'numeric'
+                ? '数值型指标：按条件命中分支后，再按本指标数值区间自动赋分'
+                : '下拉分档 / 是·否指标：按条件命中分支后，展示该分支的可选项'
+            }
+            description={
+              valueType === 'numeric'
+                ? '「条件分支」只决定采用哪组规则；普查始终填写数值，并在该分支的“本指标数值分档”中自动匹配标准分 F。'
+                : '「条件分支」只决定展示哪组选项；普查人员从该分支的“本指标分支选项”中选择，不需要再选择条件赋分方式。'
+            }
+          />
           <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                name={['conditionalScoring', 'mode']}
-                label={formLabelWithHelp(
-                  '条件赋分方式',
-                  mode ? CONDITIONAL_SCORING_MODE_HINT[mode] : undefined,
-                  '条件赋分方式说明',
-                )}
-                rules={[{ required: true }]}
-                initialValue={defaultMode}
-              >
-                <Select
-                  disabled={detailOnly}
-                  options={[
-                    {
-                      value: 'branch_threshold' as const,
-                      label: CONDITIONAL_SCORING_MODE_LABEL.branch_threshold,
-                      disabled: valueType !== 'numeric',
-                    },
-                    {
-                      value: 'branch_rules' as const,
-                      label: CONDITIONAL_SCORING_MODE_LABEL.branch_rules,
-                      disabled: valueType === 'boolean',
-                    },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
+            <Col xs={24} md={12}>
               <Form.Item
                 name={['conditionalScoring', 'source', 'type']}
                 label="条件来源类型"
                 rules={[{ required: true }]}
                 initialValue={isRegion ? 'indicator' : 'appendix_b'}
+                getValueFromEvent={(nextType: ConditionalScoringConfig['source']['type']) =>
+                  requestConditionSourceChange({ type: nextType, key: '' })
+                    ? nextType
+                    : (sourceType ?? (isRegion ? 'indicator' : 'appendix_b'))
+                }
               >
                 <Select
                   disabled={detailOnly || isRegion || auxiliaryIndicatorCensusMode}
                   options={sourceTypeOptions}
-                  onChange={() => {
-                    form.setFieldValue(['conditionalScoring', 'source', 'key'], undefined);
-                  }}
                 />
               </Form.Item>
             </Col>
-          </Row>
+            <Col xs={24} md={12}>
           {auxiliaryIndicatorCensusMode ? (
             <>
               <Form.Item
@@ -1006,6 +1073,14 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
               name={['conditionalScoring', 'source', 'key']}
               label={formLabelWithHelp('条件字段', conditionFieldHelp, '条件字段说明')}
               rules={[{ required: true, message: '请选择条件字段' }]}
+              getValueFromEvent={(nextKey: string) =>
+                requestConditionSourceChange({
+                  type: sourceType === 'indicator' || isRegion ? 'indicator' : 'appendix_b',
+                  key: nextKey,
+                })
+                  ? nextKey
+                  : sourceKey
+              }
             >
               {sourceType === 'indicator' || isRegion ? (
                 <Select
@@ -1043,10 +1118,12 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
               )}
             </Form.Item>
           )}
+            </Col>
+          </Row>
 
           <Divider plain style={{ margin: '4px 0 12px' }}>
             <span>
-              条件分支
+              第一步：配置条件分支
               <FormLabelHelpTip title={branchSectionHelp} ariaLabel="条件分支说明" />
             </span>
           </Divider>
@@ -1073,7 +1150,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                     <Row gutter={16} className="dq-conditional-branch-card__fields">
                       <Col xs={24} sm={12}>
                         <Form.Item
-                          {...field}
                           name={[field.name, 'label']}
                           label="分支名称"
                           rules={[{ required: true, message: '请填写分支名称' }]}
@@ -1087,7 +1163,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                       <Col xs={24} sm={12}>
                         {appendixSourceUsesDiscreteMatch || conditionSourceUsesDiscreteMatch ? (
                           <Form.Item
-                            {...field}
                             name={[field.name, 'matchValues']}
                             label={formLabelWithHelp(
                               '匹配取值',
@@ -1127,7 +1202,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                           <Form.Item label="数值条件" required>
                             <Space.Compact style={{ width: '100%' }}>
                               <Form.Item
-                                {...field}
                                 name={[field.name, 'numericMatch', 'kind']}
                                 noStyle
                                 rules={[{ required: true, message: '请选择比较符' }]}
@@ -1139,7 +1213,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                                 />
                               </Form.Item>
                               <Form.Item
-                                {...field}
                                 name={[field.name, 'numericMatch', 'value']}
                                 noStyle
                                 rules={[{ required: true, message: '请填写阈值' }]}
@@ -1165,13 +1238,20 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                       </Text>
                     ) : null}
 
-                    <Form.Item {...field} name={[field.name, 'id']} hidden>
+                    <Form.Item name={[field.name, 'id']} hidden>
                       <Input />
                     </Form.Item>
 
                     <div className="dq-conditional-branch-card__footer">
                       {(mode === 'branch_threshold' || mode === 'branch_rules') && (
-                        <Form.Item label="本分支赋分档" style={{ marginBottom: 0 }}>
+                        <Form.Item
+                          label={
+                            valueType === 'numeric'
+                              ? '第二步：配置本指标数值分档'
+                              : '第二步：配置本指标分支选项'
+                          }
+                          style={{ marginBottom: 0 }}
+                        >
                           <Form.List name={[field.name, 'scoreRules']}>
                             {(ruleFields, { add: addRule, remove: removeRule }) => {
                               const limits =
@@ -1222,7 +1302,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                                     ) : (
                                       <Col flex="auto">
                                         <Form.Item
-                                          {...rf}
                                           name={[rf.name, 'label']}
                                           rules={[{ required: true, message: '请填写分档描述' }]}
                                           noStyle
@@ -1233,7 +1312,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                                     )}
                                     <Col span={numericBranchBandRules ? 4 : undefined} style={numericBranchBandRules ? undefined : { width: 88 }}>
                                       <Form.Item
-                                        {...rf}
                                         name={[rf.name, 'score']}
                                         rules={[{ required: true, message: '请填写分值' }]}
                                         noStyle
@@ -1251,7 +1329,6 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                                     {numericBranchBandRules ? (
                                       <Col span={7}>
                                         <Form.Item
-                                          {...rf}
                                           name={[rf.name, 'label']}
                                           rules={[{ required: true, message: '请填写分档描述' }]}
                                           noStyle
@@ -1276,10 +1353,10 @@ export const ConditionalScoringEditor: React.FC<Props> = ({
                                         </Button>
                                       </Col>
                                     )}
-                                    <Form.Item {...rf} name={[rf.name, 'id']} hidden>
+                                    <Form.Item name={[rf.name, 'id']} hidden>
                                       <Input />
                                     </Form.Item>
-                                    <Form.Item {...rf} name={[rf.name, 'riskTier']} hidden>
+                                    <Form.Item name={[rf.name, 'riskTier']} hidden>
                                       <Input />
                                     </Form.Item>
                                   </Row>

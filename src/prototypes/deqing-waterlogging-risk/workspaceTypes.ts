@@ -17,12 +17,16 @@ export interface WorkspaceIndicatorMeta {
   condSourceFix?: boolean;
   auxLabelFix?: boolean;
   presetNumericMatchRepair?: boolean;
+  /** 已完成评分准入完整性迁移（修复当前目录并生成新的显式引用版本）。 */
+  ratingIntegrityV1?: boolean;
   /** 已切换到空白自建：不再注入导则指标种子 */
   blankSlateIndicators?: boolean;
 }
 
 export interface DeqingWaterloggingWorkspace {
   version: typeof DEQING_WORKSPACE_VERSION;
+  /** 服务端乐观并发版本；旧工作区缺省时按 0 迁移 */
+  revision?: number;
   updatedAt: string;
   indicators: RiskIndicatorRow[];
   /** @deprecated 由 riskLevelRecords 承载；迁移期保留 */

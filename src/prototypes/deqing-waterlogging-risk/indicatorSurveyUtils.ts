@@ -315,6 +315,24 @@ export function indicatorAppliesToPoint(
 
 export type IndicatorSurveyValues = Record<string, string | number | boolean | null>;
 
+export function findIndicatorIdentityConflicts(
+  ind: Pick<RiskIndicatorRow, 'id' | 'code' | 'survey'>,
+  indicators: RiskIndicatorRow[],
+): { duplicateCode: boolean; duplicateFieldKey: boolean } {
+  const code = String(ind.code ?? '').trim().toUpperCase();
+  const fieldKey = String(ind.survey?.fieldKey ?? '').trim();
+  const others = indicators.filter(row => row.id !== ind.id);
+  return {
+    duplicateCode: Boolean(
+      code && others.some(row => String(row.code ?? '').trim().toUpperCase() === code),
+    ),
+    duplicateFieldKey: Boolean(
+      fieldKey &&
+        others.some(row => String(row.survey?.fieldKey ?? '').trim() === fieldKey),
+    ),
+  };
+}
+
 export function getIndicatorSurveyValue(
   values: IndicatorSurveyValues | undefined | null,
   fieldKey: string,

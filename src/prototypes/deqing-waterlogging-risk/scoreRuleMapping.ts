@@ -13,6 +13,15 @@ import { matchScoreRuleByNumericBands } from './scoreRuleNumericBands';
 
 export type { ScoreMatchContext };
 
+function parseBooleanSurveyValue(raw: string | number | boolean): boolean | null {
+  if (raw === true || raw === false) return raw;
+  if (raw === 1 || raw === 0) return raw === 1;
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === 'true' || normalized === 'yes' || normalized === '1') return true;
+  if (normalized === 'false' || normalized === 'no' || normalized === '0') return false;
+  return null;
+}
+
 /** 根据指标原始值匹配附录 F 赋分档（仅读 scoreRules.numericMatch / 条件赋分配置） */
 export function matchScoreRuleFromValue(
   ind: RiskIndicatorRow,
@@ -22,6 +31,8 @@ export function matchScoreRuleFromValue(
 ): ScoreRule | null {
   const conditional = matchScoreRuleWithConditional(ind, raw, context, indicators);
   if (conditional) return conditional;
+  // 条件赋分启用后，缺失条件或未覆盖分支必须显式失败，不能静默换用统一赋分档。
+  if (ind.conditionalScoring?.enabled) return null;
 
   const values = context?.indicatorValues;
   if (isCompositeAppendixNumericSurvey(ind) && values) {
@@ -35,7 +46,13 @@ export function matchScoreRuleFromValue(
 
   const rules = ind.scoreRules;
   if (ind.valueType === 'boolean') {
-    const b = Boolean(raw);
+    // 兼容历史普查数据直接保存了分档文案/风险等级，而不是布尔字面量。
+    const direct = rules.find(
+      r => r.label === String(raw) || r.riskTier === String(raw) || r.id === String(raw),
+    );
+    if (direct) return direct;
+    const b = parseBooleanSurveyValue(raw);
+    if (b === null) return null;
     return rules.find(r => (b && r.score >= 0.9) || (!b && r.score <= 0.1)) ?? rules[b ? rules.length - 1 : 0];
   }
   if (ind.valueType === 'numeric') {

@@ -14,21 +14,28 @@ function calcLevel1Partial(
   pointType: SurveyPointType,
   level1: Level1Factor,
   selectedRuleIds: Record<string, string>,
-): { score: number; used: boolean } {
-  const group = indicators.filter(
-    i => i.enabled && i.level1 === level1 && indicatorAppliesToPoint(i, pointType) && selectedRuleIds[i.id],
+): { score: number; used: boolean; complete: boolean } {
+  const applicable = indicators.filter(
+    i => i.enabled && i.level1 === level1 && indicatorAppliesToPoint(i, pointType),
   );
-  if (!group.length) return { score: 0, used: false };
+  const group = applicable.filter(i => selectedRuleIds[i.id]);
+  if (!group.length) return { score: 0, used: false, complete: false };
   let sum = 0;
   let wSum = 0;
+  let matched = 0;
   for (const ind of group) {
     const rule = ind.scoreRules.find(r => r.id === selectedRuleIds[ind.id]);
     if (!rule) continue;
     sum += ind.weight * rule.score;
     wSum += ind.weight;
+    matched += 1;
   }
-  if (wSum <= 0) return { score: 0, used: false };
-  return { score: sum / wSum, used: true };
+  if (wSum <= 0) return { score: 0, used: false, complete: false };
+  return {
+    score: sum / wSum,
+    used: true,
+    complete: applicable.length > 0 && matched === applicable.length,
+  };
 }
 
 export function calcTotalScorePartial(
@@ -50,7 +57,8 @@ export function calcTotalScorePartial(
 
   const wSum = parts.reduce((s, p) => s + p.w, 0);
   const v = wSum > 0 ? parts.reduce((s, p) => s + (p.w / wSum) * p.v, 0) : 0;
-  return { v, v1: v1.score, v2: v2.score, v3: v3.score, v4: v4.score, partial: parts.length < 4 };
+  const partial = !v1.complete || !v2.complete || !v3.complete || !v4.complete;
+  return { v, v1: v1.score, v2: v2.score, v3: v3.score, v4: v4.score, partial };
 }
 
 export function ratePointFromSelections(
@@ -75,6 +83,7 @@ export function ratePointFromSelections(
     selectedRuleIds,
     level1Weights,
   );
-  const level = mapScoreToLevel(v, indicatorLevels);
-  return { v, v1, v2, v3, v4, level, partial: partial || coverage.percent < 100 };
+  const incomplete = partial || coverage.percent < 100;
+  const level = incomplete ? undefined : mapScoreToLevel(v, indicatorLevels);
+  return { v, v1, v2, v3, v4, level, partial: incomplete };
 }

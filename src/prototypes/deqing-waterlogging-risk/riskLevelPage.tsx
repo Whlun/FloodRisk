@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Button,
   Card,
   Col,
@@ -35,6 +36,8 @@ import {
   type IndicatorRiskLevelRow,
   type RiskLevelVersionConfig,
   type RiskLevelVersionRecord,
+  type RiskChangeLogEntry,
+  type WaterloggingPointRow,
 } from './types';
 import { RiskLevelEditor } from './RiskLevelEditor';
 import { RiskLevelVersionTag } from './RiskLevelVersionTag';
@@ -43,6 +46,8 @@ import {
   ensureRiskLevelVersionNos,
   getActiveRiskLevelRecord,
   getLevelsFromRecord,
+  getRiskLevelRatingReferenceIssue,
+  isRiskLevelVersionImmutable,
   nextRiskLevelVersionNo,
   setActiveRiskLevelRecord,
   sortRiskLevelRecords,
@@ -54,7 +59,9 @@ const { RangePicker } = DatePicker;
 
 interface Props {
   records: RiskLevelVersionRecord[];
-  onChange: (records: RiskLevelVersionRecord[]) => void;
+  onChange: (records: RiskLevelVersionRecord[]) => void | Promise<void>;
+  points?: WaterloggingPointRow[];
+  riskChangeLogs?: RiskChangeLogEntry[];
   openDetailRecordIdOnMount?: string | null;
   onDetailMountHandled?: () => void;
 }
@@ -77,6 +84,8 @@ function recordToFormValues(record: RiskLevelVersionRecord | null) {
 export const RiskLevelPage: React.FC<Props> = ({
   records,
   onChange,
+  points = [],
+  riskChangeLogs = [],
   openDetailRecordIdOnMount,
   onDetailMountHandled,
 }) => {
@@ -88,6 +97,7 @@ export const RiskLevelPage: React.FC<Props> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<RiskLevelVersionRecord | null>(null);
+  const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
   const [draftLevels, setDraftLevels] = useState<IndicatorRiskLevelRow[]>([]);
   const [baselineLevels, setBaselineLevels] = useState<IndicatorRiskLevelRow[]>([]);
   const [form] = Form.useForm();
@@ -137,8 +147,44 @@ export const RiskLevelPage: React.FC<Props> = ({
     [draftLevels],
   );
 
-  const patchRecords = (next: RiskLevelVersionRecord[]) => {
-    onChange(sortRiskLevelRecords(ensureRiskLevelVersionNos(next)));
+  const patchRecords = async (next: RiskLevelVersionRecord[]): Promise<boolean> => {
+    try {
+      await onChange(sortRiskLevelRecords(ensureRiskLevelVersionNos(next)));
+      return true;
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '工作区保存失败，请重试');
+      return false;
+    }
+  };
+
+  const isReferenced = (row: RiskLevelVersionRecord) =>
+    points.some(
+      point =>
+        point.ratingResult?.riskLevelRefId === row.id ||
+        point.ratingResult?.riskLevelVersionNo === row.versionNo,
+    ) || riskChangeLogs.some(log => log.riskLevelVersionNo === row.versionNo);
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setCopySourceVersionNo(null);
+  };
+
+  const requestClose = () => {
+    const dirty =
+      !detailOnly &&
+      (form.isFieldsTouched() ||
+        JSON.stringify(draftLevels) !== JSON.stringify(baselineLevels));
+    if (!dirty) {
+      closeModal();
+      return;
+    }
+    Modal.confirm({
+      title: '放弃未保存修改？',
+      content: '关闭后，本次对等级版本的修改将不会保存。',
+      okText: '放弃修改',
+      cancelText: '继续编辑',
+      onOk: closeModal,
+    });
   };
 
   const openCreate = () => {
@@ -146,6 +192,7 @@ export const RiskLevelPage: React.FC<Props> = ({
       ? getLevelsFromRecord(activeRecord)
       : initialIndicatorRiskLevels.map(row => ({ ...row, builtin: true }));
     setEditing(null);
+    setCopySourceVersionNo(null);
     setDetailOnly(false);
     const cloned = baseLevels.map(row => ({ ...row }));
     setBaselineLevels(cloned);
@@ -162,20 +209,36 @@ export const RiskLevelPage: React.FC<Props> = ({
   const openDetail = (row: RiskLevelVersionRecord) => {
     const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
     setEditing(row);
+    setCopySourceVersionNo(null);
     setDetailOnly(true);
     setBaselineLevels(levels);
     setDraftLevels(levels);
+    form.resetFields();
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
 
   const openEdit = (row: RiskLevelVersionRecord) => {
     const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
-    setEditing(row);
+    const immutable = isRiskLevelVersionImmutable(row, isReferenced(row));
+    setEditing(immutable ? null : row);
+    setCopySourceVersionNo(immutable ? row.versionNo : null);
     setDetailOnly(false);
     setBaselineLevels(levels);
     setDraftLevels(levels);
-    form.setFieldsValue(recordToFormValues(row));
+    form.resetFields();
+    form.setFieldsValue(
+      immutable
+        ? {
+            ...recordToFormValues(row),
+            configAt: dayjs(),
+            label: row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`,
+          }
+        : recordToFormValues(row),
+    );
+    if (immutable) {
+      message.info(`${row.versionNo} 已锁定，将复制为 ${nextRiskLevelVersionNo(records)} 编辑`);
+    }
     setModalOpen(true);
   };
 
@@ -190,32 +253,30 @@ export const RiskLevelPage: React.FC<Props> = ({
     onDetailMountHandled?.();
   }, [openDetailRecordIdOnMount, records, onDetailMountHandled]);
 
-  const handleSetActive = (id: string, e?: React.MouseEvent) => {
+  const handleSetActive = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const target = records.find(r => r.id === id);
-    if (target?.config.status !== 'completed') {
-      message.warning('请先保存并确保等级区间配置完整后再设为定级引用');
+    const referenceIssue = target
+      ? getRiskLevelRatingReferenceIssue(target)
+      : '未找到该等级版本';
+    if (referenceIssue) {
+      message.warning(referenceIssue);
       return;
     }
-    patchRecords(setActiveRiskLevelRecord(records, id));
+    if (!(await patchRecords(setActiveRiskLevelRecord(records, id)))) return;
     message.success('已设为定级引用（全县 V→等级映射方案）');
   };
 
-  const handleDelete = (id: string) => {
-    const next = records.filter(r => r.id !== id);
-    if (!next.length) {
-      patchRecords([]);
-      setModalOpen(false);
-      message.success('已删除');
+  const handleDelete = async (id: string) => {
+    const target = records.find(r => r.id === id);
+    if (!target) return;
+    if (isRiskLevelVersionImmutable(target, isReferenced(target))) {
+      message.warning('该版本已完成、正在引用或已有历史定级依赖，不可删除');
       return;
     }
-    let patched = next;
-    if (!next.some(r => r.activeForRating)) {
-      const latest = sortRiskLevelRecords(next).find(r => r.config.status === 'completed');
-      if (latest) patched = setActiveRiskLevelRecord(next, latest.id);
-    }
-    patchRecords(patched);
-    setModalOpen(false);
+    const next = records.filter(r => r.id !== id);
+    if (!(await patchRecords(next))) return;
+    closeModal();
     message.success('已删除');
   };
 
@@ -243,26 +304,31 @@ export const RiskLevelPage: React.FC<Props> = ({
           versionNo: nextRiskLevelVersionNo(records),
           configAt,
           label: values.label?.trim() || undefined,
-          activeForRating: records.length === 0,
+          activeForRating: records.length === 0 && validation.ok,
           config: nextConfig,
         };
 
-    patchRecords(
+    if (!(await patchRecords(
       editing ? records.map(r => (r.id === editing.id ? nextRecord : r)) : [nextRecord, ...records],
-    );
+    ))) return;
 
     if (!validation.ok) {
       message.warning('等级区间配置未通过校验，已保存为草稿；完善后可设为定级引用');
+      setEditing(nextRecord);
+      setCopySourceVersionNo(null);
+      setBaselineLevels(nextRecord.config.levels.map(row => ({ ...row })));
+      form.resetFields();
+      form.setFieldsValue(recordToFormValues(nextRecord));
     } else {
       message.success(
         `已保存 ${nextRecord.versionNo}${nextRecord.activeForRating ? '，当前为定级引用版本' : ''}`,
       );
-      setModalOpen(false);
+      closeModal();
     }
   };
 
   const switchDetailToEdit = () => {
-    setDetailOnly(false);
+    if (editing) openEdit(editing);
   };
 
   const columns: ColumnsType<RiskLevelVersionRecord> = [
@@ -327,14 +393,19 @@ export const RiskLevelPage: React.FC<Props> = ({
         </span>
       ),
       width: 108,
-      render: (_, row) =>
-        row.activeForRating ? (
+      render: (_, row) => {
+        if (!row.activeForRating) return '—';
+        const referenceIssue = getRiskLevelRatingReferenceIssue(row);
+        return referenceIssue ? (
+          <Tooltip title={referenceIssue}>
+            <Tag color="error">引用无效</Tag>
+          </Tooltip>
+        ) : (
           <Tag color="blue" icon={<StarFilled />}>
             当前引用
           </Tag>
-        ) : (
-          '—'
-        ),
+        );
+      },
     },
     {
       title: '维护人',
@@ -365,19 +436,29 @@ export const RiskLevelPage: React.FC<Props> = ({
             className="action-btn"
             onClick={() => openEdit(row)}
           >
-            编辑
+            {isRiskLevelVersionImmutable(row, isReferenced(row)) ? '复制编辑' : '编辑'}
           </Button>
-          {!row.activeForRating && row.config.status === 'completed' ? (
-            <Button
-              type="link"
-              size="small"
-              icon={<StarOutlined />}
-              className="action-btn"
-              onClick={e => handleSetActive(row.id, e)}
-            >
-              引用
-            </Button>
-          ) : null}
+          {!row.activeForRating && row.config.status === 'completed'
+            ? (() => {
+                const referenceIssue = getRiskLevelRatingReferenceIssue(row);
+                return (
+                  <Tooltip title={referenceIssue ?? '设为定级引用'}>
+                    <span>
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<StarOutlined />}
+                        className="action-btn"
+                        disabled={Boolean(referenceIssue)}
+                        onClick={e => handleSetActive(row.id, e)}
+                      >
+                        引用
+                      </Button>
+                    </span>
+                  </Tooltip>
+                );
+              })()
+            : null}
         </Space>
       ),
     },
@@ -495,7 +576,7 @@ export const RiskLevelPage: React.FC<Props> = ({
         title={modalTitle}
         open={modalOpen}
         className="dq-risk-level-version-modal"
-        onCancel={() => setModalOpen(false)}
+        onCancel={requestClose}
         width={1200}
         centered
         footer={
@@ -505,7 +586,7 @@ export const RiskLevelPage: React.FC<Props> = ({
             </Button>
           ) : (
             <Space>
-              <Button onClick={() => setModalOpen(false)}>取消</Button>
+              <Button onClick={requestClose}>取消</Button>
               {editing ? (
                 <Popconfirm title="确定删除该条等级版本？" onConfirm={() => handleDelete(editing.id)}>
                   <Button danger>删除</Button>
@@ -519,6 +600,15 @@ export const RiskLevelPage: React.FC<Props> = ({
         }
         destroyOnClose
       >
+        {copySourceVersionNo ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`正在复制 ${copySourceVersionNo} 为 ${pendingVersionNo}`}
+            description="来源版本保持只读且不会被覆盖；保存后生成新的等级版本。"
+          />
+        ) : null}
         <Form form={form} layout="vertical" disabled={detailOnly}>
           <Row gutter={16}>
             <Col span={6}>

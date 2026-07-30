@@ -36,7 +36,9 @@ import {
   emptyRegionalPreventionRecord,
   type IndicatorArchitectureRecord,
   type RegionalPreventionRecord,
+  type RiskChangeLogEntry,
   type RiskIndicatorRow,
+  type WaterloggingPointRow,
 } from './types';
 import { getRegionalPreventionIndicators } from './indicatorSurveyUtils';
 import { deriveAssessmentItemsFromIndicatorValues } from './scoreRuleMapping';
@@ -73,6 +75,7 @@ import { ArchitectureVersionRefAlert } from './ArchitectureVersionRefAlert';
 import { PreventionVersionTag } from './PreventionVersionTag';
 import {
   ensurePreventionVersionNos,
+  isPreventionVersionImmutable,
   nextPreventionVersionNo,
 } from './preventionVersionUtils';
 
@@ -81,13 +84,15 @@ const { RangePicker } = DatePicker;
 
 interface Props {
   records: RegionalPreventionRecord[];
-  onChange: (records: RegionalPreventionRecord[]) => void;
+  onChange: (records: RegionalPreventionRecord[]) => void | Promise<void>;
   /** 指标定义层 */
   baseIndicators: RiskIndicatorRow[];
   architectureRecords: IndicatorArchitectureRecord[];
   /** 定级引用的指标架构（下拉默认值） */
   ratingArchitectureRecord?: IndicatorArchitectureRecord | null;
   onViewArchitectureDetail?: (record: IndicatorArchitectureRecord) => void;
+  points?: WaterloggingPointRow[];
+  riskChangeLogs?: RiskChangeLogEntry[];
 }
 
 function recordToFormValues(record: RegionalPreventionRecord | null) {
@@ -116,6 +121,8 @@ export const PreventionConfigPage: React.FC<Props> = ({
   architectureRecords,
   ratingArchitectureRecord = null,
   onViewArchitectureDetail,
+  points = [],
+  riskChangeLogs = [],
 }) => {
   const [selectedArchitectureId, setSelectedArchitectureId] = useState('');
   const [configDateRange, setConfigDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
@@ -125,6 +132,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<RegionalPreventionRecord | null>(null);
+  const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   const resolveRecordArchitecture = (record: RegionalPreventionRecord | null) =>
@@ -220,12 +228,50 @@ export const PreventionConfigPage: React.FC<Props> = ({
     setSelectedArchitectureId('');
   };
 
-  const patchRecords = (next: RegionalPreventionRecord[]) => {
-    onChange(sortRegionalPreventionRecords(ensurePreventionVersionNos(next)));
+  const patchRecords = async (next: RegionalPreventionRecord[]): Promise<boolean> => {
+    try {
+      await onChange(sortRegionalPreventionRecords(ensurePreventionVersionNos(next)));
+      return true;
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '工作区保存失败，请重试');
+      return false;
+    }
+  };
+
+  const isReferenced = (row: RegionalPreventionRecord) =>
+    points.some(
+      point =>
+        point.ratingResult?.preventionVersionNo === row.versionNo ||
+        point.ratingResult?.preventionRefAt === row.configAt,
+    ) ||
+    riskChangeLogs.some(
+      log =>
+        log.preventionVersionNo === row.versionNo ||
+        log.preventionRefAt === row.configAt,
+    );
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setCopySourceVersionNo(null);
+  };
+
+  const requestClose = () => {
+    if (detailOnly || !form.isFieldsTouched()) {
+      closeModal();
+      return;
+    }
+    Modal.confirm({
+      title: '放弃未保存修改？',
+      content: '关闭后，本次对 V₄ 配置的修改将不会保存。',
+      okText: '放弃修改',
+      cancelText: '继续编辑',
+      onOk: closeModal,
+    });
   };
 
   const openCreate = () => {
     setEditing(null);
+    setCopySourceVersionNo(null);
     setDetailOnly(false);
     form.resetFields();
     form.setFieldsValue({
@@ -239,19 +285,36 @@ export const PreventionConfigPage: React.FC<Props> = ({
 
   const openDetail = (row: RegionalPreventionRecord) => {
     setEditing(row);
+    setCopySourceVersionNo(null);
     setDetailOnly(true);
+    form.resetFields();
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
 
   const openEdit = (row: RegionalPreventionRecord) => {
-    setEditing(row);
+    const immutable = isPreventionVersionImmutable(row, isReferenced(row));
+    setEditing(immutable ? null : row);
+    setCopySourceVersionNo(immutable ? row.versionNo : null);
+    if (immutable) setSelectedArchitectureId(row.architectureRefId ?? '');
     setDetailOnly(false);
-    form.setFieldsValue(recordToFormValues(row));
+    form.resetFields();
+    form.setFieldsValue(
+      immutable
+        ? {
+            ...recordToFormValues(row),
+            configAt: dayjs(),
+            label: row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`,
+          }
+        : recordToFormValues(row),
+    );
+    if (immutable) {
+      message.info(`${row.versionNo} 已锁定，将复制为 ${nextPreventionVersionNo(records)} 编辑`);
+    }
     setModalOpen(true);
   };
 
-  const handleSetActive = (id: string, e?: React.MouseEvent) => {
+  const handleSetActive = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const target = records.find(r => r.id === id);
     if (!target) return;
@@ -264,7 +327,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
       message.warning(archCheck.message);
       return;
     }
-    patchRecords(setActiveRegionalPreventionRecord(records, id));
+    if (!(await patchRecords(setActiveRegionalPreventionRecord(records, id)))) return;
     message.success('已设为 V₄ 数据引用（全县防灾减灾计分版本）');
   };
 
@@ -280,29 +343,17 @@ export const PreventionConfigPage: React.FC<Props> = ({
     return validatePreventionArchitectureMatch(row, ratingArchitectureRecord).message;
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const deleted = records.find(r => r.id === id);
-    const next = records.filter(r => r.id !== id);
-    if (!next.length) {
-      patchRecords([]);
+    if (!deleted) return;
+    if (isPreventionVersionImmutable(deleted, isReferenced(deleted))) {
+      message.warning('该记录已完成、正在作为 V₄ 引用或已有历史定级依赖，不可删除');
       return;
     }
-    let patched = next;
-    if (
-      deleted?.activeForRating &&
-      deleted.architectureRefId &&
-      !next.some(r => r.activeForRating && r.architectureRefId === deleted.architectureRefId)
-    ) {
-      const latest = sortRegionalPreventionRecords(next).find(
-        r =>
-          r.config.assessmentStatus === 'completed' &&
-          r.architectureRefId === deleted.architectureRefId,
-      );
-      if (latest) patched = setActiveRegionalPreventionRecord(next, latest.id);
-    }
-    patchRecords(patched);
+    const next = records.filter(r => r.id !== id);
+    if (!(await patchRecords(next))) return;
     message.success('已删除');
-    setModalOpen(false);
+    closeModal();
   };
 
   const handleSave = async () => {
@@ -349,9 +400,11 @@ export const PreventionConfigPage: React.FC<Props> = ({
           versionNo: nextPreventionVersionNo(records),
           configAt,
           label: values.label?.trim() || undefined,
-          activeForRating: bindArch?.id
-            ? !records.some(r => r.activeForRating && r.architectureRefId === bindArch.id)
-            : records.length === 0,
+          activeForRating:
+            completed &&
+            (bindArch?.id
+              ? !records.some(r => r.activeForRating && r.architectureRefId === bindArch.id)
+              : records.length === 0),
           architectureRefId: bindArch?.id,
           architectureRefAt: bindArch?.configAt,
           architectureVersionNo: bindArch?.versionNo,
@@ -369,21 +422,25 @@ export const PreventionConfigPage: React.FC<Props> = ({
           },
         };
 
-    patchRecords(
+    if (!(await patchRecords(
       editing
         ? records.map(r => (r.id === editing.id ? nextRecord : r))
         : [nextRecord, ...records],
-    );
+    ))) return;
 
     if (!completed) {
       message.warning('请补全指标配置，确保每项均能自动匹配赋分档');
+      setEditing(nextRecord);
+      setCopySourceVersionNo(null);
+      form.resetFields();
+      form.setFieldsValue(recordToFormValues(nextRecord));
     } else {
       message.success(
         `已保存（V₄≈${liveDerived.v4 != null ? liveDerived.v4.toFixed(4) : '—'}）${
           nextRecord.activeForRating ? '，当前为 V₄ 数据引用' : ''
         }`,
       );
-      setModalOpen(false);
+      closeModal();
     }
   };
 
@@ -496,7 +553,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
             className="action-btn"
             onClick={() => openEdit(row)}
           >
-            编辑
+            {isPreventionVersionImmutable(row, isReferenced(row)) ? '复制编辑' : '编辑'}
           </Button>
           {!row.activeForRating && row.config.assessmentStatus === 'completed' ? (
             canSetPreventionRef(row) ? (
@@ -636,14 +693,21 @@ export const PreventionConfigPage: React.FC<Props> = ({
         title={modalTitle}
         open={modalOpen}
         className="dq-prevention-config-modal"
-        onCancel={() => setModalOpen(false)}
+        onCancel={requestClose}
         width={900}
         footer={
           detailOnly ? (
-            <Button onClick={() => setModalOpen(false)}>关闭</Button>
+            <Space>
+              <Button onClick={closeModal}>关闭</Button>
+              {editing ? (
+                <Button type="primary" icon={<EditOutlined />} onClick={() => openEdit(editing)}>
+                  复制编辑
+                </Button>
+              ) : null}
+            </Space>
           ) : (
             <Space>
-              <Button onClick={() => setModalOpen(false)}>取消</Button>
+              <Button onClick={requestClose}>取消</Button>
               {editing ? (
                 <Popconfirm title="确定删除该条配置？" onConfirm={() => handleDelete(editing.id)}>
                   <Button danger>删除</Button>
@@ -657,6 +721,15 @@ export const PreventionConfigPage: React.FC<Props> = ({
         }
         destroyOnClose
       >
+        {copySourceVersionNo ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`正在复制 ${copySourceVersionNo} 为 ${nextPreventionVersionNo(records)}`}
+            description="来源记录及其 V₄ 结果保持只读；保存后生成新的防灾减灾版本。"
+          />
+        ) : null}
         <Form
           form={form}
           layout="vertical"

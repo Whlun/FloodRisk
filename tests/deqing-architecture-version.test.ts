@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildArchitectureSnapshot,
+  ensureArchitectureIndicatorSnapshots,
   ensureArchitectureVersionNos,
+  hasMeaningfulArchitectureCopyChanges,
   mergeIndicatorsForArchitectureRecord,
   nextArchitectureVersionNo,
   parseArchitectureVersionNo,
+  refreshArchitectureConfigForNewVersion,
+  isArchitectureVersionImmutable,
   sortArchitectureRecords,
 } from '../src/prototypes/deqing-waterlogging-risk/indicatorArchitectureUtils';
 import { createRiskChangeLogEntry } from '../src/prototypes/deqing-waterlogging-risk/riskChangeLogUtils';
@@ -31,6 +36,28 @@ function stubRecord(partial: Partial<IndicatorArchitectureRecord> & Pick<Indicat
 }
 
 describe('指标架构版本编号', () => {
+  it('已完成或当前引用的版本不可原地编辑', () => {
+    expect(
+      isArchitectureVersionImmutable(
+        stubRecord({
+          id: 'completed',
+          configAt: '2026-01-01',
+          config: { ...emptyIndicatorArchitectureConfig(), status: 'completed' },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isArchitectureVersionImmutable(
+        stubRecord({ id: 'active', configAt: '2026-01-01', activeForRating: true }),
+      ),
+    ).toBe(true);
+    expect(
+      isArchitectureVersionImmutable(
+        stubRecord({ id: 'draft', configAt: '2026-01-01' }),
+      ),
+    ).toBe(false);
+  });
+
   it('parseArchitectureVersionNo 解析 V00n', () => {
     expect(parseArchitectureVersionNo('V001')).toBe(1);
     expect(parseArchitectureVersionNo('V012')).toBe(12);
@@ -43,6 +70,55 @@ describe('指标架构版本编号', () => {
       stubRecord({ id: 'b', configAt: '2026-01-02', versionNo: 'V003' }),
     ];
     expect(nextArchitectureVersionNo(records)).toBe('V004');
+  });
+
+  it('复制版本未修改时不应生成重复记录', () => {
+    const initial = {
+      ...emptyIndicatorArchitectureConfig(),
+      updatedAt: '2026-01-01 00:00:00',
+      updatedBy: '甲',
+      status: 'completed' as const,
+    };
+    const emittedByEditor = {
+      ...initial,
+      updatedAt: '2026-02-01 00:00:00',
+      updatedBy: '乙',
+      status: 'draft' as const,
+    };
+
+    expect(
+      hasMeaningfulArchitectureCopyChanges(
+        initial,
+        emittedByEditor,
+        '复制自 V003',
+        '复制自 V003',
+      ),
+    ).toBe(false);
+  });
+
+  it('复制版本调整配置或批次说明后才允许生成', () => {
+    const initial = emptyIndicatorArchitectureConfig();
+    const changedConfig = {
+      ...initial,
+      level1Weights: { ...initial.level1Weights, HAZARD: 0.3 },
+    };
+
+    expect(
+      hasMeaningfulArchitectureCopyChanges(
+        initial,
+        changedConfig,
+        '复制自 V003',
+        '复制自 V003',
+      ),
+    ).toBe(true);
+    expect(
+      hasMeaningfulArchitectureCopyChanges(
+        initial,
+        initial,
+        '复制自 V003',
+        '2027 年汛前方案',
+      ),
+    ).toBe(true);
   });
 
   it('ensureArchitectureVersionNos 为历史记录补编号并按版本倒序', () => {
@@ -79,6 +155,69 @@ function preventionIndicator(id: string, fieldKey: string, score: number): RiskI
 }
 
 describe('逐条绑定指标架构版本', () => {
+  it('历史版本优先使用冻结的指标定义，不受当前目录编辑与删除影响', () => {
+    const original = preventionIndicator('p1', 'PREV_OLD', 0.8);
+    const config = buildArchitectureSnapshot([original], cloneLevel1Weights());
+    const record = stubRecord({
+      id: 'arch-frozen',
+      configAt: '2026-01-01',
+      versionNo: 'V001',
+      config: { ...config, status: 'completed' },
+    });
+    const currentEdited = {
+      ...original,
+      name: '已改名',
+      survey: { ...original.survey, fieldKey: 'PREV_NEW' },
+      scoreRules: [{ id: 'r-new', label: '新档', score: 0.1 }],
+    };
+
+    const mergedAfterEdit = mergeIndicatorsForArchitectureRecord([currentEdited], record);
+    const mergedAfterDelete = mergeIndicatorsForArchitectureRecord([], record);
+
+    expect(mergedAfterEdit[0].name).toBe('PREV_OLD');
+    expect(mergedAfterEdit[0].survey.fieldKey).toBe('PREV_OLD');
+    expect(mergedAfterEdit[0].scoreRules[0]).toEqual(
+      expect.objectContaining({ id: 'r1', score: 0.8 }),
+    );
+    expect(mergedAfterDelete.map(i => i.id)).toEqual(['p1']);
+  });
+
+  it('旧版本仅补一次定义快照，后续目录变化不会重写', () => {
+    const original = preventionIndicator('p1', 'PREV_OLD', 0.8);
+    const legacy = stubRecord({
+      id: 'legacy',
+      configAt: '2026-01-01',
+      config: {
+        ...emptyIndicatorArchitectureConfig(),
+        indicatorStates: { p1: { weight: 1, enabled: true } },
+      },
+    });
+    const first = ensureArchitectureIndicatorSnapshots([legacy], [original]);
+    const edited = { ...original, name: '目录新名称' };
+    const second = ensureArchitectureIndicatorSnapshots(first, [edited]);
+    expect(second[0].config.indicatorDefinitions?.p1.name).toBe('PREV_OLD');
+  });
+
+  it('复制为新版本时刷新定义快照并保留现存指标状态，新指标默认停用', () => {
+    const old = preventionIndicator('p1', 'PREV_OLD', 0.8);
+    const source = {
+      ...buildArchitectureSnapshot([old], cloneLevel1Weights()),
+      status: 'completed' as const,
+    };
+    const edited = {
+      ...old,
+      survey: { ...old.survey, fieldKey: 'PREV_NEW' },
+      scoreRules: [{ id: 'r-new', label: '新档', score: 0.3 }],
+    };
+    const added = preventionIndicator('p2', 'PREV_ADDED', 0.5);
+    const copied = refreshArchitectureConfigForNewVersion(source, [edited, added]);
+
+    expect(copied.status).toBe('draft');
+    expect(copied.indicatorDefinitions?.p1.survey.fieldKey).toBe('PREV_NEW');
+    expect(copied.indicatorStates.p1).toEqual(source.indicatorStates.p1);
+    expect(copied.indicatorStates.p2.enabled).toBe(false);
+  });
+
   it('createRiskChangeLogEntry 写入 architectureVersionNo', () => {
     const point: WaterloggingPointRow = {
       id: 'pt-1',

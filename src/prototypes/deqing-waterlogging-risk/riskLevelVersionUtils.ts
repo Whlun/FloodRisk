@@ -69,22 +69,47 @@ export function getActiveRiskLevelRecord(
   return records.find(r => r.activeForRating) ?? null;
 }
 
-/** 定级引用：activeForRating 优先，否则最近一条 completed */
+/** 返回等级版本不可作为定级引用的原因；null 表示可引用。 */
+export function getRiskLevelRatingReferenceIssue(
+  record: RiskLevelVersionRecord,
+): string | null {
+  if (record.config.status !== 'completed') {
+    return '仅已完成的等级版本可设为定级引用';
+  }
+  const validation = validateRiskLevelConfig(record.config);
+  if (!validation.ok) {
+    return `等级区间校验未通过（${validation.issues.length} 项）`;
+  }
+  return null;
+}
+
+/** 定级引用只认显式 activeForRating，并重新校验冻结的等级区间。 */
 export function getRiskLevelForRating(
   records: RiskLevelVersionRecord[],
 ): RiskLevelVersionRecord | null {
   if (!records.length) return null;
   const active = records.find(r => r.activeForRating);
-  if (active) return active;
-  const completed = sortRiskLevelRecords(records).find(r => r.config.status === 'completed');
-  return completed ?? null;
+  if (!active || getRiskLevelRatingReferenceIssue(active)) return null;
+  return active;
 }
 
 export function setActiveRiskLevelRecord(
   records: RiskLevelVersionRecord[],
   id: string,
 ): RiskLevelVersionRecord[] {
+  const target = records.find(r => r.id === id);
+  if (!target || getRiskLevelRatingReferenceIssue(target)) {
+    return records;
+  }
   return records.map(r => ({ ...r, activeForRating: r.id === id }));
+}
+
+/** 已完成、正在定级引用或已被历史定级结果引用的等级版本不可原地修改。 */
+export function isRiskLevelVersionImmutable(
+  record: RiskLevelVersionRecord,
+  referenced = false,
+): boolean {
+  return referenced || record.activeForRating || record.config.status === 'completed';
 }
 
 export function getLevelsFromRecord(
@@ -101,11 +126,35 @@ export function collectRiskLevelConfigIssues(levels: IndicatorRiskLevelRow[]): s
     issues.push('至少保留一个启用的风险等级');
   }
   for (const row of enabled) {
+    if (!Number.isFinite(row.scoreMin) || !Number.isFinite(row.scoreMax)) {
+      issues.push(`${row.levelName}：分数区间须为有效数值`);
+      continue;
+    }
     if (row.scoreMin >= row.scoreMax) {
       issues.push(`${row.levelName}：分数下限须小于分数上限`);
     }
     if (hasEnabledScoreRangeOverlap(row, levels)) {
       issues.push(`${row.levelName}：分数区间与其他启用等级重叠`);
+    }
+  }
+  const ordered = [...enabled]
+    .filter(row => Number.isFinite(row.scoreMin) && Number.isFinite(row.scoreMax))
+    .sort((a, b) => a.scoreMin - b.scoreMin || a.scoreMax - b.scoreMax);
+  if (ordered.length) {
+    if (ordered[0].scoreMin > 0) {
+      issues.push('启用等级区间须从 0 开始覆盖');
+    }
+    for (let index = 1; index < ordered.length; index += 1) {
+      const previous = ordered[index - 1];
+      const current = ordered[index];
+      if (previous.scoreMax < current.scoreMin) {
+        issues.push(
+          `${previous.levelName} 与 ${current.levelName} 之间存在未覆盖的分数区间`,
+        );
+      }
+    }
+    if (ordered[ordered.length - 1].scoreMax < 1) {
+      issues.push('启用等级区间须连续覆盖至 1');
     }
   }
   return issues;
@@ -164,7 +213,7 @@ export function migrateLegacyLevelsToRecords(
       versionNo: 'L001',
       configAt: now,
       label: '自旧版工作区迁移',
-      activeForRating: true,
+      activeForRating: config.status === 'completed',
       config,
     },
   ];

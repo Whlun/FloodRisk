@@ -324,7 +324,7 @@ export function applyIndicatorConfigTemplate(
         valueFieldKey: resolveAppendixBValueFieldKey('appendixPart1', code, 0),
         numericRange: { ...DEFAULT_COMPOSITE_NUMERIC_RANGE },
         tierBands: [
-          { riskTier: '低', score: 0.2, match: { kind: 'gt' as const, value: 0 } },
+          { riskTier: '低', score: 0.2, match: { kind: 'gte' as const, value: 0 } },
           { riskTier: '高', score: 1, match: { kind: 'lt' as const, value: 0 } },
         ],
       },

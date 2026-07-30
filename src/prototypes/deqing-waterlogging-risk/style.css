@@ -2382,3 +2382,19 @@
   box-shadow: 0 0 0 1px var(--ant-color-primary);
   border-radius: 8px;
 }
+.dq-workspace-blocked {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 24px;
+  background: #f5f7fa;
+}
+
+.dq-workspace-blocked .ant-alert {
+  width: min(760px, 100%);
+}
+
+.dq-workspace-save-state {
+  margin-left: auto;
+}

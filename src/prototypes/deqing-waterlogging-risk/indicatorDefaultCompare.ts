@@ -8,6 +8,22 @@ import {
 } from './types';
 import { formatScoreRuleSummary } from './scoreRuleDisplay';
 
+/** 配置对象需保留数组顺序（数值分档按顺序命中），同时稳定比较所有嵌套字段。 */
+function stableStringify(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const obj = value as Record<string, unknown>;
+  return `{${Object.keys(obj)
+    .sort()
+    .map(key => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
+    .join(',')}}`;
+}
+
+function cloneConfig<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export interface IndicatorFieldDiff {
   field: string;
   label: string;
@@ -34,16 +50,24 @@ function formatSurvey(row: RiskIndicatorRow): string {
     `字段键 ${s.fieldKey}`,
   ];
   if (s.placeholder) parts.push(`占位 ${s.placeholder}`);
+  if (s.scope) parts.push(`作用域 ${s.scope}`);
+  if (s.inputVariant) parts.push(`填报形态 ${s.inputVariant}`);
+  if (s.auxiliaryCondition) parts.push(`辅助条件 ${s.auxiliaryCondition.label}/${s.auxiliaryCondition.fieldKey}`);
+  if (s.appendixBSurveyParts?.length) parts.push(`复合子项 ${s.appendixBSurveyParts.length} 项`);
   return parts.join('；');
+}
+
+function formatConditional(row: RiskIndicatorRow): string {
+  const config = row.conditionalScoring;
+  if (!config?.enabled) return '未启用';
+  return `${config.mode}；${config.source.type}/${config.source.key}；${config.branches
+    .map(branch => `${branch.label}:${stableStringify(branch.matchValues ?? branch.numericMatch)}:${formatScoreRules(branch.scoreRules ?? [])}`)
+    .join('；')}`;
 }
 
 function rulesEqual(a: ScoreRule[], b: ScoreRule[]): boolean {
   if (a.length !== b.length) return false;
-  const norm = (rules: ScoreRule[]) =>
-    [...rules]
-      .map(r => `${r.label}|${r.score}`)
-      .sort()
-      .join(';;');
+  const norm = (rules: ScoreRule[]) => stableStringify(rules);
   return norm(a) === norm(b);
 }
 
@@ -85,12 +109,13 @@ export function createInitSnapshot(row: RiskIndicatorRow): RiskIndicatorInitSnap
     weight: row.weight,
     valueType: row.valueType,
     unit: row.unit,
-    scoreRules: row.scoreRules.map(r => ({ ...r })),
+    scoreRules: cloneConfig(row.scoreRules),
     scoreExplanation: row.scoreExplanation,
     scoringRuleMode: row.scoringRuleMode,
     remark: row.remark,
     enabled: row.enabled,
-    survey: { ...row.survey },
+    survey: cloneConfig(row.survey),
+    conditionalScoring: row.conditionalScoring ? cloneConfig(row.conditionalScoring) : undefined,
   };
 }
 
@@ -102,8 +127,11 @@ export function rowFromInitSnapshot(
     ...current,
     ...snapshot,
     applicableTypes: [...snapshot.applicableTypes],
-    scoreRules: snapshot.scoreRules.map(r => ({ ...r })),
-    survey: { ...snapshot.survey },
+    scoreRules: cloneConfig(snapshot.scoreRules),
+    survey: cloneConfig(snapshot.survey),
+    conditionalScoring: snapshot.conditionalScoring
+      ? cloneConfig(snapshot.conditionalScoring)
+      : undefined,
   };
 }
 
@@ -175,12 +203,8 @@ export function isIndicatorModified(current: RiskIndicatorRow, baseline: RiskInd
   if ((current.remark ?? '') !== (baseline.remark ?? '')) return true;
   if ((current.scoreExplanation ?? '') !== (baseline.scoreExplanation ?? '')) return true;
   if (!rulesEqual(current.scoreRules, baseline.scoreRules)) return true;
-  const cs = current.survey;
-  const bs = baseline.survey;
-  if (cs.collectInSurvey !== bs.collectInSurvey) return true;
-  if (cs.surveyRequired !== bs.surveyRequired) return true;
-  if (cs.fieldKey !== bs.fieldKey) return true;
-  if ((cs.placeholder ?? '') !== (bs.placeholder ?? '')) return true;
+  if (stableStringify(current.survey) !== stableStringify(baseline.survey)) return true;
+  if (stableStringify(current.conditionalScoring) !== stableStringify(baseline.conditionalScoring)) return true;
   return false;
 }
 
@@ -290,6 +314,13 @@ export function buildIndicatorFieldDiffs(
       def: formatSurvey(baseline),
       cur: formatSurvey(current),
       changed: formatSurvey(current) !== formatSurvey(baseline),
+    },
+    {
+      field: 'conditionalScoring',
+      label: '条件赋分',
+      def: formatConditional(baseline),
+      cur: formatConditional(current),
+      changed: stableStringify(current.conditionalScoring) !== stableStringify(baseline.conditionalScoring),
     },
   ];
 

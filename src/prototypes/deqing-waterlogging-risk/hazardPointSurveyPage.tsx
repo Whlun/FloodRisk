@@ -134,7 +134,7 @@ function pointToFormValues(row: WaterloggingPointRow, indicators: RiskIndicatorR
 
 interface Props {
   points: WaterloggingPointRow[];
-  onChange: (rows: WaterloggingPointRow[]) => void;
+  onChange: (rows: WaterloggingPointRow[]) => void | Promise<void>;
   /** 指标定义层 */
   baseIndicators: RiskIndicatorRow[];
   architectureRecords: IndicatorArchitectureRecord[];
@@ -153,7 +153,7 @@ interface Props {
   riskLevelRecords?: RiskLevelVersionRecord[];
   riskChangeLogs?: RiskChangeLogEntry[];
   /** 定级确认后追加风险变更日志 */
-  onAppendRiskChangeLog?: (entry: RiskChangeLogEntry) => void;
+  onAppendRiskChangeLog?: (entry: RiskChangeLogEntry) => void | Promise<void>;
   onViewArchitectureDetail?: (record: IndicatorArchitectureRecord) => void;
   onViewRiskLevelDetail?: (record: RiskLevelVersionRecord) => void;
 }
@@ -206,6 +206,29 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       return mergeIndicatorsForArchitectureRecord(baseIndicators, arch);
     },
     [architectureRecords, baseIndicators, ratingArchitectureRecord],
+  );
+
+  const getSurveyRowIntegrity = useCallback(
+    (row: WaterloggingPointRow) => {
+      const missingArchitecture =
+        Boolean(row.surveyArchitectureRefId) &&
+        !architectureRecords.some(record => record.id === row.surveyArchitectureRefId);
+      const coverage = calcSurveyCoverage(
+        resolveSurveyIndicators(row),
+        row.pointType,
+        row.surveyPayload?.indicatorValues,
+        surveyArchScope,
+      );
+      return {
+        coverage,
+        ready:
+          !missingArchitecture &&
+          coverage.applicable > 0 &&
+          coverage.percent === 100,
+        missingArchitecture,
+      };
+    },
+    [architectureRecords, resolveSurveyIndicators],
   );
 
   const activePreventionRecord = useMemo(
@@ -360,12 +383,21 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   };
 
   const patchPoints = (next: WaterloggingPointRow[]) => {
-    onChange(normalizeSurveyActiveRefs(next, baseIndicators));
+    return Promise.resolve(onChange(normalizeSurveyActiveRefs(next, baseIndicators)));
   };
 
-  const handleSetActive = (row: WaterloggingPointRow) => {
+  const handleSetActive = async (row: WaterloggingPointRow) => {
     if (row.surveyStatus !== 'completed') {
       message.warning('仅已完成的普查记录可设为数据引用');
+      return;
+    }
+    const integrity = getSurveyRowIntegrity(row);
+    if (!integrity.ready) {
+      message.warning(
+        integrity.missingArchitecture
+          ? '本条普查绑定的评价版本已不存在，不能设为数据引用'
+          : `当前评价版本口径下数据完整度仅 ${integrity.coverage.percent}%，请补全后再引用`,
+      );
       return;
     }
     if (row.ratingStatus !== 'completed') {
@@ -380,9 +412,18 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       target.pointType,
       resolveSurveyIndicators(target),
     );
-    patchPoints(
-      pushBasicInfoToSiblingSurveys(withActive, { ...target, surveyPayload: synced }, resolveSurveyIndicators(target)),
-    );
+    try {
+      await patchPoints(
+        pushBasicInfoToSiblingSurveys(
+          withActive,
+          { ...target, surveyPayload: synced },
+          resolveSurveyIndicators(target),
+        ),
+      );
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '引用失败，请重试');
+      return;
+    }
     message.success(
       replaced
         ? `已替换数据引用并同步内涝基本信息（原：${resolveSurveyAt(replaced)}${replaced.label ? ` · ${replaced.label}` : ''}）`
@@ -408,7 +449,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     setRatingModalOpen(true);
   };
 
-  const handleConfirmRating = () => {
+  const handleConfirmRating = async () => {
     if (!ratingPreview?.ok || !ratingPreview.ratedRow || !ratingPendingPoints) {
       message.warning('请先解决试算提示中的问题');
       return;
@@ -443,10 +484,15 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       operator: finalRow.collector,
       indicatorLevels: ctx?.indicatorLevels ?? indicatorLevels,
     });
-    if (logEntry && onAppendRiskChangeLog) {
-      onAppendRiskChangeLog(logEntry);
+    try {
+      await patchPoints(merged);
+      if (logEntry && onAppendRiskChangeLog) {
+        await onAppendRiskChangeLog(logEntry);
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '定级结果保存失败，请重试');
+      return;
     }
-    patchPoints(merged);
     setRatingModalOpen(false);
     setRatingPreview(null);
     setRatingPendingPoints(null);
@@ -500,7 +546,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     clearRegistrySelection();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const deleted = points.find(p => p.id === id);
     const next = points.filter(p => p.id !== id);
     let patched = next;
@@ -513,7 +559,12 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       );
       if (latest) patched = setActiveSurveyRecord(next, latest.id);
     }
-    patchPoints(patched);
+    try {
+      await patchPoints(patched);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除失败，请重试');
+      return;
+    }
     message.success('已删除');
     setModalOpen(false);
   };
@@ -523,6 +574,16 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     const registry = pointRegistry.find(r => r.id === values.registryId);
     if (!registry) {
       message.error('请选择易涝点');
+      return;
+    }
+
+    if (
+      editing?.surveyArchitectureRefId &&
+      !architectureRecords.some(record => record.id === editing.surveyArchitectureRefId)
+    ) {
+      message.error(
+        `本条普查绑定的评价版本（${editing.surveyArchitectureRefId}）已不存在，请恢复该版本后再保存`,
+      );
       return;
     }
 
@@ -625,14 +686,24 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           `指标普查完整度 ${coverage.percent}%（${coverage.filled}/${coverage.applicable}），请补全全部纳入普查的指标后方可定级`,
         );
       }
-      patchPoints(baseList);
+      try {
+        await patchPoints(baseList);
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '普查保存失败，请重试');
+        return;
+      }
       setModalOpen(false);
       return;
     }
 
     const withActive = setActiveSurveyRecord(baseList, row.id);
     const saved = withActive.find(p => p.id === row.id)!;
-    patchPoints(withActive);
+    try {
+      await patchPoints(withActive);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '普查保存失败，请重试');
+      return;
+    }
     setModalOpen(false);
     message.success('普查已保存');
     openRatingConfirm({ ...saved, activeForRating: true }, withActive);
@@ -699,11 +770,20 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     {
       title: '状态',
       width: 88,
-      render: (_, r) => (
-        <Tag color={r.surveyStatus === 'completed' ? 'success' : 'default'}>
-          {r.surveyStatus === 'completed' ? '已完成' : '草稿'}
-        </Tag>
-      ),
+      render: (_, r) => {
+        const integrity = getSurveyRowIntegrity(r);
+        if (integrity.missingArchitecture) {
+          return <Tag color="error">引用失效</Tag>;
+        }
+        if (r.surveyStatus === 'completed' && !integrity.ready) {
+          return <Tag color="warning">需补全</Tag>;
+        }
+        return (
+          <Tag color={r.surveyStatus === 'completed' ? 'success' : 'default'}>
+            {r.surveyStatus === 'completed' ? '已完成' : '草稿'}
+          </Tag>
+        );
+      },
     },
     {
       title: '数据完整度',
@@ -798,13 +878,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           >
             编辑
           </Button>
-          {row.surveyStatus === 'completed' &&
-          isPointSurveyComplete(
-            resolveSurveyIndicators(row),
-            row.pointType,
-            row.surveyPayload?.indicatorValues,
-            surveyArchScope,
-          ) ? (
+          {row.surveyStatus === 'completed' && getSurveyRowIntegrity(row).ready ? (
             <Tooltip
               title={
                 row.ratingStatus === 'completed'
@@ -837,7 +911,9 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
               </Button>
             </Tooltip>
           ) : null}
-          {!row.activeForRating && row.surveyStatus === 'completed' ? (
+          {!row.activeForRating &&
+          row.surveyStatus === 'completed' &&
+          getSurveyRowIntegrity(row).ready ? (
             <Tooltip
               title={
                 row.ratingStatus !== 'completed'

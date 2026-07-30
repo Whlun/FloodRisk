@@ -41,6 +41,8 @@ import {
   type RiskIndicatorRow,
   type IndicatorRiskLevelRow,
   type RiskLevelVersionRecord,
+  type RiskChangeLogEntry,
+  type WaterloggingPointRow,
 } from './types';
 import { IndicatorArchitectureEditor } from './IndicatorArchitectureEditor';
 import { SurveyTablePreviewModal } from './SurveyTablePreviewModal';
@@ -49,9 +51,13 @@ import {
   buildArchitectureSnapshot,
   ensureArchitectureVersionNos,
   getActiveArchitectureRecord,
+  getArchitectureRatingReferenceIssue,
   getRatingLevel1Weights,
+  hasMeaningfulArchitectureCopyChanges,
   mergeIndicatorsForArchitectureRecord,
   nextArchitectureVersionNo,
+  refreshArchitectureConfigForNewVersion,
+  isArchitectureVersionImmutable,
   setActiveArchitectureRecord,
   sortArchitectureRecords,
   summarizeArchitectureRecord,
@@ -75,12 +81,14 @@ const { RangePicker } = DatePicker;
 
 interface Props {
   records: IndicatorArchitectureRecord[];
-  onChange: (records: IndicatorArchitectureRecord[]) => void;
+  onChange: (records: IndicatorArchitectureRecord[]) => void | Promise<void>;
   baseIndicators: RiskIndicatorRow[];
   defaultIndicators: RiskIndicatorRow[];
   indicatorLevels: IndicatorRiskLevelRow[];
   activeRiskLevelRecord?: RiskLevelVersionRecord | null;
   regionalPreventionRecords?: RegionalPreventionRecord[];
+  points?: WaterloggingPointRow[];
+  riskChangeLogs?: RiskChangeLogEntry[];
   /** 从风险指标管理跳转时自动打开编辑弹窗 */
   openEditOnMount?: boolean;
   onEditMountHandled?: () => void;
@@ -112,6 +120,8 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   indicatorLevels,
   activeRiskLevelRecord = null,
   regionalPreventionRecords = [],
+  points = [],
+  riskChangeLogs = [],
   openEditOnMount,
   onEditMountHandled,
   openDetailRecordIdOnMount,
@@ -128,6 +138,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<IndicatorArchitectureRecord | null>(null);
+  const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
+  const [copySuggestedLabel, setCopySuggestedLabel] = useState('');
+  const [saving, setSaving] = useState(false);
   const [draftConfig, setDraftConfig] = useState<IndicatorArchitectureConfig>(
     emptyIndicatorArchitectureConfig(),
   );
@@ -136,8 +149,10 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     emptyIndicatorArchitectureConfig(),
   );
   const [form] = Form.useForm();
+  const watchedLabel = Form.useWatch('label', form);
   const mountHandledRef = useRef(false);
   const detailMountHandledRef = useRef<string | null>(null);
+  const saveInFlightRef = useRef(false);
 
   const sorted = useMemo(() => sortArchitectureRecords(records), [records]);
   const activeRecord = useMemo(() => getActiveArchitectureRecord(records), [records]);
@@ -221,9 +236,69 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     () => (editing ? editing.versionNo : nextArchitectureVersionNo(records)),
     [editing, records],
   );
+  const copyHasMeaningfulChanges = useMemo(
+    () =>
+      !copySourceVersionNo ||
+      hasMeaningfulArchitectureCopyChanges(
+        modalInitialConfig,
+        draftConfig,
+        copySuggestedLabel,
+        watchedLabel,
+      ),
+    [
+      copySourceVersionNo,
+      copySuggestedLabel,
+      draftConfig,
+      modalInitialConfig,
+      watchedLabel,
+    ],
+  );
 
-  const patchRecords = (next: IndicatorArchitectureRecord[]) => {
-    onChange(sortArchitectureRecords(ensureArchitectureVersionNos(next)));
+  const patchRecords = async (next: IndicatorArchitectureRecord[]): Promise<boolean> => {
+    try {
+      await onChange(sortArchitectureRecords(ensureArchitectureVersionNos(next)));
+      return true;
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '工作区保存失败，请重试');
+      return false;
+    }
+  };
+
+  const isReferenced = (row: IndicatorArchitectureRecord) =>
+    regionalPreventionRecords.some(record => record.architectureRefId === row.id) ||
+    points.some(
+      point =>
+        point.surveyArchitectureRefId === row.id ||
+        point.ratingResult?.architectureRefId === row.id,
+    ) ||
+    riskChangeLogs.some(
+      log =>
+        log.architectureVersionNo === row.versionNo ||
+        log.architectureRefAt === row.configAt,
+    );
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
+  };
+
+  const requestClose = () => {
+    const dirty =
+      !detailOnly &&
+      (form.isFieldsTouched() ||
+        JSON.stringify(draftConfig) !== JSON.stringify(modalInitialConfig));
+    if (!dirty) {
+      closeModal();
+      return;
+    }
+    Modal.confirm({
+      title: '放弃未保存修改？',
+      content: '关闭后，本次对评价版本的修改将不会保存。',
+      okText: '放弃修改',
+      cancelText: '继续编辑',
+      onOk: closeModal,
+    });
   };
 
   const openCreate = () => {
@@ -233,6 +308,8 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
       ? synced
       : buildArchitectureSnapshot(baseIndicators, cloneLevel1Weights());
     setEditing(null);
+    setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
     setDetailOnly(false);
     setModalInitialConfig(initial);
     setDraftConfig(initial);
@@ -248,22 +325,37 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   const openDetail = (row: IndicatorArchitectureRecord) => {
     setPreviewArchitectureId(row.id);
     setEditing(row);
+    setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
     setDetailOnly(true);
     const synced = syncConfigWithIndicatorCatalog(row.config, baseIndicators);
     setModalInitialConfig(synced);
     setDraftConfig(synced);
+    form.resetFields();
     form.setFieldsValue(recordToFormValues(row));
     setModalOpen(true);
   };
 
   const openEdit = (row: IndicatorArchitectureRecord) => {
     setPreviewArchitectureId(row.id);
-    setEditing(row);
+    const immutable = isArchitectureVersionImmutable(row) || isReferenced(row);
+    const suggestedLabel = immutable ? `复制自 ${row.versionNo}` : '';
+    setEditing(immutable ? null : row);
+    setCopySourceVersionNo(immutable ? row.versionNo : null);
+    setCopySuggestedLabel(suggestedLabel);
     setDetailOnly(false);
-    const synced = syncConfigWithIndicatorCatalog(row.config, baseIndicators);
+    const synced = immutable
+      ? refreshArchitectureConfigForNewVersion(row.config, baseIndicators)
+      : syncConfigWithIndicatorCatalog(row.config, baseIndicators);
     setModalInitialConfig(synced);
     setDraftConfig(synced);
+    form.resetFields();
     form.setFieldsValue(recordToFormValues(row));
+    if (immutable) {
+      form.setFieldValue('configAt', dayjs());
+      form.setFieldValue('label', suggestedLabel);
+      message.info(`${row.versionNo} 已完成或正在引用，当前仅打开未保存副本`);
+    }
     setModalOpen(true);
   };
 
@@ -289,14 +381,17 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     onDetailMountHandled?.();
   }, [openDetailRecordIdOnMount, records, onDetailMountHandled]);
 
-  const handleSetActive = (id: string, e?: React.MouseEvent) => {
+  const handleSetActive = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const target = records.find(r => r.id === id);
-    if (target?.config.status !== 'completed') {
-      message.warning('请先保存并确保权重配置完整（各级合计 1.000）后再设为定级引用');
+    const referenceIssue = target
+      ? getArchitectureRatingReferenceIssue(target)
+      : '未找到该评价版本';
+    if (referenceIssue) {
+      message.warning(referenceIssue);
       return;
     }
-    patchRecords(setActiveArchitectureRecord(records, id));
+    if (!(await patchRecords(setActiveArchitectureRecord(records, id)))) return;
     setPreviewArchitectureId(id);
     message.success('已设为定级引用（全县 V 计算权重方案）');
     if (
@@ -310,78 +405,92 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     }
   };
 
-  const handleDelete = (id: string) => {
-    const next = records.filter(r => r.id !== id);
-    if (!next.length) {
-      patchRecords([]);
-      setModalOpen(false);
-      setEditing(null);
-      message.success('已删除');
+  const handleDelete = async (id: string) => {
+    const target = records.find(r => r.id === id);
+    if (!target) return;
+    if (isArchitectureVersionImmutable(target) || isReferenced(target)) {
+      message.warning('该版本已完成、正在引用或已有普查/定级/V₄ 依赖，不可删除');
       return;
     }
-    let patched = next;
-    if (!next.some(r => r.activeForRating)) {
-      const latest = sortArchitectureRecords(next).find(r => r.config.status === 'completed');
-      if (latest) patched = setActiveArchitectureRecord(next, latest.id);
-    }
-    patchRecords(patched);
+    const next = records.filter(r => r.id !== id);
+    if (!(await patchRecords(next))) return;
     message.success('已删除');
-    setModalOpen(false);
+    closeModal();
     setEditing(null);
   };
 
   const handleSave = async () => {
-    const values = await form.validateFields();
-    const configAt = (values.configAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
-    const validation = validateArchitectureConfig(draftConfig, baseIndicators);
-    const nextConfig: IndicatorArchitectureConfig = {
-      ...draftConfig,
-      updatedBy: values.updatedBy?.trim() || undefined,
-      updatedAt: configAt,
-      status: validation.ok ? 'completed' : 'draft',
-    };
+    if (saveInFlightRef.current) return;
+    if (copySourceVersionNo && !copyHasMeaningfulChanges) {
+      message.warning('尚未修改配置或批次说明，不会生成重复版本');
+      return;
+    }
 
-    const nextRecord: IndicatorArchitectureRecord = editing
-      ? {
-          ...editing,
-          configAt,
-          label: values.label?.trim() || undefined,
-          config: nextConfig,
-        }
-      : {
-          ...emptyIndicatorArchitectureRecord(),
-          id: `arch-${Date.now()}`,
-          versionNo: nextArchitectureVersionNo(records),
-          configAt,
-          label: values.label?.trim() || undefined,
-          activeForRating: records.length === 0,
-          config: nextConfig,
-        };
+    saveInFlightRef.current = true;
+    setSaving(true);
+    try {
+      const values = await form.validateFields();
+      const configAt = (values.configAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
+      const validation = validateArchitectureConfig(draftConfig, baseIndicators);
+      const nextConfig: IndicatorArchitectureConfig = {
+        ...draftConfig,
+        updatedBy: values.updatedBy?.trim() || undefined,
+        updatedAt: configAt,
+        status: validation.ok ? 'completed' : 'draft',
+      };
 
-    patchRecords(
-      editing
-        ? records.map(r => (r.id === editing.id ? nextRecord : r))
-        : [nextRecord, ...records],
-    );
+      const nextRecord: IndicatorArchitectureRecord = editing
+        ? {
+            ...editing,
+            configAt,
+            label: values.label?.trim() || undefined,
+            activeForRating: validation.ok ? editing.activeForRating : false,
+            config: nextConfig,
+          }
+        : {
+            ...emptyIndicatorArchitectureRecord(),
+            id: `arch-${Date.now()}`,
+            versionNo: nextArchitectureVersionNo(records),
+            configAt,
+            label: values.label?.trim() || undefined,
+            activeForRating: records.length === 0 && validation.ok,
+            config: nextConfig,
+          };
 
-    if (!validation.ok) {
-      message.warning('权重合计未全部达标，已保存为草稿；完善后可设为定级引用');
-      const syncedSaved = syncConfigWithIndicatorCatalog(nextConfig, baseIndicators);
-      setModalInitialConfig(syncedSaved);
-      setDraftConfig(syncedSaved);
-      setEditing(nextRecord);
-    } else {
-      message.success(
-        `已保存 ${nextRecord.versionNo}${
-          nextRecord.activeForRating ? '，当前为定级引用版本' : ''
-        }`,
-      );
-      setModalOpen(false);
+      if (!(await patchRecords(
+        editing
+          ? records.map(r => (r.id === editing.id ? nextRecord : r))
+          : [nextRecord, ...records],
+      ))) return;
+
+      if (!validation.ok) {
+        message.warning(
+          validation.indicatorIssues.length
+            ? `启用指标仍有 ${validation.indicatorIssues.length} 项配置问题，已保存为草稿`
+            : '权重合计未全部达标，已保存为草稿；完善后可设为定级引用',
+        );
+        const syncedSaved = syncConfigWithIndicatorCatalog(nextConfig, baseIndicators);
+        setModalInitialConfig(syncedSaved);
+        setDraftConfig(syncedSaved);
+        setEditing(nextRecord);
+        setCopySourceVersionNo(null);
+        setCopySuggestedLabel('');
+      } else {
+        message.success(
+          `已保存 ${nextRecord.versionNo}${
+            nextRecord.activeForRating ? '，当前为定级引用版本' : ''
+          }${copySourceVersionNo ? `（复制自 ${copySourceVersionNo}）` : ''}`,
+        );
+        closeModal();
+      }
+    } finally {
+      saveInFlightRef.current = false;
+      setSaving(false);
     }
   };
 
   const switchDetailToEdit = () => {
-    setDetailOnly(false);
+    if (editing) openEdit(editing);
   };
 
   const columns: ColumnsType<IndicatorArchitectureRecord> = [
@@ -421,7 +530,19 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         const s = summarizeArchitectureRecord(baseIndicators, row);
         return (
           <Tag color={s.weightValid ? 'success' : 'error'}>
-            {s.weightValid ? '通过' : `${s.issueCount} 项未达标`}
+            {s.weightValid ? '通过' : `${s.weightIssueCount} 项未达标`}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: '指标校验',
+      width: 100,
+      render: (_, row) => {
+        const s = summarizeArchitectureRecord(baseIndicators, row);
+        return (
+          <Tag color={s.indicatorValid ? 'success' : 'error'}>
+            {s.indicatorValid ? '通过' : `${s.indicatorIssueCount} 项不可计算`}
           </Tag>
         );
       },
@@ -447,14 +568,19 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         </span>
       ),
       width: 108,
-      render: (_, row) =>
-        row.activeForRating ? (
+      render: (_, row) => {
+        if (!row.activeForRating) return '—';
+        const referenceIssue = getArchitectureRatingReferenceIssue(row);
+        return referenceIssue ? (
+          <Tooltip title={referenceIssue}>
+            <Tag color="error">引用无效</Tag>
+          </Tooltip>
+        ) : (
           <Tag color="blue" icon={<StarFilled />}>
             当前引用
           </Tag>
-        ) : (
-          '—'
-        ),
+        );
+      },
     },
     {
       title: '维护人',
@@ -485,19 +611,29 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
             className="action-btn"
             onClick={() => openEdit(row)}
           >
-            编辑
+            {isArchitectureVersionImmutable(row) || isReferenced(row) ? '复制为新版本' : '编辑'}
           </Button>
-          {!row.activeForRating && row.config.status === 'completed' ? (
-            <Button
-              type="link"
-              size="small"
-              icon={<StarOutlined />}
-              className="action-btn"
-              onClick={e => handleSetActive(row.id, e)}
-            >
-              引用
-            </Button>
-          ) : null}
+          {!row.activeForRating && row.config.status === 'completed'
+            ? (() => {
+                const referenceIssue = getArchitectureRatingReferenceIssue(row);
+                return (
+                  <Tooltip title={referenceIssue ?? '设为定级引用'}>
+                    <span>
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<StarOutlined />}
+                        className="action-btn"
+                        disabled={Boolean(referenceIssue)}
+                        onClick={e => handleSetActive(row.id, e)}
+                      >
+                        引用
+                      </Button>
+                    </span>
+                  </Tooltip>
+                );
+              })()
+            : null}
         </Space>
       ),
     },
@@ -507,7 +643,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     ? '评价版本详情'
     : editing
       ? '编辑评价版本'
-      : '新增评价版本';
+      : copySourceVersionNo
+        ? '复制评价版本'
+        : '新增评价版本';
 
   const modalTitle = (
     <Space align="center" size="small">
@@ -645,7 +783,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         title={modalTitle}
         open={modalOpen}
         className="dq-arch-version-modal"
-        onCancel={() => setModalOpen(false)}
+        onCancel={requestClose}
         width="100vw"
         centered={false}
         style={{ top: 0, paddingBottom: 0, maxWidth: '100vw' }}
@@ -653,6 +791,15 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         footer={null}
         destroyOnClose
       >
+        {copySourceVersionNo ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`基于 ${copySourceVersionNo} 编辑未保存副本（拟生成 ${pendingVersionNo}）`}
+            description="当前不会新增记录。请先调整配置或批次说明；保存成功后才生成新版本，取消或关闭不会保留副本。"
+          />
+        ) : null}
         <Form form={form} layout="vertical" disabled={detailOnly}>
           <Row gutter={16}>
             <Col span={6}>
@@ -689,8 +836,11 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
           embedded
           readOnly={detailOnly}
           onEdit={detailOnly ? switchDetailToEdit : undefined}
-          onCancel={detailOnly ? undefined : () => setModalOpen(false)}
+          onCancel={detailOnly ? undefined : requestClose}
           onSave={detailOnly ? undefined : handleSave}
+          saving={saving}
+          saveDisabled={Boolean(copySourceVersionNo && !copyHasMeaningfulChanges)}
+          saveDisabledReason="请先修改配置或批次说明；未修改的副本不会生成新版本"
           onDelete={editing && !detailOnly ? () => handleDelete(editing.id) : undefined}
         />
       </Modal>

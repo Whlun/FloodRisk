@@ -14,6 +14,8 @@ const CODE_LITERAL_ALLOWLIST = new Set([
   'designReturnPeriod.ts',
   'numericIndicatorConstraints.ts',
   'indicatorPersistence.ts',
+  // 一次性工作区数据迁移可按历史指标编码修复当前目录；不得用于运行时赋分。
+  'workspaceService.ts',
   'indicatorScoringProfile.ts',
   'surveyFieldHints.ts',
   'defaultScoreExplanation.ts',

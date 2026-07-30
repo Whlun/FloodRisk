@@ -7,6 +7,8 @@ import {
   isPointSurveyComplete,
 } from '../src/prototypes/deqing-waterlogging-risk/indicatorSurveyUtils';
 import { buildRatedSurveyRecord } from '../src/prototypes/deqing-waterlogging-risk/surveyRatingUtils';
+import { canRatePoint, mergeRatingRuleSelections } from '../src/prototypes/deqing-waterlogging-risk/deriveRuleSelectionsForRating';
+import { ratePointFromSelections } from '../src/prototypes/deqing-waterlogging-risk/scoreCalculatorPartial';
 import {
   cloneLevel1Weights,
   emptyAssessmentPayload,
@@ -53,7 +55,7 @@ function buildDefinitionAndRating(count: number, enabledCount: number) {
 }
 
 describe('普查与定级指标引用', () => {
-  const pointType = 'LOW_LYING_ROAD' as const;
+  const pointType = 'LOW_LYING' as const;
   const archScope = { architectureScoped: true } as const;
 
   it('架构仅启用 5 项时，普查完整度与计分均按 5 项统计', () => {
@@ -72,7 +74,22 @@ describe('普查与定级指标引用', () => {
   });
 
   it('buildRatedSurveyRecord 写入 architectureRefId/At 与 preventionRefAt', () => {
-    const { definitionIndicators, ratingIndicators } = buildDefinitionAndRating(5, 5);
+    const built = buildDefinitionAndRating(4, 4);
+    const factorOrder: RiskIndicatorRow['level1'][] = [
+      'HAZARD',
+      'FORMATION',
+      'BEARING',
+      'PREVENTION',
+    ];
+    const ratingIndicators = built.ratingIndicators.map((ind, i) => ({
+      ...ind,
+      level1: factorOrder[i],
+      applicableTypes: factorOrder[i] === 'FORMATION' ? [pointType] : ['GLOBAL'],
+      survey: {
+        ...ind.survey,
+        collectInSurvey: factorOrder[i] !== 'PREVENTION',
+      },
+    }));
     const values = Object.fromEntries(
       ratingIndicators.map(ind => [ind.survey!.fieldKey, '档A']),
     );
@@ -85,7 +102,9 @@ describe('普查与定级指标引用', () => {
       config: {
         level1Weights: cloneLevel1Weights(),
         weightSource: 'appendix_e',
-        indicatorStates: {},
+        indicatorStates: Object.fromEntries(
+          ratingIndicators.map(ind => [ind.id, { enabled: true, weight: ind.weight }]),
+        ),
         status: 'completed',
       },
     };
@@ -110,20 +129,56 @@ describe('普查与定级指标引用', () => {
       surveyArchitectureRefAt: '2026-01-15 10:00:00',
     };
 
-    const rated = buildRatedSurveyRecord(pt, {
+    const ratingContext = {
       indicators: ratingIndicators,
-      baseIndicators: definitionIndicators,
-      architectureRecords: [activeArchitectureRecord],
       indicatorLevels: initialIndicatorRiskLevels,
       level1Weights: cloneLevel1Weights(),
       regionalPrevention: {
         indicatorValues: {},
         assessmentStatus: 'completed',
-        assessmentPayload: emptyAssessmentPayload(),
+        assessmentPayload: {
+          ...emptyAssessmentPayload(),
+          items: {
+            [ratingIndicators[3].id]: { ruleId: ratingIndicators[3].scoreRules[0].id },
+          },
+        },
       },
       activeArchitectureRecord,
       preventionRefAt: '2026-01-10 09:00:00',
-    });
+    };
+    expect(
+      canRatePoint(
+        pointType,
+        pt.surveyStatus,
+        pt.surveyPayload,
+        ratingContext.regionalPrevention,
+        ratingIndicators,
+      ),
+    ).toBe(true);
+    const merged = mergeRatingRuleSelections(
+      pointType,
+      pt.surveyPayload,
+      ratingContext.regionalPrevention,
+      ratingIndicators,
+    );
+    expect(merged.errors).toEqual([]);
+    expect(Object.keys(merged.selections)).toHaveLength(4);
+    const coverage = calcSurveyCoverage(
+      ratingIndicators,
+      pointType,
+      pt.surveyPayload.indicatorValues,
+      archScope,
+    );
+    const directResult = ratePointFromSelections(
+      ratingIndicators,
+      pointType,
+      merged.selections,
+      initialIndicatorRiskLevels,
+      coverage,
+    );
+    expect(directResult).toMatchObject({ partial: false });
+    expect(directResult.level).toBeDefined();
+    const rated = buildRatedSurveyRecord(pt, ratingContext);
 
     expect(rated).not.toBeNull();
     expect(rated!.ratingResult?.architectureRefId).toBe('arch-test-1');

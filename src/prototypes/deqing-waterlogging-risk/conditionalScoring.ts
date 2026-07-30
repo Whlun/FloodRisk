@@ -56,7 +56,12 @@ import {
 import type { ConditionalFormVariant } from './conditionalFormPaths';
 import { getConditionSourceWatchPath } from './conditionalFormPaths';
 import { formatBranchNumericMatch, matchNumericCondition } from './branchNumericMatch';
-import { hasConfiguredNumericBands, matchScoreRuleByNumericBands } from './scoreRuleNumericBands';
+import {
+  hasConfiguredNumericBands,
+  matchScoreRuleByNumericBands,
+  validateNumericMatchCoverage,
+  validateNumericUniformBands,
+} from './scoreRuleNumericBands';
 
 /** 条件赋分方式（通用文案） */
 export const CONDITIONAL_SCORING_MODE_LABEL: Record<ConditionalScoringMode, string> = {
@@ -1076,6 +1081,8 @@ export function validateConditionalScoring(
       if (!hasConfiguredNumericBands(branchRules)) {
         return `分支「${b.label}」须为每档配置匹配区间（数值分档）`;
       }
+      const bandError = validateNumericUniformBands(branchRules);
+      if (bandError) return `分支「${b.label}」：${bandError}`;
       if (!branchRules.every(r => String(r.label ?? '').trim())) {
         return `分支「${b.label}」每档须填写分档描述`;
       }
@@ -1087,7 +1094,15 @@ export function validateConditionalScoring(
       if (ind.valueType === 'numeric' && !hasConfiguredNumericBands(b.scoreRules)) {
         return `分支「${b.label}」须为每档配置匹配区间（数值分档）`;
       }
+      if (ind.valueType === 'numeric') {
+        const bandError = validateNumericUniformBands(b.scoreRules);
+        if (bandError) return `分支「${b.label}」：${bandError}`;
+      }
     }
+  }
+  if (cfg.branches.every(branch => Boolean(branch.numericMatch))) {
+    const branchCoverageError = validateNumericMatchCoverage(cfg.branches);
+    if (branchCoverageError) return `条件分支${branchCoverageError}`;
   }
   const duplicateMatchValues = findDuplicateBranchMatchValues(cfg.branches);
   if (duplicateMatchValues.length) {

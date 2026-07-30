@@ -907,7 +907,7 @@ export const CompositeAppendixSurveyConfigFields: React.FC<Props> = ({
                     valueFieldKey: resolveAppendixBValueFieldKey(appendixBFieldKey, codeTrim, n - 1),
                     numericRange: { ...DEFAULT_COMPOSITE_NUMERIC_RANGE },
                     tierBands: [
-                      { riskTier: '低', score: 0.2, match: { kind: 'gt', value: 0 } },
+                      { riskTier: '低', score: 0.2, match: { kind: 'gte', value: 0 } },
                       { riskTier: '高', score: 1, match: { kind: 'lt', value: 0 } },
                     ],
                   });

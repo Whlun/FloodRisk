@@ -10,7 +10,7 @@ export function resolveSurveyAt(row: WaterloggingPointRow): string {
   return row.surveyAt ?? row.collectedAt ?? '';
 }
 
-/** 定级页：每个易涝点取「定级引用」普查记录，否则取最近一条已完成，否则取最近一条 */
+/** 定级页只展示每个易涝点显式设置的「定级引用」普查记录。 */
 export function getSurveyRecordsForRating(records: WaterloggingPointRow[]): WaterloggingPointRow[] {
   const byRegistry = new Map<string, WaterloggingPointRow[]>();
   for (const r of records) {
@@ -18,16 +18,14 @@ export function getSurveyRecordsForRating(records: WaterloggingPointRow[]): Wate
     list.push(r);
     byRegistry.set(r.registryId, list);
   }
-  return [...byRegistry.values()].map(pickSurveyRecordForRating);
+  return [...byRegistry.values()]
+    .map(pickSurveyRecordForRating)
+    .filter((row): row is WaterloggingPointRow => Boolean(row));
 }
 
-function pickSurveyRecordForRating(list: WaterloggingPointRow[]): WaterloggingPointRow {
+function pickSurveyRecordForRating(list: WaterloggingPointRow[]): WaterloggingPointRow | null {
   const sorted = sortSurveyRecords(list);
-  const active = sorted.find(r => r.activeForRating);
-  if (active) return active;
-  const completed = sorted.filter(r => r.surveyStatus === 'completed');
-  if (completed.length) return completed[0];
-  return sorted[0];
+  return sorted.find(r => r.activeForRating) ?? null;
 }
 
 /** 将某条普查记录设为定级引用（同易涝点 registryId 仅一条） */

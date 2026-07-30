@@ -140,6 +140,32 @@ export const SurveyValueInput: React.FC<SurveyValueInputProps> = ({
     );
   }
 
+  if (ind.valueType === 'numeric' && conditionalOk) {
+    return (
+      <ConditionalThresholdSurveyInput
+        ind={ind}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        valueNamePath={valueNamePath}
+        formVariant={formVariant}
+        allIndicators={allIndicators}
+      />
+    );
+  }
+  if (conditionalOk && (ind.valueType === 'enum' || ind.valueType === 'boolean')) {
+    return (
+      <ConditionalEnumSurveyInput
+        ind={ind}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        valueNamePath={valueNamePath}
+        formVariant={formVariant}
+        allIndicators={allIndicators}
+      />
+    );
+  }
   if (ind.valueType === 'boolean') {
     const options = buildBooleanSurveyOptions(ind);
     const boolValue =
@@ -155,36 +181,6 @@ export const SurveyValueInput: React.FC<SurveyValueInputProps> = ({
         onChange={v => onChange?.(v ?? null)}
         placeholder="请选择"
         options={options}
-      />
-    );
-  }
-  if (
-    ind.valueType === 'numeric' &&
-    conditionalOk &&
-    ind.conditionalScoring?.mode === 'branch_threshold'
-  ) {
-    return (
-      <ConditionalThresholdSurveyInput
-        ind={ind}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        valueNamePath={valueNamePath}
-        formVariant={formVariant}
-        allIndicators={allIndicators}
-      />
-    );
-  }
-  if (conditionalOk && ind.conditionalScoring?.mode === 'branch_rules') {
-    return (
-      <ConditionalEnumSurveyInput
-        ind={ind}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        valueNamePath={valueNamePath}
-        formVariant={formVariant}
-        allIndicators={allIndicators}
       />
     );
   }

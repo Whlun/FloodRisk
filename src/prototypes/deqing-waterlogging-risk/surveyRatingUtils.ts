@@ -11,11 +11,14 @@ import type {
 } from './types';
 import { getLatestRiskLogForSurvey } from './riskChangeLogUtils';
 import {
+  getArchitectureForRating,
   getRatingLevel1Weights,
   mergeIndicatorsForArchitectureRecord,
-  resolveSurveyArchitectureRecord,
 } from './indicatorArchitectureUtils';
-import { getLevelsFromRecord } from './riskLevelVersionUtils';
+import {
+  getLevelsFromRecord,
+  getRiskLevelForRating,
+} from './riskLevelVersionUtils';
 import {
   getActiveRegionalPreventionRecord,
   getRegionalPreventionForLockedRating,
@@ -121,16 +124,16 @@ function resolveLockedArchitectureForUpdate(
   if (!rr) return null;
 
   const byId = resolveArchitectureRecordById(architectureRecords, rr.architectureRefId);
-  if (byId) return byId;
+  if (byId?.config.status === 'completed') return byId;
 
   if (rr.architectureVersionNo) {
     const byVersion = architectureRecords.find(r => r.versionNo === rr.architectureVersionNo);
-    if (byVersion) return byVersion;
+    if (byVersion?.config.status === 'completed') return byVersion;
   }
 
   if (pt.surveyArchitectureRefId) {
     const bySurvey = resolveArchitectureRecordById(architectureRecords, pt.surveyArchitectureRefId);
-    if (bySurvey) return bySurvey;
+    if (bySurvey?.config.status === 'completed') return bySurvey;
   }
 
   const preventionRefAt = resolveLockedPreventionRefAt(pt, riskChangeLogs);
@@ -138,19 +141,32 @@ function resolveLockedArchitectureForUpdate(
   if (preventionVersionNo) {
     const prevRec = regionalPreventionRecords.find(r => r.versionNo === preventionVersionNo);
     if (prevRec?.architectureRefId) {
-      return resolveArchitectureRecordById(architectureRecords, prevRec.architectureRefId);
+      const byPrevention = resolveArchitectureRecordById(
+        architectureRecords,
+        prevRec.architectureRefId,
+      );
+      if (byPrevention?.config.status === 'completed') {
+        return byPrevention;
+      }
     }
   }
   if (preventionRefAt) {
     const prevRec = regionalPreventionRecords.find(r => r.configAt === preventionRefAt);
     if (prevRec?.architectureRefId) {
-      return resolveArchitectureRecordById(architectureRecords, prevRec.architectureRefId);
+      const byPrevention = resolveArchitectureRecordById(
+        architectureRecords,
+        prevRec.architectureRefId,
+      );
+      if (byPrevention?.config.status === 'completed') {
+        return byPrevention;
+      }
     }
   }
 
   const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
   if (log?.architectureVersionNo) {
-    return architectureRecords.find(r => r.versionNo === log.architectureVersionNo) ?? null;
+    const byLog = architectureRecords.find(r => r.versionNo === log.architectureVersionNo);
+    if (byLog?.config.status === 'completed') return byLog;
   }
 
   return null;
@@ -169,15 +185,17 @@ function resolveLockedRiskLevelForUpdate(
     rr.riskLevelRefId,
     rr.riskLevelVersionNo,
   );
-  if (byStored) return byStored;
+  if (byStored?.config.status === 'completed') return byStored;
 
   const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
   if (log?.riskLevelVersionNo) {
-    return resolveRiskLevelRecordForRating(riskLevelRecords, undefined, log.riskLevelVersionNo);
+    const byLog = resolveRiskLevelRecordForRating(
+      riskLevelRecords,
+      undefined,
+      log.riskLevelVersionNo,
+    );
+    return byLog?.config.status === 'completed' ? byLog : null;
   }
-
-  const completed = riskLevelRecords.filter(r => r.config.status === 'completed');
-  if (completed.length === 1) return completed[0];
 
   return null;
 }
@@ -214,8 +232,6 @@ export function buildRatingContextForPoint(input: BuildRatingContextInput): Surv
     riskLevelRecords,
     regionalPreventionRecords,
     riskChangeLogs = [],
-    currentArchitectureRecord,
-    currentRiskLevelRecord,
   } = input;
 
   const isUpdate = pt.ratingStatus === 'completed' && Boolean(pt.ratingResult);
@@ -258,23 +274,29 @@ export function buildRatingContextForPoint(input: BuildRatingContextInput): Surv
     };
   }
 
+  // 不信任调用方传入的原始 active 记录；最终定级从版本集合重新执行严格准入校验。
+  const strictCurrentArchitectureRecord = getArchitectureForRating(architectureRecords);
+  const strictCurrentRiskLevelRecord = getRiskLevelForRating(riskLevelRecords);
   const preventionRecord = getActiveRegionalPreventionRecord(
     regionalPreventionRecords,
-    currentArchitectureRecord,
+    strictCurrentArchitectureRecord,
   );
 
   return {
-    indicators: mergeIndicatorsForArchitectureRecord(baseIndicators, currentArchitectureRecord),
+    indicators: mergeIndicatorsForArchitectureRecord(
+      baseIndicators,
+      strictCurrentArchitectureRecord,
+    ),
     baseIndicators,
     architectureRecords,
-    indicatorLevels: getLevelsFromRecord(currentRiskLevelRecord),
-    level1Weights: getRatingLevel1Weights(currentArchitectureRecord),
+    indicatorLevels: getLevelsFromRecord(strictCurrentRiskLevelRecord),
+    level1Weights: getRatingLevel1Weights(strictCurrentArchitectureRecord),
     regionalPrevention: getRegionalPreventionForRating(
       regionalPreventionRecords,
-      currentArchitectureRecord,
+      strictCurrentArchitectureRecord,
     ),
-    activeArchitectureRecord: currentArchitectureRecord,
-    activeRiskLevelRecord: currentRiskLevelRecord,
+    activeArchitectureRecord: strictCurrentArchitectureRecord,
+    activeRiskLevelRecord: strictCurrentRiskLevelRecord,
     preventionRefAt: preventionRecord?.configAt,
     preventionVersionNo: preventionRecord?.versionNo,
     activePreventionRecord: preventionRecord,
@@ -282,21 +304,31 @@ export function buildRatingContextForPoint(input: BuildRatingContextInput): Surv
   };
 }
 
-/** 解析本条普查记录绑定架构下的填报指标 */
+/**
+ * 定级完整度与实际评分必须使用同一评价版本：
+ * 首次定级为严格校验后的当前引用，更新定级为上次结果锁定版本。
+ */
 export function resolveSurveyIndicatorsForPoint(
-  pt: Pick<WaterloggingPointRow, 'surveyArchitectureRefId'>,
+  _pt: Pick<WaterloggingPointRow, 'surveyArchitectureRefId'>,
   ctx: SurveyRatingContext,
 ): RiskIndicatorRow[] {
-  const { baseIndicators, architectureRecords, indicators, activeArchitectureRecord } = ctx;
-  if (!baseIndicators?.length || !architectureRecords?.length) {
-    return indicators;
+  return ctx.indicators;
+}
+
+function getSurveyArchitectureBindingIssue(
+  pt: Pick<WaterloggingPointRow, 'surveyArchitectureRefId'>,
+  ctx: SurveyRatingContext,
+): string | null {
+  if (!pt.surveyArchitectureRefId || !ctx.architectureRecords?.length) return null;
+  const bound = ctx.architectureRecords.find(record => record.id === pt.surveyArchitectureRefId);
+  if (!bound) {
+    return `本条普查绑定的评价版本（${pt.surveyArchitectureRefId}）已不存在，禁止回退到其他版本定级`;
   }
-  const arch = resolveSurveyArchitectureRecord(
-    architectureRecords,
-    pt.surveyArchitectureRefId,
-    activeArchitectureRecord ?? null,
-  );
-  return mergeIndicatorsForArchitectureRecord(baseIndicators, arch);
+  const rating = ctx.activeArchitectureRecord;
+  if (ctx.mode !== 'update' && rating && bound.id !== rating.id) {
+    return `本条普查绑定评价版本 ${bound.versionNo}，与当前定级引用 ${rating.versionNo} 不一致，请基于当前版本重新普查`;
+  }
+  return null;
 }
 
 /** 定级前试算预览（不落库） */
@@ -319,6 +351,11 @@ export function computeSurveyRatingPreview(
     totalCount,
     ratedRow: null,
   };
+
+  const bindingIssue = getSurveyArchitectureBindingIssue(pt, ctx);
+  if (bindingIssue) {
+    return { ...empty, errors: [bindingIssue] };
+  }
 
   const configBlockers: string[] = [];
   for (const ind of indicators.filter(i => i.enabled)) {
@@ -516,6 +553,7 @@ export function buildRatedSurveyRecord(
     activePreventionRecord,
   } = ctx;
   if (!regionalPrevention) return null;
+  if (getSurveyArchitectureBindingIssue(pt, ctx)) return null;
   const surveyIndicators = resolveSurveyIndicatorsForPoint(pt, ctx);
   if (
     !canRatePoint(

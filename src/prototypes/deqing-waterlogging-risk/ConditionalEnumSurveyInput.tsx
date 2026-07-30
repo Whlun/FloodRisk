@@ -21,7 +21,7 @@ interface Props extends SurveyControlBindProps {
   allIndicators?: RiskIndicatorRow[];
 }
 
-/** 条件赋分 branch_rules：下拉选项随条件分支联动 */
+/** 枚举/是·否条件赋分：下拉选项随条件分支联动 */
 export const ConditionalEnumSurveyInput: React.FC<Props> = ({
   ind,
   value,
@@ -78,7 +78,7 @@ export const ConditionalEnumSurveyInput: React.FC<Props> = ({
         ? formVariant === 'prevention'
           ? '请先填写同组防灾减灾条件指标'
           : '请先填写条件指标'
-        : '请选择分档';
+        : '请选择本分支选项';
 
   return (
     <Select

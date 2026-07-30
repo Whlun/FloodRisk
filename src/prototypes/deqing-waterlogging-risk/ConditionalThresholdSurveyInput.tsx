@@ -17,7 +17,7 @@ interface Props extends SurveyControlBindProps {
   allIndicators?: RiskIndicatorRow[];
 }
 
-/** 条件赋分 branch_threshold：须先满足条件来源再填数值 */
+/** 数值型条件赋分：须先满足条件来源，再以 InputNumber 填写本指标数值 */
 export const ConditionalThresholdSurveyInput: React.FC<Props> = ({
   ind,
   value,

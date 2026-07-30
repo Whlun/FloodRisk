@@ -21,6 +21,8 @@ import {
 } from '../src/prototypes/deqing-waterlogging-risk/weightBalance';
 import { normalizeIndicatorRow } from '../src/prototypes/deqing-waterlogging-risk/indicatorNormalize';
 import { matchScoreRuleFromValue } from '../src/prototypes/deqing-waterlogging-risk/scoreRuleMapping';
+import { migrateWorkspaceBundle } from '../src/prototypes/deqing-waterlogging-risk/workspaceService';
+import type { DeqingWaterloggingWorkspace } from '../src/prototypes/deqing-waterlogging-risk/workspaceTypes';
 import {
   normalizeIndicatorScoringRuleMode,
   resolveScoringRuleMode,
@@ -307,12 +309,12 @@ describe('风险指标管理 · 通用性验收', () => {
   });
 
   it('工作区致灾三指标：配置完整且同级权重合计为 1 时应为就绪', () => {
-    const raw = JSON.parse(
+    const raw = migrateWorkspaceBundle(JSON.parse(
       readFileSync(
         resolve(__dirname, '../src/prototypes/deqing-waterlogging-risk/workspace-data.json'),
         'utf8',
       ),
-    ) as { indicators: RiskIndicatorRow[] };
+    ) as DeqingWaterloggingWorkspace);
     const hazardCodes = ['HZ_U001', 'HZ_U002', 'HZ_U003'];
     const pool = raw.indicators.map(ind =>
       rowForReadiness(ind, raw.indicators),
