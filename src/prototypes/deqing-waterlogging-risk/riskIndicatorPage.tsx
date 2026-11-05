@@ -915,8 +915,8 @@ export const RiskIndicatorPage: React.FC<Props> = ({
               </Row>
             ) : null}
             {fields.map((field, index) => (
-              <Row key={field.key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
-                <Form.Item {...field} name={[field.name, 'riskTier']} hidden>
+              <Row key={`score-rule-${field.key}`} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                <Form.Item name={[field.name, 'riskTier']} hidden>
                   <Input />
                 </Form.Item>
                 {isNumericUniform && !isCompositeMode ? (
@@ -932,7 +932,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                   <>
                     <Col span={4}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'score']}
                         rules={[{ required: true, message: '请填写标准分' }]}
                         style={{ marginBottom: 0 }}
@@ -948,7 +947,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     </Col>
                     <Col span={7}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'label']}
                         rules={[{ required: true, message: '请填写分档描述' }]}
                         style={{ marginBottom: 0 }}
@@ -961,7 +959,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                   <>
                     <Col span={5}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'label']}
                         rules={[{ required: true, message: '请填写分档名称' }]}
                         style={{ marginBottom: 0 }}
@@ -971,7 +968,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     </Col>
                     <Col span={4}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'score']}
                         rules={[{ required: true, message: '请填写标准分' }]}
                         style={{ marginBottom: 0 }}
@@ -987,7 +983,7 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item {...field} name={[field.name, 'tierRef']} style={{ marginBottom: 0 }}>
+                      <Form.Item name={[field.name, 'tierRef']} style={{ marginBottom: 0 }}>
                         <Input placeholder="选填：该档判定参考，普查下拉展示" disabled={detailOnly} />
                       </Form.Item>
                     </Col>
@@ -996,7 +992,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                   <>
                     <Col span={14}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'label']}
                         rules={[{ required: true, message: '请填写分档描述' }]}
                         style={{ marginBottom: 0 }}
@@ -1016,7 +1011,6 @@ export const RiskIndicatorPage: React.FC<Props> = ({
                     </Col>
                     <Col span={4}>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'score']}
                         rules={[{ required: true, message: '请填写标准分' }]}
                         style={{ marginBottom: 0 }}

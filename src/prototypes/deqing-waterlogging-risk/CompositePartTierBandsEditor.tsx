@@ -60,7 +60,7 @@ export const CompositePartTierBandsEditor: React.FC<Props> = ({
               </Row>
             ) : null}
             {bandFields.map(bandField => (
-              <Row key={bandField.key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+              <Row key={`appendix-band-${partFieldName}-${bandField.key}`} gutter={8} align="middle" style={{ marginBottom: 8 }}>
                 <Col span={10}>
                   <NumericScoreRuleMatchFields
                     field={bandField}
@@ -73,7 +73,6 @@ export const CompositePartTierBandsEditor: React.FC<Props> = ({
                 </Col>
                 <Col span={4}>
                   <Form.Item
-                    {...bandField}
                     name={[bandField.name, 'score']}
                     rules={[{ required: true, message: '请填写标准分' }]}
                     style={{ marginBottom: 0 }}
@@ -89,7 +88,6 @@ export const CompositePartTierBandsEditor: React.FC<Props> = ({
                 </Col>
                 <Col span={7}>
                   <Form.Item
-                    {...bandField}
                     name={[bandField.name, 'riskTier']}
                     rules={[{ required: true, message: '请填写分档描述' }]}
                     style={{ marginBottom: 0 }}

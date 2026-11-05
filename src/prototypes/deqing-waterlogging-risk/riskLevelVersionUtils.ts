@@ -112,6 +112,33 @@ export function isRiskLevelVersionImmutable(
   return referenced || record.activeForRating || record.config.status === 'completed';
 }
 
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(item => stableSerialize(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** 已锁定等级版本复制时，只有区间/展示配置或批次说明变化才允许产生新版本。 */
+export function hasMeaningfulRiskLevelCopyChanges(
+  sourceLevels: IndicatorRiskLevelRow[],
+  currentLevels: IndicatorRiskLevelRow[],
+  suggestedLabel: string,
+  currentLabel: string | undefined,
+): boolean {
+  return (
+    stableSerialize(sourceLevels) !== stableSerialize(currentLevels) ||
+    (currentLabel ?? '').trim() !== suggestedLabel.trim()
+  );
+}
+
 export function getLevelsFromRecord(
   record: RiskLevelVersionRecord | null | undefined,
 ): IndicatorRiskLevelRow[] {
@@ -133,6 +160,9 @@ export function collectRiskLevelConfigIssues(levels: IndicatorRiskLevelRow[]): s
     if (row.scoreMin >= row.scoreMax) {
       issues.push(`${row.levelName}：分数下限须小于分数上限`);
     }
+    if (row.scoreMin < 0 || row.scoreMax > 1) {
+      issues.push(`${row.levelName}：分数区间必须位于 [0, 1] 定义域内`);
+    }
     if (hasEnabledScoreRangeOverlap(row, levels)) {
       issues.push(`${row.levelName}：分数区间与其他启用等级重叠`);
     }
@@ -141,7 +171,7 @@ export function collectRiskLevelConfigIssues(levels: IndicatorRiskLevelRow[]): s
     .filter(row => Number.isFinite(row.scoreMin) && Number.isFinite(row.scoreMax))
     .sort((a, b) => a.scoreMin - b.scoreMin || a.scoreMax - b.scoreMax);
   if (ordered.length) {
-    if (ordered[0].scoreMin > 0) {
+    if (ordered[0].scoreMin !== 0) {
       issues.push('启用等级区间须从 0 开始覆盖');
     }
     for (let index = 1; index < ordered.length; index += 1) {
@@ -153,7 +183,7 @@ export function collectRiskLevelConfigIssues(levels: IndicatorRiskLevelRow[]): s
         );
       }
     }
-    if (ordered[ordered.length - 1].scoreMax < 1) {
+    if (ordered[ordered.length - 1].scoreMax !== 1) {
       issues.push('启用等级区间须连续覆盖至 1');
     }
   }

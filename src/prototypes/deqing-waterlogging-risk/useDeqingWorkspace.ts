@@ -43,7 +43,11 @@ export interface DeqingWorkspaceController {
   setPoints: (next: React.SetStateAction<WaterloggingPointRow[]>) => void;
   setRegionalPreventionRecords: (next: React.SetStateAction<RegionalPreventionRecord[]>) => void;
   setRiskChangeLogs: (next: React.SetStateAction<RiskChangeLogEntry[]>) => void;
+  /** 定级结果与对应审计日志必须作为同一工作区快照提交。 */
+  commitSurveyRating: (points: WaterloggingPointRow[], log: RiskChangeLogEntry) => void;
   setArchitectureRecords: (next: React.SetStateAction<IndicatorArchitectureRecord[]>) => void;
+  /** 同时变更多个工作区集合并只排队一次保存，适用于版本切换等跨集合业务事务。 */
+  updateWorkspace: (updater: (current: DeqingWorkspaceState) => DeqingWorkspaceState) => void;
   /** 立即提交当前本地快照；失败会 reject，业务弹窗可保持打开。 */
   flush: () => Promise<void>;
   flushWorkspaceSave: () => Promise<void>;
@@ -226,6 +230,23 @@ export function useDeqingWorkspace(): DeqingWorkspaceController {
     [scheduleServerSave],
   );
 
+  const commitSurveyRating = useCallback(
+    (points: WaterloggingPointRow[], log: RiskChangeLogEntry) => {
+      const prev = stateRef.current;
+      if (!prev) return;
+      const riskChangeLogs = [log, ...prev.riskChangeLogs];
+      // 本地兼容缓存与服务端工作区都采用同一份合并后的快照；调用方紧接着 flush，
+      // 不会出现“结果已保存、日志未保存”的中间态。
+      savePersistedPoints(points);
+      savePersistedRiskChangeLogs(riskChangeLogs);
+      const merged = { ...prev, points, riskChangeLogs };
+      stateRef.current = merged;
+      setState(merged);
+      scheduleServerSave();
+    },
+    [scheduleServerSave],
+  );
+
   const setRiskLevelRecords = useCallback(
     (next: React.SetStateAction<RiskLevelVersionRecord[]>) => {
       const prev = stateRef.current;
@@ -261,6 +282,26 @@ export function useDeqingWorkspace(): DeqingWorkspaceController {
     [scheduleServerSave],
   );
 
+  const updateWorkspace = useCallback(
+    (updater: (current: DeqingWorkspaceState) => DeqingWorkspaceState) => {
+      const previous = stateRef.current;
+      if (!previous) return;
+      const next = updater(previous);
+      // 本地镜像和 React 状态必须一起更新，避免后续 bundle 从不同批次的存储键拼出半成品。
+      savePersistedIndicators(next.indicators);
+      savePersistedRiskLevels(next.indicatorLevels);
+      savePersistedRiskLevelRecords(next.riskLevelRecords);
+      savePersistedPoints(next.points);
+      savePersistedRegionalPrevention(next.regionalPreventionRecords);
+      savePersistedRiskChangeLogs(next.riskChangeLogs);
+      savePersistedArchitectureRecords(next.architectureRecords);
+      stateRef.current = next;
+      setState(next);
+      scheduleServerSave();
+    },
+    [scheduleServerSave],
+  );
+
   return {
     ready,
     loadError,
@@ -273,7 +314,9 @@ export function useDeqingWorkspace(): DeqingWorkspaceController {
     setPoints,
     setRegionalPreventionRecords,
     setRiskChangeLogs,
+    commitSurveyRating,
     setArchitectureRecords,
+    updateWorkspace,
     flush,
     flushWorkspaceSave: flush,
     retryLoad: loadLatest,

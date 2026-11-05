@@ -97,14 +97,19 @@ export const HazardPointRatingPage: React.FC<Props> = ({ riskChangeLogs, indicat
     resetDeps: [registryFilter, typeFilter, changeTypeFilter, levelFilter, dateRange],
   });
 
-  const levelFilterOptions = useMemo(
-    () =>
-      [...indicatorLevels]
-        .filter(l => l.enabled)
-        .sort((a, b) => a.sort - b.sort)
-        .map(l => ({ value: l.levelCode, label: l.levelName })),
-    [indicatorLevels],
-  );
+  const levelFilterOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    // 日志筛选不能只读取当前等级版本；历史日志的等级编码/名称必须始终可筛选。
+    for (const log of riskChangeLogs) {
+      if (log.newLevelCode && log.newLevelName) labels.set(log.newLevelCode, log.newLevelName);
+    }
+    for (const level of indicatorLevels.filter(row => row.enabled)) {
+      if (!labels.has(level.levelCode)) labels.set(level.levelCode, level.levelName);
+    }
+    return [...labels.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, label]) => ({ value, label }));
+  }, [indicatorLevels, riskChangeLogs]);
 
   const pointOptions = useMemo(
     () =>

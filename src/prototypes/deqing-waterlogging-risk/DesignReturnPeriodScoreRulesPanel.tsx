@@ -78,17 +78,17 @@ export const DesignReturnPeriodScoreRulesPanel: React.FC<Props> = ({ code, form,
       <Form.List name="scoreRules">
         {fields =>
           fields.map(field => (
-            <div key={field.key} hidden aria-hidden>
-              <Form.Item {...field} name={[field.name, 'id']}>
+            <div key={`return-period-rule-${field.key}`} hidden aria-hidden>
+              <Form.Item name={[field.name, 'id']}>
                 <Input />
               </Form.Item>
-              <Form.Item {...field} name={[field.name, 'label']}>
+              <Form.Item name={[field.name, 'label']}>
                 <Input />
               </Form.Item>
-              <Form.Item {...field} name={[field.name, 'riskTier']}>
+              <Form.Item name={[field.name, 'riskTier']}>
                 <Input />
               </Form.Item>
-              <Form.Item {...field} name={[field.name, 'score']}>
+              <Form.Item name={[field.name, 'score']}>
                 <InputNumber />
               </Form.Item>
             </div>

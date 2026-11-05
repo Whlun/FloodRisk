@@ -131,9 +131,13 @@ function resolveLockedArchitectureForUpdate(
     if (byVersion?.config.status === 'completed') return byVersion;
   }
 
-  if (pt.surveyArchitectureRefId) {
-    const bySurvey = resolveArchitectureRecordById(architectureRecords, pt.surveyArchitectureRefId);
-    if (bySurvey?.config.status === 'completed') return bySurvey;
+  // 旧记录缺少 ratingResult 引用时，按可审计证据强度回溯：
+  // 定级日志 → 当时采用的 V4 → 普查绑定。普查绑定只表示填报口径，
+  // 不能优先于已发生的定级审计记录。
+  const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
+  if (log?.architectureVersionNo) {
+    const byLog = architectureRecords.find(r => r.versionNo === log.architectureVersionNo);
+    if (byLog?.config.status === 'completed') return byLog;
   }
 
   const preventionRefAt = resolveLockedPreventionRefAt(pt, riskChangeLogs);
@@ -163,10 +167,11 @@ function resolveLockedArchitectureForUpdate(
     }
   }
 
-  const log = getLatestRiskLogForSurvey(pt.id, riskChangeLogs);
-  if (log?.architectureVersionNo) {
-    const byLog = architectureRecords.find(r => r.versionNo === log.architectureVersionNo);
-    if (byLog?.config.status === 'completed') return byLog;
+  if (pt.surveyArchitectureRefId) {
+    const bySurvey = resolveArchitectureRecordById(architectureRecords, pt.surveyArchitectureRefId);
+    if (bySurvey?.config.status === 'completed') {
+      return bySurvey;
+    }
   }
 
   return null;
@@ -357,20 +362,6 @@ export function computeSurveyRatingPreview(
     return { ...empty, errors: [bindingIssue] };
   }
 
-  const configBlockers: string[] = [];
-  for (const ind of indicators.filter(i => i.enabled)) {
-    const readiness = validateIndicatorConfig(ind, indicators);
-    if (!readiness.ok) {
-      configBlockers.push(`「${ind.name}」：${readiness.blockers[0] ?? '配置不完整'}`);
-    }
-  }
-  if (configBlockers.length) {
-    return {
-      ...empty,
-      errors: ['以下启用指标须先完善配置（风险指标管理 → 编辑）', ...configBlockers.slice(0, 6)],
-    };
-  }
-
   if (pt.surveyStatus !== 'completed') {
     return { ...empty, errors: ['普查尚未完成，请先补全指标普查并保存'] };
   }
@@ -397,6 +388,24 @@ export function computeSurveyRatingPreview(
   }
   const mode: SurveyRatingMode =
     ctx.mode ?? (pt.ratingStatus === 'completed' && pt.ratingResult ? 'update' : 'initial');
+
+  // 首次定级必须采用最新准入规则；更新历史结果则使用当时已完成的冻结快照。
+  // 否则新增校验项会把旧版本误判为不可用，造成历史 KPI 无法按原口径复算。
+  if (mode !== 'update') {
+    const configBlockers: string[] = [];
+    for (const ind of indicators.filter(i => i.enabled)) {
+      const readiness = validateIndicatorConfig(ind, indicators);
+      if (!readiness.ok) {
+        configBlockers.push(`「${ind.name}」：${readiness.blockers[0] ?? '配置不完整'}`);
+      }
+    }
+    if (configBlockers.length) {
+      return {
+        ...empty,
+        errors: ['以下启用指标须先完善配置（风险指标管理 → 编辑）', ...configBlockers.slice(0, 6)],
+      };
+    }
+  }
 
   if (mode === 'update') {
     const archLabel =

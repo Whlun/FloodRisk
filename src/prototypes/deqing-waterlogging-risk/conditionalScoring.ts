@@ -892,24 +892,7 @@ export function matchScoreRuleWithConditional(
       for (const b of cfg.branches) {
         const m = resolveBranchIndicatorValueMatch(b);
         if (!m) continue;
-        let hit = false;
-        switch (m.kind) {
-          case 'lte':
-            hit = auxVal <= m.value;
-            break;
-          case 'lt':
-            hit = auxVal < m.value;
-            break;
-          case 'gte':
-            hit = auxVal >= m.value;
-            break;
-          case 'gt':
-            hit = auxVal > m.value;
-            break;
-          default:
-            break;
-        }
-        if (hit && b.scoreRules?.length) {
+        if (matchNumericCondition(auxVal, m) && b.scoreRules?.length) {
           branch = b;
           break;
         }
@@ -1007,6 +990,43 @@ export function reconcileExclusiveBranchMatchValues(
   });
 }
 
+function getDiscreteConditionValues(
+  source: ScoreConditionSource,
+  allIndicators?: RiskIndicatorRow[],
+): string[] | null {
+  if (source.type === 'appendix_b') {
+    const values = getAppendixBMatchValueOptions(source.key, allIndicators).map(option => option.value);
+    return values.length ? values : null;
+  }
+  const values = getConditionIndicatorMatchValueOptions(source.key, allIndicators ?? []).map(
+    option => option.value,
+  );
+  return values.length ? values : null;
+}
+
+function conditionSourceUsesNumericMatch(
+  source: ScoreConditionSource,
+  ind: Pick<RiskIndicatorRow, 'survey'>,
+  allIndicators?: RiskIndicatorRow[],
+): boolean | null {
+  if (source.type === 'appendix_b') {
+    const numericAux = isAppendixBasicInfoNumericAuxiliaryKey(
+      source.key,
+      ind as RiskIndicatorRow,
+      allIndicators,
+    );
+    if (numericAux || findAppendixBConditionField(source.key)?.kind === 'numeric') return true;
+    return getDiscreteConditionValues(source, allIndicators) ? false : null;
+  }
+  const sourceIndicator = allIndicators?.find(
+    row => row.code === source.key || row.survey.fieldKey === source.key,
+  );
+  if (sourceIndicator) return !isDiscreteConditionIndicator(sourceIndicator);
+  // 编辑本指标的辅助条件时，来源字段尚未写回指标列表，仍按数值辅助条件处理。
+  if (ind.survey?.auxiliaryCondition?.fieldKey === source.key) return true;
+  return null;
+}
+
 export function validateConditionalScoring(
   ind: Pick<RiskIndicatorRow, 'conditionalScoring' | 'scoreRules' | 'valueType' | 'level1' | 'survey'>,
   allIndicators?: RiskIndicatorRow[],
@@ -1019,6 +1039,10 @@ export function validateConditionalScoring(
   }
   if (!cfg.source?.key?.trim()) return '请配置条件来源字段';
   if (!cfg.branches.length) return '请至少添加 1 个条件分支';
+  const sourceNumeric = conditionSourceUsesNumericMatch(cfg.source, ind, allIndicators);
+  if (sourceNumeric === null) {
+    return '条件来源字段不存在或无法识别其取值类型';
+  }
   for (const b of cfg.branches) {
     if (!b.label?.trim()) return '条件分支名称不能为空';
     if (cfg.source.type === 'appendix_b') {
@@ -1100,8 +1124,15 @@ export function validateConditionalScoring(
       }
     }
   }
-  if (cfg.branches.every(branch => Boolean(branch.numericMatch))) {
-    const branchCoverageError = validateNumericMatchCoverage(cfg.branches);
+  if (sourceNumeric) {
+    if (cfg.branches.some(branch => !resolveBranchIndicatorValueMatch(branch))) {
+      return '每个数值型条件分支都须配置数值匹配条件';
+    }
+    const branchCoverageError = validateNumericMatchCoverage(
+      cfg.branches.map(branch => ({
+        numericMatch: resolveBranchIndicatorValueMatch(branch),
+      })),
+    );
     if (branchCoverageError) return `条件分支${branchCoverageError}`;
   }
   const duplicateMatchValues = findDuplicateBranchMatchValues(cfg.branches);
@@ -1111,6 +1142,22 @@ export function validateConditionalScoring(
       return opt?.label ?? v;
     });
     return `条件分支匹配取值不可重复：${labels.join('、')}`;
+  }
+  if (!sourceNumeric) {
+    const expectedValues = getDiscreteConditionValues(cfg.source, allIndicators);
+    // 已能列举的离散来源必须被完整且互斥地分配，不能把未命中值留给运行时静默失败。
+    if (expectedValues?.length) {
+      const claimed = new Set(
+        cfg.branches.flatMap(branch => (branch.matchValues ?? []).map(value => String(value))),
+      );
+      const missing = expectedValues.filter(value => !claimed.has(String(value)));
+      if (missing.length) {
+        const labels = getDiscreteConditionValues(cfg.source, allIndicators)!
+          .filter(value => missing.includes(value))
+          .join('、');
+        return `条件分支未覆盖条件来源的取值：${labels}`;
+      }
+    }
   }
   return null;
 }

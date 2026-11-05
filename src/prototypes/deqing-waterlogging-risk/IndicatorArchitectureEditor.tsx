@@ -586,11 +586,6 @@ export const IndicatorArchitectureEditor: React.FC<IndicatorArchitectureEditorPr
                       <div className="dq-arch-level2-name">
                         <span className="dq-arch-level2-name-text">{ind.name}</span>
                         <IndicatorRemarkHelpTip remark={ind.remark} />
-                        {!ind.enabled && (
-                          <Tag className="dq-arch-disabled-tag" color="warning">
-                            停用
-                          </Tag>
-                        )}
                       </div>
                       <div className="dq-arch-level2-meta">
                         {readOnly ? (

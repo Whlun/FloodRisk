@@ -48,21 +48,23 @@ import { IndicatorArchitectureEditor } from './IndicatorArchitectureEditor';
 import { SurveyTablePreviewModal } from './SurveyTablePreviewModal';
 import { ScorePreviewPage } from './scorePreviewPage';
 import {
+  buildArchitectureActivationRegenerationPlan,
   buildArchitectureSnapshot,
   ensureArchitectureVersionNos,
   getActiveArchitectureRecord,
   getArchitectureRatingReferenceIssue,
   getRatingLevel1Weights,
+  hasArchitectureCopyBaselineChange,
   hasMeaningfulArchitectureCopyChanges,
   mergeIndicatorsForArchitectureRecord,
   nextArchitectureVersionNo,
   refreshArchitectureConfigForNewVersion,
   isArchitectureVersionImmutable,
-  setActiveArchitectureRecord,
   sortArchitectureRecords,
   summarizeArchitectureRecord,
   syncConfigWithIndicatorCatalog,
   validateArchitectureConfig,
+  type ArchitectureActivationRegenerationPlan,
 } from './indicatorArchitectureUtils';
 import {
   getActiveRegionalPreventionRecord,
@@ -82,6 +84,11 @@ const { RangePicker } = DatePicker;
 interface Props {
   records: IndicatorArchitectureRecord[];
   onChange: (records: IndicatorArchitectureRecord[]) => void | Promise<void>;
+  /**
+   * 切换定级引用时，与普查批次在同一工作区写入中提交。
+   * 不提供该回调时拒绝切换，避免出现“已换版本、未生成普查”的半完成状态。
+   */
+  onActivateAndRegenerate?: (plan: ArchitectureActivationRegenerationPlan) => void | Promise<void>;
   baseIndicators: RiskIndicatorRow[];
   defaultIndicators: RiskIndicatorRow[];
   indicatorLevels: IndicatorRiskLevelRow[];
@@ -115,6 +122,7 @@ function recordToFormValues(record: IndicatorArchitectureRecord | null) {
 export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   records,
   onChange,
+  onActivateAndRegenerate,
   baseIndicators,
   defaultIndicators,
   indicatorLevels,
@@ -140,6 +148,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   const [editing, setEditing] = useState<IndicatorArchitectureRecord | null>(null);
   const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
   const [copySuggestedLabel, setCopySuggestedLabel] = useState('');
+  const [copySourceConfig, setCopySourceConfig] = useState<IndicatorArchitectureConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [draftConfig, setDraftConfig] = useState<IndicatorArchitectureConfig>(
     emptyIndicatorArchitectureConfig(),
@@ -239,6 +248,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
   const copyHasMeaningfulChanges = useMemo(
     () =>
       !copySourceVersionNo ||
+      (copySourceConfig
+        ? hasArchitectureCopyBaselineChange(copySourceConfig, draftConfig)
+        : false) ||
       hasMeaningfulArchitectureCopyChanges(
         modalInitialConfig,
         draftConfig,
@@ -247,6 +259,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
       ),
     [
       copySourceVersionNo,
+      copySourceConfig,
       copySuggestedLabel,
       draftConfig,
       modalInitialConfig,
@@ -281,6 +294,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setModalOpen(false);
     setCopySourceVersionNo(null);
     setCopySuggestedLabel('');
+    setCopySourceConfig(null);
   };
 
   const requestClose = () => {
@@ -310,6 +324,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setEditing(null);
     setCopySourceVersionNo(null);
     setCopySuggestedLabel('');
+    setCopySourceConfig(null);
     setDetailOnly(false);
     setModalInitialConfig(initial);
     setDraftConfig(initial);
@@ -327,6 +342,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setEditing(row);
     setCopySourceVersionNo(null);
     setCopySuggestedLabel('');
+    setCopySourceConfig(null);
     setDetailOnly(true);
     const synced = syncConfigWithIndicatorCatalog(row.config, baseIndicators);
     setModalInitialConfig(synced);
@@ -343,6 +359,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
     setEditing(immutable ? null : row);
     setCopySourceVersionNo(immutable ? row.versionNo : null);
     setCopySuggestedLabel(suggestedLabel);
+    setCopySourceConfig(immutable ? row.config : null);
     setDetailOnly(false);
     const synced = immutable
       ? refreshArchitectureConfigForNewVersion(row.config, baseIndicators)
@@ -391,9 +408,27 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
       message.warning(referenceIssue);
       return;
     }
-    if (!(await patchRecords(setActiveArchitectureRecord(records, id)))) return;
+    const plan = buildArchitectureActivationRegenerationPlan(records, points, id);
+    if (!plan) {
+      message.warning('评价版本不满足定级引用条件，无法生成普查批次');
+      return;
+    }
+    if (!onActivateAndRegenerate) {
+      message.error('当前页面未接入“切换版本并重新生成普查”的原子保存能力，已阻止切换');
+      return;
+    }
+    try {
+      await onActivateAndRegenerate(plan);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '切换评价版本失败，请重试');
+      return;
+    }
     setPreviewArchitectureId(id);
-    message.success('已设为定级引用（全县 V 计算权重方案）');
+    message.success(
+      plan.generatedCount > 0
+        ? `已设为定级引用，并生成 ${plan.generatedCount} 条待复核普查`
+        : `已设为定级引用；${plan.existingCount} 个易涝点已存在该版本普查，未重复生成`,
+    );
     if (
       target &&
       !hasCompletedPreventionRefForArchitecture(regionalPreventionRecords, target)
@@ -453,7 +488,9 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
             versionNo: nextArchitectureVersionNo(records),
             configAt,
             label: values.label?.trim() || undefined,
-            activeForRating: records.length === 0 && validation.ok,
+            // 新建后必须由“引用”入口统一执行“切换评价版本 + 生成普查批次”；
+            // 不在保存草稿/完成版本时隐式切换，避免遗漏对应版本的普查。
+            activeForRating: false,
             config: nextConfig,
           };
 
@@ -475,6 +512,7 @@ export const IndicatorArchitectureVersionsPage: React.FC<Props> = ({
         setEditing(nextRecord);
         setCopySourceVersionNo(null);
         setCopySuggestedLabel('');
+        setCopySourceConfig(null);
       } else {
         message.success(
           `已保存 ${nextRecord.versionNo}${

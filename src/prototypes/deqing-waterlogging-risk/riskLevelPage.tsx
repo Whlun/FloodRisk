@@ -47,6 +47,7 @@ import {
   getActiveRiskLevelRecord,
   getLevelsFromRecord,
   getRiskLevelRatingReferenceIssue,
+  hasMeaningfulRiskLevelCopyChanges,
   isRiskLevelVersionImmutable,
   nextRiskLevelVersionNo,
   setActiveRiskLevelRecord,
@@ -98,10 +99,13 @@ export const RiskLevelPage: React.FC<Props> = ({
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<RiskLevelVersionRecord | null>(null);
   const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
+  const [copySuggestedLabel, setCopySuggestedLabel] = useState('');
   const [draftLevels, setDraftLevels] = useState<IndicatorRiskLevelRow[]>([]);
   const [baselineLevels, setBaselineLevels] = useState<IndicatorRiskLevelRow[]>([]);
   const [form] = Form.useForm();
   const detailMountHandledRef = useRef<string | null>(null);
+  const saveInFlightRef = useRef(false);
+  const watchedLabel = Form.useWatch('label', form);
 
   const sorted = useMemo(() => sortRiskLevelRecords(records), [records]);
   const activeRecord = useMemo(() => getActiveRiskLevelRecord(records), [records]);
@@ -146,6 +150,17 @@ export const RiskLevelPage: React.FC<Props> = ({
     (): RiskLevelVersionConfig => buildRiskLevelSnapshot(draftLevels),
     [draftLevels],
   );
+  const copyHasMeaningfulChanges = useMemo(
+    () =>
+      !copySourceVersionNo ||
+      hasMeaningfulRiskLevelCopyChanges(
+        baselineLevels,
+        draftLevels,
+        copySuggestedLabel,
+        watchedLabel,
+      ),
+    [baselineLevels, copySourceVersionNo, copySuggestedLabel, draftLevels, watchedLabel],
+  );
 
   const patchRecords = async (next: RiskLevelVersionRecord[]): Promise<boolean> => {
     try {
@@ -167,6 +182,7 @@ export const RiskLevelPage: React.FC<Props> = ({
   const closeModal = () => {
     setModalOpen(false);
     setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
   };
 
   const requestClose = () => {
@@ -193,6 +209,7 @@ export const RiskLevelPage: React.FC<Props> = ({
       : initialIndicatorRiskLevels.map(row => ({ ...row, builtin: true }));
     setEditing(null);
     setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
     setDetailOnly(false);
     const cloned = baseLevels.map(row => ({ ...row }));
     setBaselineLevels(cloned);
@@ -210,6 +227,7 @@ export const RiskLevelPage: React.FC<Props> = ({
     const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
     setEditing(row);
     setCopySourceVersionNo(null);
+    setCopySuggestedLabel('');
     setDetailOnly(true);
     setBaselineLevels(levels);
     setDraftLevels(levels);
@@ -221,8 +239,12 @@ export const RiskLevelPage: React.FC<Props> = ({
   const openEdit = (row: RiskLevelVersionRecord) => {
     const levels = getLevelsFromRecord(row).map(r => ({ ...r }));
     const immutable = isRiskLevelVersionImmutable(row, isReferenced(row));
+    const suggestedLabel = immutable
+      ? (row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`)
+      : '';
     setEditing(immutable ? null : row);
     setCopySourceVersionNo(immutable ? row.versionNo : null);
+    setCopySuggestedLabel(suggestedLabel);
     setDetailOnly(false);
     setBaselineLevels(levels);
     setDraftLevels(levels);
@@ -232,7 +254,7 @@ export const RiskLevelPage: React.FC<Props> = ({
         ? {
             ...recordToFormValues(row),
             configAt: dayjs(),
-            label: row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`,
+            label: suggestedLabel,
           }
         : recordToFormValues(row),
     );
@@ -281,49 +303,60 @@ export const RiskLevelPage: React.FC<Props> = ({
   };
 
   const handleSave = async () => {
-    const values = await form.validateFields();
-    const configAt = (values.configAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
-    const validation = validateRiskLevelConfig({ ...draftConfig, levels: draftLevels });
-    const nextConfig: RiskLevelVersionConfig = {
-      levels: draftLevels.map(row => ({ ...row })),
-      updatedBy: values.updatedBy?.trim() || undefined,
-      updatedAt: configAt,
-      status: validation.ok ? 'completed' : 'draft',
-    };
+    if (saveInFlightRef.current) return;
+    if (copySourceVersionNo && !copyHasMeaningfulChanges) {
+      message.warning('尚未修改等级区间或批次说明，不会生成重复版本');
+      return;
+    }
+    saveInFlightRef.current = true;
+    try {
+      const values = await form.validateFields();
+      const configAt = (values.configAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
+      const validation = validateRiskLevelConfig({ ...draftConfig, levels: draftLevels });
+      const nextConfig: RiskLevelVersionConfig = {
+        levels: draftLevels.map(row => ({ ...row })),
+        updatedBy: values.updatedBy?.trim() || undefined,
+        updatedAt: configAt,
+        status: validation.ok ? 'completed' : 'draft',
+      };
 
-    const nextRecord: RiskLevelVersionRecord = editing
-      ? {
-          ...editing,
-          configAt,
-          label: values.label?.trim() || undefined,
-          config: nextConfig,
-        }
-      : {
-          ...emptyRiskLevelVersionRecord(),
-          id: `rlvl-${Date.now()}`,
-          versionNo: nextRiskLevelVersionNo(records),
-          configAt,
-          label: values.label?.trim() || undefined,
-          activeForRating: records.length === 0 && validation.ok,
-          config: nextConfig,
-        };
+      const nextRecord: RiskLevelVersionRecord = editing
+        ? {
+            ...editing,
+            configAt,
+            label: values.label?.trim() || undefined,
+            config: nextConfig,
+          }
+        : {
+            ...emptyRiskLevelVersionRecord(),
+            id: `rlvl-${Date.now()}`,
+            versionNo: nextRiskLevelVersionNo(records),
+            configAt,
+            label: values.label?.trim() || undefined,
+            activeForRating: records.length === 0 && validation.ok,
+            config: nextConfig,
+          };
 
-    if (!(await patchRecords(
-      editing ? records.map(r => (r.id === editing.id ? nextRecord : r)) : [nextRecord, ...records],
-    ))) return;
+      if (!(await patchRecords(
+        editing ? records.map(r => (r.id === editing.id ? nextRecord : r)) : [nextRecord, ...records],
+      ))) return;
 
-    if (!validation.ok) {
-      message.warning('等级区间配置未通过校验，已保存为草稿；完善后可设为定级引用');
-      setEditing(nextRecord);
-      setCopySourceVersionNo(null);
-      setBaselineLevels(nextRecord.config.levels.map(row => ({ ...row })));
-      form.resetFields();
-      form.setFieldsValue(recordToFormValues(nextRecord));
-    } else {
-      message.success(
-        `已保存 ${nextRecord.versionNo}${nextRecord.activeForRating ? '，当前为定级引用版本' : ''}`,
-      );
-      closeModal();
+      if (!validation.ok) {
+        message.warning('等级区间配置未通过校验，已保存为草稿；完善后可设为定级引用');
+        setEditing(nextRecord);
+        setCopySourceVersionNo(null);
+        setCopySuggestedLabel('');
+        setBaselineLevels(nextRecord.config.levels.map(row => ({ ...row })));
+        form.resetFields();
+        form.setFieldsValue(recordToFormValues(nextRecord));
+      } else {
+        message.success(
+          `已保存 ${nextRecord.versionNo}${nextRecord.activeForRating ? '，当前为定级引用版本' : ''}`,
+        );
+        closeModal();
+      }
+    } finally {
+      saveInFlightRef.current = false;
     }
   };
 

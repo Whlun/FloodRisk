@@ -10,6 +10,15 @@ type NumericInterval = {
   maxInclusive: boolean;
 };
 
+export type NumericCoverageOptions = {
+  /**
+   * 数值型评分规则默认必须覆盖全部实数域，避免合法填报值落在首末档之外。
+   * 条件来源若业务上有明确值域，可显式传入边界而不是依赖规则排列顺序。
+   */
+  min?: number;
+  max?: number;
+};
+
 function toNumericInterval(match: BranchNumericMatch): NumericInterval | null {
   switch (match.kind) {
     case 'eq':
@@ -51,9 +60,10 @@ function toNumericInterval(match: BranchNumericMatch): NumericInterval | null {
   }
 }
 
-/** 数值区间须合法、互斥，且已声明的最小到最大范围之间连续无空档。 */
+/** 数值区间须合法、互斥，并连续覆盖指定值域（默认为全部实数）。 */
 export function validateNumericMatchCoverage(
   owners: NumericMatchOwner[] | undefined,
+  options: NumericCoverageOptions = {},
 ): string | null {
   if (!owners?.length) return null;
   if (owners.some(owner => !owner?.numericMatch)) return '每一档都须配置匹配区间';
@@ -66,6 +76,24 @@ export function validateNumericMatchCoverage(
     if (a.minInclusive !== b.minInclusive) return a.minInclusive ? -1 : 1;
     return a.max - b.max;
   });
+  const domainMin = options.min ?? Number.NEGATIVE_INFINITY;
+  const domainMax = options.max ?? Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(domainMin) && domainMin !== Number.NEGATIVE_INFINITY) {
+    return '匹配区间校验范围下限无效';
+  }
+  if (!Number.isFinite(domainMax) && domainMax !== Number.POSITIVE_INFINITY) {
+    return '匹配区间校验范围上限无效';
+  }
+  if (domainMin > domainMax) return '匹配区间校验范围下限不得大于上限';
+
+  if (
+    sorted[0]!.min > domainMin ||
+    (Number.isFinite(domainMin) &&
+      sorted[0]!.min === domainMin &&
+      !sorted[0]!.minInclusive)
+  ) {
+    return '匹配区间未覆盖起始边界之外的数值';
+  }
   let previous = sorted[0]!;
   for (let index = 1; index < sorted.length; index += 1) {
     const current = sorted[index]!;
@@ -87,6 +115,12 @@ export function validateNumericMatchCoverage(
     ) {
       previous = current;
     }
+  }
+  if (
+    previous.max < domainMax ||
+    (Number.isFinite(domainMax) && previous.max === domainMax && !previous.maxInclusive)
+  ) {
+    return '匹配区间未覆盖末尾边界之外的数值';
   }
   return null;
 }
@@ -183,16 +217,18 @@ export function hasConfiguredNumericBands(rules: ScoreRule[] | undefined): boole
   return Boolean(rules?.some(r => r.numericMatch));
 }
 
-/** 按 scoreRules 顺序匹配数值区间（先命中先生效） */
+/**
+ * 按数值区间匹配赋分档。
+ * 配置出现重叠时返回 null，禁止因数组顺序不同得到不同的定级结果。
+ */
 export function matchScoreRuleByNumericBands(
   rules: ScoreRule[],
   raw: number,
 ): ScoreRule | null {
-  for (const rule of rules) {
-    if (!rule.numericMatch) continue;
-    if (matchNumericCondition(raw, rule.numericMatch)) return rule;
-  }
-  return null;
+  const matched = rules.filter(
+    rule => Boolean(rule.numericMatch && matchNumericCondition(raw, rule.numericMatch)),
+  );
+  return matched.length === 1 ? matched[0]! : null;
 }
 
 export function usesBuiltinNumericScoreCode(code: string | undefined): boolean {

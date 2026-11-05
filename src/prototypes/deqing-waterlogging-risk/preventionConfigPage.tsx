@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Alert,
@@ -75,6 +75,7 @@ import { ArchitectureVersionRefAlert } from './ArchitectureVersionRefAlert';
 import { PreventionVersionTag } from './PreventionVersionTag';
 import {
   ensurePreventionVersionNos,
+  hasMeaningfulPreventionCopyChanges,
   isPreventionVersionImmutable,
   nextPreventionVersionNo,
 } from './preventionVersionUtils';
@@ -133,7 +134,11 @@ export const PreventionConfigPage: React.FC<Props> = ({
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<RegionalPreventionRecord | null>(null);
   const [copySourceVersionNo, setCopySourceVersionNo] = useState<string | null>(null);
+  const [copySourceRecord, setCopySourceRecord] = useState<RegionalPreventionRecord | null>(null);
+  const [copySuggestedLabel, setCopySuggestedLabel] = useState('');
   const [form] = Form.useForm();
+  const saveInFlightRef = useRef(false);
+  const watchedLabel = Form.useWatch('label', form);
 
   const resolveRecordArchitecture = (record: RegionalPreventionRecord | null) =>
     resolveSurveyArchitectureRecord(
@@ -171,6 +176,25 @@ export const PreventionConfigPage: React.FC<Props> = ({
   const indicatorValuesWatch = Form.useWatch('indicatorValues', form) as
     | Record<string, string | number | boolean | null>
     | undefined;
+
+  const copyHasMeaningfulChanges = useMemo(
+    () =>
+      !copySourceVersionNo ||
+      !copySourceRecord ||
+      hasMeaningfulPreventionCopyChanges(
+        copySourceRecord,
+        indicatorValuesWatch ?? {},
+        copySuggestedLabel,
+        watchedLabel,
+      ),
+    [
+      copySourceRecord,
+      copySourceVersionNo,
+      copySuggestedLabel,
+      indicatorValuesWatch,
+      watchedLabel,
+    ],
+  );
 
   const liveDerived = useMemo(() => {
     const values = indicatorValuesWatch ?? {};
@@ -253,6 +277,8 @@ export const PreventionConfigPage: React.FC<Props> = ({
   const closeModal = () => {
     setModalOpen(false);
     setCopySourceVersionNo(null);
+    setCopySourceRecord(null);
+    setCopySuggestedLabel('');
   };
 
   const requestClose = () => {
@@ -270,8 +296,15 @@ export const PreventionConfigPage: React.FC<Props> = ({
   };
 
   const openCreate = () => {
+    if (!ratingArchitectureRecord) {
+      message.warning('请先在「指标评价管理」设置一条已完成的定级引用版本，再新建 V₄ 配置');
+      return;
+    }
     setEditing(null);
     setCopySourceVersionNo(null);
+    setCopySourceRecord(null);
+    setCopySuggestedLabel('');
+    setSelectedArchitectureId(ratingArchitectureRecord.id);
     setDetailOnly(false);
     form.resetFields();
     form.setFieldsValue({
@@ -286,6 +319,8 @@ export const PreventionConfigPage: React.FC<Props> = ({
   const openDetail = (row: RegionalPreventionRecord) => {
     setEditing(row);
     setCopySourceVersionNo(null);
+    setCopySourceRecord(null);
+    setCopySuggestedLabel('');
     setDetailOnly(true);
     form.resetFields();
     form.setFieldsValue(recordToFormValues(row));
@@ -294,8 +329,13 @@ export const PreventionConfigPage: React.FC<Props> = ({
 
   const openEdit = (row: RegionalPreventionRecord) => {
     const immutable = isPreventionVersionImmutable(row, isReferenced(row));
+    const suggestedLabel = immutable
+      ? (row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`)
+      : '';
     setEditing(immutable ? null : row);
     setCopySourceVersionNo(immutable ? row.versionNo : null);
+    setCopySourceRecord(immutable ? row : null);
+    setCopySuggestedLabel(suggestedLabel);
     if (immutable) setSelectedArchitectureId(row.architectureRefId ?? '');
     setDetailOnly(false);
     form.resetFields();
@@ -304,7 +344,7 @@ export const PreventionConfigPage: React.FC<Props> = ({
         ? {
             ...recordToFormValues(row),
             configAt: dayjs(),
-            label: row.label ? `${row.label}（复制）` : `复制自 ${row.versionNo}`,
+            label: suggestedLabel,
           }
         : recordToFormValues(row),
     );
@@ -357,7 +397,18 @@ export const PreventionConfigPage: React.FC<Props> = ({
   };
 
   const handleSave = async () => {
-    const values = await form.validateFields();
+    if (saveInFlightRef.current) return;
+    if (copySourceVersionNo && !copyHasMeaningfulChanges) {
+      message.warning('尚未修改 V₄ 填报值或批次说明，不会生成重复版本');
+      return;
+    }
+    if (!editing && !ratingArchitectureRecord) {
+      message.warning('当前没有定级引用的评价版本，不能新建 V₄ 配置');
+      return;
+    }
+    saveInFlightRef.current = true;
+    try {
+      const values = await form.validateFields();
     const configAt = (values.configAt as Dayjs).format('YYYY-MM-DD HH:mm:ss');
     const indicatorValues = values.indicatorValues ?? {};
     const items = deriveAssessmentItemsFromIndicatorValues(regionalIndicators, indicatorValues);
@@ -372,6 +423,10 @@ export const PreventionConfigPage: React.FC<Props> = ({
           selectedArchitectureId,
           ratingArchitectureRecord,
         );
+    if (!bindArch) {
+      message.warning('未找到要绑定的评价版本，不能保存 V₄ 配置');
+      return;
+    }
 
     const nextRecord: RegionalPreventionRecord = editing
       ? {
@@ -432,6 +487,8 @@ export const PreventionConfigPage: React.FC<Props> = ({
       message.warning('请补全指标配置，确保每项均能自动匹配赋分档');
       setEditing(nextRecord);
       setCopySourceVersionNo(null);
+      setCopySourceRecord(null);
+      setCopySuggestedLabel('');
       form.resetFields();
       form.setFieldsValue(recordToFormValues(nextRecord));
     } else {
@@ -441,6 +498,9 @@ export const PreventionConfigPage: React.FC<Props> = ({
         }`,
       );
       closeModal();
+    }
+    } finally {
+      saveInFlightRef.current = false;
     }
   };
 

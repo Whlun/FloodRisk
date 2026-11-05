@@ -154,7 +154,6 @@ export const NumericScoreRuleMatchFields: React.FC<Props> = ({
   unit,
 }) => (
   <Form.Item
-    {...field}
     name={[field.name, matchKey]}
     style={{ marginBottom: 0 }}
     rules={[

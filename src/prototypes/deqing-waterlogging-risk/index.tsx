@@ -78,8 +78,9 @@ const App: React.FC = () => {
     setRiskLevelRecords,
     setPoints,
     setRegionalPreventionRecords,
-    setRiskChangeLogs,
+    commitSurveyRating,
     setArchitectureRecords,
+    updateWorkspace,
     flushWorkspaceSave,
     retryLoad,
     reloadWorkspace,
@@ -225,8 +226,8 @@ const App: React.FC = () => {
             activeRiskLevelRecord={ratingRiskLevelRecord}
             riskLevelRecords={riskLevelRecords}
             riskChangeLogs={riskChangeLogs}
-            onAppendRiskChangeLog={entry =>
-              commitWorkspaceChange(() => setRiskChangeLogs(prev => [entry, ...prev]))
+            onCommitRating={(nextPoints, entry) =>
+              commitWorkspaceChange(() => commitSurveyRating(nextPoints, entry))
             }
             onViewArchitectureDetail={record => viewArchitectureDetail(record.id)}
             onViewRiskLevelDetail={record => viewRiskLevelDetail(record.id)}
@@ -275,6 +276,15 @@ const App: React.FC = () => {
             records={architectureRecords}
             onChange={next =>
               commitWorkspaceChange(() => setArchitectureRecords(next))
+            }
+            onActivateAndRegenerate={plan =>
+              commitWorkspaceChange(() =>
+                updateWorkspace(current => ({
+                  ...current,
+                  architectureRecords: plan.nextArchitectureRecords,
+                  points: plan.nextPoints,
+                })),
+              )
             }
             baseIndicators={enrichedIndicators}
             defaultIndicators={defaultIndicators}

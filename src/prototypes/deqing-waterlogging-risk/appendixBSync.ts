@@ -149,8 +149,11 @@ export function getAreaImportanceTooltipLines(area?: AreaImportance): string[] {
 }
 
 /**
- * 数据引用版本更新定级后：将附录 B（内涝基本信息）同步到同易涝点其余普查记录。
- * 指标普查 Tab 中各条记录的地区重要程度等保持一致，便于条件赋分联动。
+ * 将当前行附录 B 的专用字段同步到当前行的指标值。
+ *
+ * 普查是一份按时间、按评价版本保存的快照。不得因为设为数据引用或更新定级，
+ * 回写同一易涝点的其它普查记录；否则会改写历史原始值并破坏历史计分可追溯性。
+ * 保留此函数名仅兼容旧调用方，实际只规范 source 本身。
  */
 export function pushBasicInfoToSiblingSurveys(
   records: WaterloggingPointRow[],
@@ -162,24 +165,10 @@ export function pushBasicInfoToSiblingSurveys(
     source.pointType,
     indicators,
   );
-  const appendixB = sourceSynced.appendixB;
-
   return records.map(r => {
-    if (r.registryId !== source.registryId) return r;
     if (r.id === source.id) {
       return { ...r, surveyPayload: sourceSynced };
     }
-    const merged = syncAppendixBToIndicatorValues(
-      {
-        ...r.surveyPayload,
-        appendixB: {
-          ...appendixB,
-          collectedAt: r.surveyPayload.appendixB?.collectedAt ?? appendixB.collectedAt,
-        },
-      },
-      r.pointType,
-      indicators,
-    );
-    return { ...r, surveyPayload: merged };
+    return r;
   });
 }

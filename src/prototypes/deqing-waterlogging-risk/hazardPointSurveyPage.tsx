@@ -63,7 +63,6 @@ import { DynamicSurveyFields } from './dynamicSurveyFields';
 import { AppendixBSurveyFields } from './appendixBSurveyFields';
 import {
   hydrateAppendixBFromIndicatorValues,
-  pushBasicInfoToSiblingSurveys,
   syncAppendixBToIndicatorValues,
 } from './appendixBSync';
 import {
@@ -153,7 +152,11 @@ interface Props {
   riskLevelRecords?: RiskLevelVersionRecord[];
   riskChangeLogs?: RiskChangeLogEntry[];
   /** 定级确认后追加风险变更日志 */
-  onAppendRiskChangeLog?: (entry: RiskChangeLogEntry) => void | Promise<void>;
+  /** 定级结果与审计日志作为同一个工作区快照提交。 */
+  onCommitRating: (
+    points: WaterloggingPointRow[],
+    entry: RiskChangeLogEntry,
+  ) => void | Promise<void>;
   onViewArchitectureDetail?: (record: IndicatorArchitectureRecord) => void;
   onViewRiskLevelDetail?: (record: RiskLevelVersionRecord) => void;
 }
@@ -190,7 +193,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   activeRiskLevelRecord = null,
   riskLevelRecords = [],
   riskChangeLogs = [],
-  onAppendRiskChangeLog,
+  onCommitRating,
   onViewArchitectureDetail,
   onViewRiskLevelDetail,
 }) => {
@@ -268,6 +271,8 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const [tablePreviewOpen, setTablePreviewOpen] = useState(false);
   const [detailOnly, setDetailOnly] = useState(false);
   const [editing, setEditing] = useState<WaterloggingPointRow | null>(null);
+  /** 已定级或当前引用记录只能复制编辑；该状态保存后生成新的草稿。 */
+  const [copySource, setCopySource] = useState<WaterloggingPointRow | null>(null);
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [ratingPreview, setRatingPreview] = useState<SurveyRatingPreview | null>(null);
   const [ratingPendingPoints, setRatingPendingPoints] = useState<WaterloggingPointRow[] | null>(null);
@@ -277,8 +282,8 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const [form] = Form.useForm();
 
   const modalSurveyIndicators = useMemo(
-    () => resolveSurveyIndicators(editing),
-    [editing, resolveSurveyIndicators],
+    () => resolveSurveyIndicators(editing ?? copySource),
+    [editing, copySource, resolveSurveyIndicators],
   );
 
   const tablePreviewArchitectureRecord = useMemo(
@@ -297,15 +302,15 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   );
 
   const modalArchitectureRecord = useMemo(() => {
-    if (editing) {
+    if (editing ?? copySource) {
       return resolveSurveyArchitectureRecord(
         architectureRecords,
-        editing.surveyArchitectureRefId,
+        (editing ?? copySource)!.surveyArchitectureRefId,
         ratingArchitectureRecord,
       );
     }
     return tablePreviewArchitectureRecord;
-  }, [editing, architectureRecords, ratingArchitectureRecord, tablePreviewArchitectureRecord]);
+  }, [editing, copySource, architectureRecords, ratingArchitectureRecord, tablePreviewArchitectureRecord]);
 
   const sorted = useMemo(() => sortSurveyRecords(points), [points]);
 
@@ -367,6 +372,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       return;
     }
     setEditing(null);
+    setCopySource(null);
     setDetailOnly(false);
     form.resetFields();
     const now = nowSurveyCollectedAt();
@@ -406,28 +412,16 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     }
     const replaced = getActiveSurveySibling(points, row);
     const withActive = setActiveSurveyRecord(points, row.id);
-    const target = withActive.find(p => p.id === row.id)!;
-    const synced = syncAppendixBToIndicatorValues(
-      target.surveyPayload,
-      target.pointType,
-      resolveSurveyIndicators(target),
-    );
     try {
-      await patchPoints(
-        pushBasicInfoToSiblingSurveys(
-          withActive,
-          { ...target, surveyPayload: synced },
-          resolveSurveyIndicators(target),
-        ),
-      );
+      await patchPoints(withActive);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '引用失败，请重试');
       return;
     }
     message.success(
       replaced
-        ? `已替换数据引用并同步内涝基本信息（原：${resolveSurveyAt(replaced)}${replaced.label ? ` · ${replaced.label}` : ''}）`
-        : '已设为数据引用，并已同步推送至内涝基本信息',
+        ? `已替换数据引用（原：${resolveSurveyAt(replaced)}${replaced.label ? ` · ${replaced.label}` : ''}）；历史普查快照未改动`
+        : '已设为数据引用；历史普查快照未改动',
     );
   };
 
@@ -439,12 +433,12 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const openRatingConfirm = (row: WaterloggingPointRow, baseList?: WaterloggingPointRow[]) => {
     const list = baseList ?? points;
     setRatingWasDataRef(row.activeForRating);
-    const withActive = setActiveSurveyRecord(list, row.id);
-    const target = withActive.find(p => p.id === row.id) ?? row;
+    // 试算/确认期间绝不能先改变当前引用；用户取消时，工作区保持完全不变。
+    const target = list.find(p => p.id === row.id) ?? row;
     const ctx = buildRatingCtx(target);
     const preview = computeSurveyRatingPreview({ ...target, activeForRating: true }, ctx);
     setRatingCtxForModal(ctx);
-    setRatingPendingPoints(withActive);
+    setRatingPendingPoints(list);
     setRatingPreview(preview);
     setRatingModalOpen(true);
   };
@@ -468,14 +462,11 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     };
     let merged = ratingPendingPoints.map(p => (p.id === finalRow.id ? finalRow : p));
     merged = setActiveSurveyRecord(merged, finalRow.id);
-    const shouldPushBasicInfo = ratingWasDataRef;
-    if (shouldPushBasicInfo) {
-      merged = pushBasicInfoToSiblingSurveys(merged, finalRow, resolveSurveyIndicators(finalRow));
-    }
+    const shouldPushBasicInfo = false;
     const ctx = ratingCtxForModal;
     const logEntry = createRiskChangeLogEntry(finalRow, {
       prev: prevRating,
-      basicInfoSynced: shouldPushBasicInfo,
+      basicInfoSynced: false,
       preventionRefAt: ctx?.preventionRefAt ?? ctx?.activePreventionRecord?.configAt,
       preventionVersionNo:
         ctx?.preventionVersionNo ?? ctx?.activePreventionRecord?.versionNo,
@@ -484,11 +475,12 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       operator: finalRow.collector,
       indicatorLevels: ctx?.indicatorLevels ?? indicatorLevels,
     });
+    if (!logEntry) {
+      message.error('定级审计日志生成失败，未保存本次定级结果');
+      return;
+    }
     try {
-      await patchPoints(merged);
-      if (logEntry && onAppendRiskChangeLog) {
-        await onAppendRiskChangeLog(logEntry);
-      }
+      await onCommitRating(merged, logEntry);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '定级结果保存失败，请重试');
       return;
@@ -498,10 +490,11 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
     setRatingPendingPoints(null);
     setRatingWasDataRef(false);
     setRatingCtxForModal(null);
+    setModalOpen(false);
     message.success(
       `已确认定级：${finalRow.ratingResult!.levelName}（V=${finalRow.ratingResult!.v.toFixed(4)}${
         finalRow.ratingResult!.partial ? '，部分指标参与' : ''
-      }${shouldPushBasicInfo ? '；已同步推送至内涝基本信息（同易涝点各普查记录）' : ''}`,
+      }）`,
     );
   };
 
@@ -511,16 +504,22 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
 
   const openDetail = (row: WaterloggingPointRow) => {
     setEditing(row);
+    setCopySource(null);
     setDetailOnly(true);
     form.setFieldsValue(pointToFormValues(row, resolveSurveyIndicators(row)));
     setModalOpen(true);
   };
 
   const openEdit = (row: WaterloggingPointRow) => {
-    setEditing(row);
+    const mustCopy = row.ratingStatus === 'completed' || row.activeForRating;
+    setEditing(mustCopy ? null : row);
+    setCopySource(mustCopy ? row : null);
     setDetailOnly(false);
     form.setFieldsValue(pointToFormValues(row, resolveSurveyIndicators(row)));
     setModalOpen(true);
+    if (mustCopy) {
+      message.info('已定级或数据引用普查不可覆盖，已打开“复制为草稿”；原记录及其定级结果保持不变');
+    }
   };
 
   const handleRegistrySelect = (registryId: string) => {
@@ -548,25 +547,39 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
 
   const handleDelete = async (id: string) => {
     const deleted = points.find(p => p.id === id);
-    const next = points.filter(p => p.id !== id);
-    let patched = next;
-    if (
-      deleted?.activeForRating &&
-      !next.some(p => p.activeForRating && p.registryId === deleted.registryId)
-    ) {
-      const latest = sortSurveyRecords(next).find(
-        p => p.registryId === deleted.registryId && p.surveyStatus === 'completed',
-      );
-      if (latest) patched = setActiveSurveyRecord(next, latest.id);
+    if (!deleted || deleted.surveyStatus !== 'draft' || deleted.activeForRating || deleted.ratingStatus === 'completed') {
+      message.warning('仅未引用、未定级的草稿普查可以删除');
+      return;
     }
+    const next = points.filter(p => p.id !== id);
     try {
-      await patchPoints(patched);
+      await patchPoints(next);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '删除失败，请重试');
       return;
     }
     message.success('已删除');
     setModalOpen(false);
+  };
+
+  const closeSurveyModal = () => {
+    const close = () => {
+      setModalOpen(false);
+      setCopySource(null);
+      form.resetFields();
+    };
+    if (detailOnly || !form.isFieldsTouched(true)) {
+      close();
+      return;
+    }
+    Modal.confirm({
+      title: '放弃未保存修改？',
+      content: '当前普查草稿尚未保存，关闭后本次输入将丢失。',
+      okText: '放弃修改',
+      okButtonProps: { danger: true },
+      cancelText: '继续编辑',
+      onOk: close,
+    });
   };
 
   const handleSave = async () => {
@@ -577,12 +590,13 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       return;
     }
 
+    const sourceForSave = editing ?? copySource;
     if (
-      editing?.surveyArchitectureRefId &&
-      !architectureRecords.some(record => record.id === editing.surveyArchitectureRefId)
+      sourceForSave?.surveyArchitectureRefId &&
+      !architectureRecords.some(record => record.id === sourceForSave.surveyArchitectureRefId)
     ) {
       message.error(
-        `本条普查绑定的评价版本（${editing.surveyArchitectureRefId}）已不存在，请恢复该版本后再保存`,
+        `本条普查绑定的评价版本（${sourceForSave.surveyArchitectureRefId}）已不存在，请恢复该版本后再保存`,
       );
       return;
     }
@@ -642,12 +656,19 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           editing.surveyArchitectureRefId,
           ratingArchitectureRecord,
         )
-      : resolveSelectedArchitectureRecord(
+      : copySource?.surveyArchitectureRefId
+        ? resolveSurveyArchitectureRecord(
+            architectureRecords,
+            copySource.surveyArchitectureRefId,
+            ratingArchitectureRecord,
+          )
+        : resolveSelectedArchitectureRecord(
           architectureRecords,
           selectedArchitectureId,
           ratingArchitectureRecord,
         );
 
+    const isCopyDraft = Boolean(copySource);
     const row: WaterloggingPointRow = {
       id: editing?.id ?? `pt-${Date.now()}`,
       registryId: registry.id,
@@ -659,25 +680,27 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
       lng: registry.lng,
       lat: registry.lat,
       surveyPayload: syncedPayload,
-      surveyStatus: surveyComplete ? 'completed' : 'draft',
-      assessmentStatus: editing?.assessmentStatus ?? 'none',
-      assessmentPayload: editing?.assessmentPayload ?? emptyAssessmentPayload(),
-      ratingStatus: editing?.ratingStatus ?? 'none',
-      ratingResult: editing?.ratingResult,
-      collector: syncedPayload.appendixB?.collectorName ?? editing?.collector,
+      surveyStatus: isCopyDraft ? 'draft' : surveyComplete ? 'completed' : 'draft',
+      assessmentStatus: isCopyDraft ? 'none' : editing?.assessmentStatus ?? 'none',
+      assessmentPayload: isCopyDraft ? emptyAssessmentPayload() : editing?.assessmentPayload ?? emptyAssessmentPayload(),
+      ratingStatus: isCopyDraft ? 'none' : editing?.ratingStatus ?? 'none',
+      ratingResult: isCopyDraft ? undefined : editing?.ratingResult,
+      collector: syncedPayload.appendixB?.collectorName ?? editing?.collector ?? copySource?.collector,
       collectedAt: surveyAt,
       surveyAt,
       label: (values.label as string | undefined)?.trim() || undefined,
-      activeForRating: editing?.activeForRating ?? false,
-      surveyArchitectureRefId: pinnedArch?.id ?? editing?.surveyArchitectureRefId,
-      surveyArchitectureRefAt: pinnedArch?.configAt ?? editing?.surveyArchitectureRefAt,
-      surveyArchitectureVersionNo: pinnedArch?.versionNo ?? editing?.surveyArchitectureVersionNo,
+      activeForRating: isCopyDraft ? false : editing?.activeForRating ?? false,
+      surveyArchitectureRefId: pinnedArch?.id ?? editing?.surveyArchitectureRefId ?? copySource?.surveyArchitectureRefId,
+      surveyArchitectureRefAt: pinnedArch?.configAt ?? editing?.surveyArchitectureRefAt ?? copySource?.surveyArchitectureRefAt,
+      surveyArchitectureVersionNo: pinnedArch?.versionNo ?? editing?.surveyArchitectureVersionNo ?? copySource?.surveyArchitectureVersionNo,
     };
 
     const baseList = applySurveyToPoints(points, row);
 
-    if (!surveyComplete) {
-      if (!ok) {
+    if (isCopyDraft || !surveyComplete) {
+      if (isCopyDraft) {
+        message.info('已复制为草稿，原普查、定级结果及数据引用均未改动；请在草稿中调整后再次保存完成');
+      } else if (!ok) {
         message.warning(
           `仍有必填指标未填写：${missing.slice(0, 3).join('、')}${missing.length > 3 ? '…' : ''}`,
         );
@@ -693,20 +716,12 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
         return;
       }
       setModalOpen(false);
+      setCopySource(null);
       return;
     }
 
-    const withActive = setActiveSurveyRecord(baseList, row.id);
-    const saved = withActive.find(p => p.id === row.id)!;
-    try {
-      await patchPoints(withActive);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '普查保存失败，请重试');
-      return;
-    }
-    setModalOpen(false);
-    message.success('普查已保存');
-    openRatingConfirm({ ...saved, activeForRating: true }, withActive);
+    // 已完成普查先进入确认态；确认前不写入工作区、不改变数据引用。
+    openRatingConfirm(row, baseList);
   };
 
   const columns: ColumnsType<WaterloggingPointRow> = [
@@ -876,7 +891,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
             className="action-btn"
             onClick={() => openEdit(row)}
           >
-            编辑
+            {row.ratingStatus === 'completed' || row.activeForRating ? '复制编辑' : '编辑'}
           </Button>
           {row.surveyStatus === 'completed' && getSurveyRowIntegrity(row).ready ? (
             <Tooltip
@@ -920,7 +935,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
                   ? '没有定级不可引用'
                   : getActiveSurveySibling(points, row)
                     ? `同易涝点仅可数据引用一条普查记录，将替换当前引用（${resolveSurveyAt(getActiveSurveySibling(points, row)!)}）`
-                    : '设为该易涝点的数据引用版本（内涝基本信息将同步本份普查数据）'
+                    : '设为该易涝点的数据引用版本；不会改写其它历史普查快照'
               }
             >
               <Button
@@ -943,7 +958,7 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
   const pointTypeWatch = Form.useWatch('pointType', form) as SurveyPointType | undefined;
   const registryIdWatch = Form.useWatch('registryId', form) as string | undefined;
   const createTownCodeWatch = Form.useWatch('createTownCode', form) as string | undefined;
-  const isCreate = !editing;
+  const isCreate = !editing && !copySource;
 
   const filteredRegistryOptionsForCreate = useMemo(() => {
     if (!createTownCodeWatch) return [];
@@ -1104,21 +1119,29 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
         title={
           <Space align="center" size="small">
             <span>
-              {detailOnly ? '内涝普查定级详情' : editing ? '编辑内涝普查定级' : '新增内涝普查定级'}
+              {detailOnly
+                ? '内涝普查定级详情'
+                : copySource
+                  ? '复制为内涝普查草稿'
+                  : editing
+                    ? '编辑内涝普查定级'
+                    : '新增内涝普查定级'}
             </span>
             <ArchitectureVersionRefTag record={modalArchitectureRecord} />
           </Space>
         }
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={closeSurveyModal}
         width={900}
         footer={
           detailOnly ? (
             <Button onClick={() => setModalOpen(false)}>关闭</Button>
           ) : (
             <Space>
-              <Button onClick={() => setModalOpen(false)}>取消</Button>
-              {editing ? (
+              <Button onClick={closeSurveyModal}>
+                取消
+              </Button>
+              {editing && editing.surveyStatus === 'draft' && !editing.activeForRating && editing.ratingStatus !== 'completed' ? (
                 <Popconfirm title="确定删除该条普查记录？" onConfirm={() => handleDelete(editing.id)}>
                   <Button danger>删除</Button>
                 </Popconfirm>
@@ -1137,14 +1160,15 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
           disabled={detailOnly}
           className={`${SURVEY_MODAL_FORM_CLASS}${detailOnly ? ' dq-form-detail-view' : ''}`}
         >
-          {editing ? (
+          {editing || copySource ? (
             <Space style={{ marginBottom: 12 }} wrap>
-              {editing.activeForRating ? <Tag color="blue">数据引用版本</Tag> : null}
-              <Tag color={editing.surveyStatus === 'completed' ? 'success' : 'default'}>
-                {editing.surveyStatus === 'completed' ? '已完成' : '草稿'}
+              {copySource ? <Tag color="gold">复制来源</Tag> : null}
+              {editing?.activeForRating ? <Tag color="blue">数据引用版本</Tag> : null}
+              <Tag color={(editing ?? copySource)!.surveyStatus === 'completed' ? 'success' : 'default'}>
+                {copySource ? '将保存为草稿' : (editing ?? copySource)!.surveyStatus === 'completed' ? '已完成' : '草稿'}
               </Tag>
               <Text type="secondary">
-                {editing.pointCode} · {editing.name}
+                {(editing ?? copySource)!.pointCode} · {(editing ?? copySource)!.name}
               </Text>
             </Space>
           ) : null}
@@ -1213,7 +1237,11 @@ export const HazardPointSurveyPage: React.FC<Props> = ({
                           <Input />
                         </Form.Item>
                         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                          台账易涝点：{editing?.name}（{editing ? HAZARD_POINT_TYPE_LABEL[editing.pointType] : ''}）
+                          台账易涝点：{(editing ?? copySource)?.name}（
+                          {editing ?? copySource
+                            ? HAZARD_POINT_TYPE_LABEL[(editing ?? copySource)!.pointType]
+                            : ''}
+                          ）
                         </Text>
                       </>
                     )}

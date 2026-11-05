@@ -1,5 +1,19 @@
 import type { RegionalPreventionRecord } from './types';
 
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(item => stableSerialize(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export function sortPreventionRecords(
   records: RegionalPreventionRecord[],
 ): RegionalPreventionRecord[] {
@@ -30,6 +44,19 @@ export function isPreventionVersionImmutable(
   referenced = false,
 ): boolean {
   return referenced || record.activeForRating || record.config.assessmentStatus === 'completed';
+}
+
+/** 已锁定 V₄ 记录复制时，只有填报值或批次说明变化才允许产生新版本。 */
+export function hasMeaningfulPreventionCopyChanges(
+  source: RegionalPreventionRecord,
+  indicatorValues: RegionalPreventionRecord['config']['indicatorValues'],
+  suggestedLabel: string,
+  currentLabel: string | undefined,
+): boolean {
+  return (
+    stableSerialize(source.config.indicatorValues) !== stableSerialize(indicatorValues) ||
+    (currentLabel ?? '').trim() !== suggestedLabel.trim()
+  );
 }
 
 /** 为缺少 versionNo 的历史记录按 configAt 顺序补编号 */
